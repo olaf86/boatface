@@ -1,6 +1,6 @@
 import 'quiz_models.dart';
 
-const int kMasterQuestionCount = 1600;
+const int kMasterQuestionCount = 4096;
 
 const List<QuizSegment> kChallengeSegments = <QuizSegment>[
   QuizSegment(promptType: QuizPromptType.faceToName, count: 20),
@@ -40,7 +40,7 @@ const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[
   QuizModeConfig(
     id: 'master',
     label: '達人',
-    description: '約1600問・全問 顔 -> 選手名',
+    description: '最大4096問・全問 顔 -> 選手名',
     timeLimitSeconds: 10,
     segments: <QuizSegment>[
       QuizSegment(
