@@ -134,17 +134,12 @@ class _ModeListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String subtitle = mode.availableInMvp
-        ? _modeSummary(mode)
-        : 'MVP 対象外';
-
     return Card(
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         enabled: mode.availableInMvp,
         onTap: onTap,
         title: Text(mode.label),
-        subtitle: Text(subtitle),
         trailing: mode.availableInMvp
             ? const Icon(Icons.chevron_right)
             : const Chip(
@@ -153,12 +148,5 @@ class _ModeListItem extends StatelessWidget {
               ),
       ),
     );
-  }
-
-  String _modeSummary(QuizModeConfig mode) {
-    final String timeText = mode.timeLimitSeconds == null
-        ? '時間無制限'
-        : '1問 ${mode.timeLimitSeconds} 秒';
-    return '${mode.questionCount}問 / $timeText';
   }
 }
