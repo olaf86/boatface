@@ -105,10 +105,10 @@ class BoatfaceApp extends ConsumerWidget {
         useMaterial3: true,
         colorScheme: colorScheme,
         textTheme: textTheme,
-        scaffoldBackgroundColor: Colors.transparent,
+        scaffoldBackgroundColor: const Color(0xFFEAF9FF),
         canvasColor: foamWhite,
         appBarTheme: AppBarTheme(
-          backgroundColor: Colors.transparent,
+          backgroundColor: const Color(0xFFEAF9FF),
           foregroundColor: colorScheme.primary,
           elevation: 0,
           centerTitle: false,
