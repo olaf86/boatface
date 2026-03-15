@@ -1,46 +1,33 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../application/quiz_session.dart';
-import '../data/mock_racer_repository.dart';
+import '../application/quiz_session_controller.dart';
+import '../application/quiz_session_state.dart';
 import '../domain/quiz_models.dart';
 
-class QuizScreen extends StatefulWidget {
-  const QuizScreen({required this.mode, required this.repository, super.key});
+class QuizScreen extends ConsumerStatefulWidget {
+  const QuizScreen({required this.mode, super.key});
 
   final QuizModeConfig mode;
-  final MockRacerRepository repository;
 
   @override
-  State<QuizScreen> createState() => _QuizScreenState();
+  ConsumerState<QuizScreen> createState() => _QuizScreenState();
 }
 
-class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
-  late final QuizSession _session;
-  late final Stopwatch _stopwatch;
-  Timer? _ticker;
-  bool _processing = false;
+class _QuizScreenState extends ConsumerState<QuizScreen>
+    with WidgetsBindingObserver {
+  bool _didPop = false;
+  bool _dialogVisible = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-
-    _session = QuizSessionFactory.create(
-      mode: widget.mode,
-      racers: widget.repository.fetchAll(),
-      problemSetVersion: '2026H1',
-    );
-    _stopwatch = Stopwatch()..start();
-    _startTicker();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _ticker?.cancel();
-    _stopwatch.stop();
     super.dispose();
   }
 
@@ -48,31 +35,64 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
-      if (!_session.gameOver && !_session.isCompleted) {
-        _session.submitTimeout(elapsed: _stopwatch.elapsed);
-        _goToResult();
-      }
+      ref
+          .read(quizSessionControllerProvider(widget.mode).notifier)
+          .handleLifecyclePause();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final QuizQuestion? question = _session.currentQuestion;
-    if (_session.isCompleted || _session.gameOver || question == null) {
+    final provider = quizSessionControllerProvider(widget.mode);
+    ref.listen<QuizSessionState>(provider, (
+      QuizSessionState? previous,
+      QuizSessionState next,
+    ) {
+      if (!mounted || _didPop) {
+        return;
+      }
+
+      if (next.gameOver && !(previous?.gameOver ?? false) && !_dialogVisible) {
+        _showGameOverDialog(canContinue: next.canContinueWithAd);
+        return;
+      }
+
+      if (next.isCompleted &&
+          !next.gameOver &&
+          !(previous?.isCompleted ?? false) &&
+          !_dialogVisible) {
+        _goToResult();
+      }
+
+      if (next.endReason == QuizEndReason.abandoned &&
+          previous?.endReason != QuizEndReason.abandoned) {
+        _goToResult();
+      }
+    });
+
+    final QuizSessionState state = ref.watch(provider);
+    final QuizQuestion? question = state.currentQuestion;
+
+    if (question == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _goToResult());
       return const Scaffold(body: SizedBox.shrink());
     }
 
-    final int questionNumber = _session.currentIndex + 1;
-    final int total = _session.questions.length;
-    final String timerText = _timerLabel();
+    final int questionNumber = state.currentQuestionIndex + 1;
+    final String timerText = state.remainingForCurrentQuestion == null
+        ? '--'
+        : (state.remainingForCurrentQuestion!.inMilliseconds / 1000)
+              .toStringAsFixed(1);
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (didPop) {
+          return;
+        }
         final bool? leave = await showDialog<bool>(
           context: context,
-          builder: (_) => AlertDialog(
+          builder: (BuildContext context) => AlertDialog(
             title: const Text('クイズを終了'),
             content: const Text('途中離脱としてスコアはランキングに反映されません。終了しますか？'),
             actions: <Widget>[
@@ -87,14 +107,15 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
             ],
           ),
         );
-        if (leave == true) {
-          _session.abandon();
-          _goToResult();
+        if (leave == true && mounted) {
+          ref.read(provider.notifier).abandon();
         }
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text('${widget.mode.label}  $questionNumber/$total'),
+          title: Text(
+            '${widget.mode.label}  $questionNumber/${state.totalQuestions}',
+          ),
         ),
         body: Padding(
           padding: const EdgeInsets.all(16),
@@ -125,7 +146,9 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
                       const SizedBox(height: 8),
                   itemBuilder: (BuildContext context, int i) =>
                       FilledButton.tonal(
-                        onPressed: _processing ? null : () => _submit(i),
+                        onPressed: state.isProcessing
+                            ? null
+                            : () => ref.read(provider.notifier).submitAnswer(i),
                         style: FilledButton.styleFrom(
                           alignment: Alignment.centerLeft,
                           padding: const EdgeInsets.all(16),
@@ -141,66 +164,21 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _startTicker() {
-    _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (!mounted || _session.isCompleted || _session.gameOver) {
-        return;
-      }
-
-      final int? limitSeconds = widget.mode.timeLimitSeconds;
-      if (limitSeconds != null) {
-        final Duration limit = Duration(seconds: limitSeconds);
-        if (_stopwatch.elapsed >= limit) {
-          _session.submitTimeout(elapsed: _stopwatch.elapsed);
-          _showGameOverDialog();
-          return;
-        }
-      }
-      setState(() {});
-    });
-  }
-
-  Future<void> _submit(int selectedIndex) async {
-    setState(() {
-      _processing = true;
-    });
-    _session.submitAnswer(
-      selectedIndex: selectedIndex,
-      elapsed: _stopwatch.elapsed,
-    );
-    if (_session.gameOver) {
-      await _showGameOverDialog();
-      return;
-    }
-
-    if (_session.isCompleted) {
-      _goToResult();
-      return;
-    }
-
-    _stopwatch
-      ..reset()
-      ..start();
-    setState(() {
-      _processing = false;
-    });
-  }
-
-  Future<void> _showGameOverDialog() async {
-    _stopwatch.stop();
-    final bool canContinue = _session.canContinueWithAd;
+  Future<void> _showGameOverDialog({required bool canContinue}) async {
+    _dialogVisible = true;
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
+      builder: (BuildContext context) => AlertDialog(
         title: const Text('ゲームオーバー'),
         content: Text(canContinue ? '広告を見て1回だけ続行できます。' : 'セッションを終了します。'),
         actions: <Widget>[
           if (canContinue)
             TextButton(
               onPressed: () {
-                _session.continueAfterAd();
+                ref
+                    .read(quizSessionControllerProvider(widget.mode).notifier)
+                    .continueAfterAd();
                 Navigator.of(context).pop();
               },
               child: const Text('広告を見て続行'),
@@ -212,47 +190,28 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
         ],
       ),
     );
+    _dialogVisible = false;
 
-    if (!mounted) {
+    if (!mounted || _didPop) {
       return;
     }
 
-    if (_session.gameOver) {
+    final QuizSessionState state = ref.read(
+      quizSessionControllerProvider(widget.mode),
+    );
+    if (state.gameOver || state.isCompleted) {
       _goToResult();
-      return;
     }
-
-    if (_session.isCompleted) {
-      _goToResult();
-      return;
-    }
-
-    _stopwatch
-      ..reset()
-      ..start();
-    setState(() {
-      _processing = false;
-    });
-  }
-
-  String _timerLabel() {
-    final int? limitSeconds = widget.mode.timeLimitSeconds;
-    if (limitSeconds == null) {
-      return '--';
-    }
-    final int leftMs =
-        (Duration(seconds: limitSeconds).inMilliseconds -
-                _stopwatch.elapsedMilliseconds)
-            .clamp(0, 99999999);
-    return (leftMs / 1000).toStringAsFixed(1);
   }
 
   void _goToResult() {
-    if (!mounted) {
+    if (!mounted || _didPop) {
       return;
     }
-    _ticker?.cancel();
-    _stopwatch.stop();
-    Navigator.of(context).pop(_session.toSummary());
+    _didPop = true;
+    final summary = ref
+        .read(quizSessionControllerProvider(widget.mode).notifier)
+        .summary;
+    Navigator.of(context).pop(summary);
   }
 }

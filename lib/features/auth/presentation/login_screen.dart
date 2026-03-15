@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class LoginScreen extends StatelessWidget {
-  const LoginScreen({required this.onSignedIn, super.key});
+import '../application/auth_controller.dart';
 
-  final ValueChanged<String> onSignedIn;
+class LoginScreen extends ConsumerWidget {
+  const LoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -25,23 +26,29 @@ class LoginScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'ログイン',
+                    'ログインしてクイズを開始',
                     style: Theme.of(context).textTheme.bodyMedium,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
                   FilledButton(
-                    onPressed: () => onSignedIn('ゲストログイン'),
-                    child: const Text('ゲストアカウントでログイン'),
+                    onPressed: () => ref
+                        .read(authControllerProvider.notifier)
+                        .signIn('匿名ログイン'),
+                    child: const Text('匿名ログイン'),
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton(
-                    onPressed: () => onSignedIn('Google'),
+                    onPressed: () => ref
+                        .read(authControllerProvider.notifier)
+                        .signIn('Google'),
                     child: const Text('Google でログイン'),
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton(
-                    onPressed: () => onSignedIn('GameCenter'),
+                    onPressed: () => ref
+                        .read(authControllerProvider.notifier)
+                        .signIn('GameCenter'),
                     child: const Text('GameCenter でログイン'),
                   ),
                 ],

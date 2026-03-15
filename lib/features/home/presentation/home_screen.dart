@@ -1,24 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../quiz/data/mock_racer_repository.dart';
+import '../../auth/application/auth_controller.dart';
 import '../../quiz/domain/quiz_modes.dart';
 import '../../quiz/domain/quiz_models.dart';
 import '../../quiz/presentation/quiz_screen.dart';
 import '../../ranking/presentation/ranking_screen.dart';
 import '../../result/presentation/result_screen.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({
-    required this.providerLabel,
-    required this.onSignOut,
-    super.key,
-  });
-
-  final String providerLabel;
-  final VoidCallback onSignOut;
+class HomeScreen extends ConsumerWidget {
+  const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final String providerLabel =
+        ref.watch(authControllerProvider).providerLabel ?? '-';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Boatface'),
@@ -34,7 +31,8 @@ class HomeScreen extends StatelessWidget {
           ),
           IconButton(
             tooltip: 'ログアウト',
-            onPressed: onSignOut,
+            onPressed: () =>
+                ref.read(authControllerProvider.notifier).signOut(),
             icon: const Icon(Icons.logout),
           ),
         ],
@@ -121,10 +119,7 @@ class _ModeCard extends StatelessWidget {
                     ? () async {
                         final quizResult = await Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => QuizScreen(
-                              mode: mode,
-                              repository: MockRacerRepository(),
-                            ),
+                            builder: (_) => QuizScreen(mode: mode),
                           ),
                         );
                         if (context.mounted && quizResult != null) {

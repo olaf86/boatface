@@ -1,20 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/auth/application/auth_controller.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 
-class BoatfaceApp extends StatefulWidget {
+class BoatfaceApp extends ConsumerWidget {
   const BoatfaceApp({super.key});
 
   @override
-  State<BoatfaceApp> createState() => _BoatfaceAppState();
-}
-
-class _BoatfaceAppState extends State<BoatfaceApp> {
-  String? _signedInProvider;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authControllerProvider);
     return MaterialApp(
       title: 'Boatface',
       debugShowCheckedModeBanner: false,
@@ -22,22 +18,7 @@ class _BoatfaceAppState extends State<BoatfaceApp> {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0A5A8A)),
         useMaterial3: true,
       ),
-      home: _signedInProvider == null
-          ? LoginScreen(
-              onSignedIn: (String provider) {
-                setState(() {
-                  _signedInProvider = provider;
-                });
-              },
-            )
-          : HomeScreen(
-              providerLabel: _signedInProvider!,
-              onSignOut: () {
-                setState(() {
-                  _signedInProvider = null;
-                });
-              },
-            ),
+      home: authState.isSignedIn ? const HomeScreen() : const LoginScreen(),
     );
   }
 }
