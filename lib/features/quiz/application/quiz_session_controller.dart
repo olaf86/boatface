@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/quiz_data_providers.dart';
 import '../domain/quiz_models.dart';
-import 'quiz_app_config_provider.dart';
 import 'quiz_session.dart';
 import 'quiz_session_state.dart';
 
@@ -29,13 +28,8 @@ class QuizSessionController
   @override
   QuizSessionState build(QuizModeConfig mode) {
     final racers = ref.read(mockRacerRepositoryProvider).fetchAll();
-    final String version = ref.read(problemSetVersionProvider);
 
-    _session = QuizSessionFactory.create(
-      mode: mode,
-      racers: racers,
-      problemSetVersion: version,
-    );
+    _session = QuizSessionFactory.create(mode: mode, racers: racers);
     _stopwatch = Stopwatch()..start();
     _ticker = Timer.periodic(const Duration(milliseconds: 100), _onTick);
     ref.onDispose(() {
@@ -138,7 +132,6 @@ class QuizSessionController
       continuedByAd: _session.continuedByAd,
       rankingEligible: _session.rankingEligible,
       endReason: _session.endReason,
-      seedToken: _session.seedToken,
       isProcessing: isProcessing,
     );
   }

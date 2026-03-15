@@ -17,7 +17,6 @@ class QuizSessionState {
     required this.continuedByAd,
     required this.rankingEligible,
     required this.endReason,
-    required this.seedToken,
     required this.isProcessing,
   });
 
@@ -36,7 +35,6 @@ class QuizSessionState {
   final bool continuedByAd;
   final bool rankingEligible;
   final QuizEndReason? endReason;
-  final String seedToken;
   final bool isProcessing;
 
   QuizSessionState copyWith({
@@ -57,7 +55,6 @@ class QuizSessionState {
     bool? rankingEligible,
     QuizEndReason? endReason,
     bool replaceEndReason = false,
-    String? seedToken,
     bool? isProcessing,
   }) {
     return QuizSessionState(
@@ -81,7 +78,6 @@ class QuizSessionState {
       continuedByAd: continuedByAd ?? this.continuedByAd,
       rankingEligible: rankingEligible ?? this.rankingEligible,
       endReason: replaceEndReason ? endReason : (endReason ?? this.endReason),
-      seedToken: seedToken ?? this.seedToken,
       isProcessing: isProcessing ?? this.isProcessing,
     );
   }

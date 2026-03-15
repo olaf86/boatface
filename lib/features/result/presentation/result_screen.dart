@@ -44,7 +44,6 @@ class ResultScreen extends StatelessWidget {
                 value:
                     '${(summary.totalAnswerTime.inMilliseconds / 1000).toStringAsFixed(1)} 秒',
               ),
-              _MetricRow(label: 'シード値', value: summary.seedToken),
               _MetricRow(
                 label: '広告続行',
                 value: summary.continuedByAd ? 'あり（1回）' : 'なし',

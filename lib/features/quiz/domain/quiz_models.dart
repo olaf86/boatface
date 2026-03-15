@@ -108,7 +108,6 @@ class QuizResultSummary {
     required this.correctAnswers,
     required this.totalQuestions,
     required this.totalAnswerTime,
-    required this.seedToken,
     required this.endReason,
     required this.rankingEligible,
     required this.continuedByAd,
@@ -120,7 +119,6 @@ class QuizResultSummary {
   final int correctAnswers;
   final int totalQuestions;
   final Duration totalAnswerTime;
-  final String seedToken;
   final QuizEndReason endReason;
   final bool rankingEligible;
   final bool continuedByAd;

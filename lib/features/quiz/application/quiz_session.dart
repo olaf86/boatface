@@ -3,16 +3,9 @@ import 'dart:math';
 import '../domain/quiz_models.dart';
 
 class QuizSession {
-  QuizSession({
-    required this.mode,
-    required this.problemSetVersion,
-    required this.seed,
-    required this.questions,
-  });
+  QuizSession({required this.mode, required this.questions});
 
   final QuizModeConfig mode;
-  final String problemSetVersion;
-  final int seed;
   final List<QuizQuestion> questions;
 
   int currentIndex = 0;
@@ -23,8 +16,6 @@ class QuizSession {
   bool rankingEligible = true;
   bool continuedByAd = false;
   QuizEndReason? endReason;
-
-  String get seedToken => '$problemSetVersion-$seed';
 
   QuizQuestion? get currentQuestion =>
       currentIndex >= 0 && currentIndex < questions.length
@@ -91,7 +82,6 @@ class QuizSession {
       correctAnswers: correctAnswers,
       totalQuestions: questions.length,
       totalAnswerTime: totalAnswerTime,
-      seedToken: seedToken,
       endReason: endReason ?? QuizEndReason.completed,
       rankingEligible: rankingEligible,
       continuedByAd: continuedByAd,
@@ -115,11 +105,8 @@ class QuizSessionFactory {
   static QuizSession create({
     required QuizModeConfig mode,
     required List<RacerProfile> racers,
-    required String problemSetVersion,
-    int? seed,
   }) {
-    final int resolvedSeed = seed ?? DateTime.now().millisecondsSinceEpoch;
-    final Random random = Random(resolvedSeed);
+    final Random random = Random();
     final int count = mode.questionCount;
     final List<RacerProfile> base = List<RacerProfile>.from(racers)
       ..shuffle(random);
@@ -144,12 +131,7 @@ class QuizSessionFactory {
       }
     }
 
-    return QuizSession(
-      mode: mode,
-      problemSetVersion: problemSetVersion,
-      seed: resolvedSeed,
-      questions: questions,
-    );
+    return QuizSession(mode: mode, questions: questions);
   }
 
   static QuizQuestion _buildQuestion({
