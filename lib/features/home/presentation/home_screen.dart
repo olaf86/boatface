@@ -31,8 +31,28 @@ class HomeScreen extends ConsumerWidget {
           ),
           IconButton(
             tooltip: 'ログアウト',
-            onPressed: () =>
-                ref.read(authControllerProvider.notifier).signOut(),
+            onPressed: () async {
+              final bool? confirmed = await showDialog<bool>(
+                context: context,
+                builder: (BuildContext context) => AlertDialog(
+                  title: const Text('ログアウト確認'),
+                  content: const Text('ログアウトしますか？'),
+                  actions: <Widget>[
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('キャンセル'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('ログアウト'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true && context.mounted) {
+                ref.read(authControllerProvider.notifier).signOut();
+              }
+            },
             icon: const Icon(Icons.logout),
           ),
         ],
