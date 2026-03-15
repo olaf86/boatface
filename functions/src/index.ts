@@ -19,6 +19,7 @@ const sessionLifetimeMinutes = 30;
 const defaultRankingLimit = 50;
 const maxRankingLimit = 100;
 const rankingRefreshReadLimit = 200;
+const racerDatasetStateDocPath = "app_config/racer_dataset_state";
 const allowedModeIds = new Set([
   "quick",
   "careful",
@@ -304,6 +305,46 @@ async function refreshRankingSnapshots(modeId: string, dailyKey: string, termKey
       entries: termEntries,
     }),
   ]);
+}
+
+type RacerDatasetSelection = {
+  datasetId: string;
+  source: "current" | "fallback" | "explicit";
+};
+
+async function resolveRacerDatasetSelection(query: {
+  datasetId?: unknown;
+}): Promise<RacerDatasetSelection> {
+  const explicitDatasetId = requireString(query.datasetId);
+  if (explicitDatasetId) {
+    return {
+      datasetId: explicitDatasetId,
+      source: "explicit",
+    };
+  }
+
+  const stateSnapshot = await db.doc(racerDatasetStateDocPath).get();
+  if (!stateSnapshot.exists) {
+    throw new Error("racer_dataset_state_missing");
+  }
+
+  const currentDatasetId = requireString(stateSnapshot.get("currentDatasetId"));
+  if (currentDatasetId) {
+    return {
+      datasetId: currentDatasetId,
+      source: "current",
+    };
+  }
+
+  const fallbackDatasetId = requireString(stateSnapshot.get("fallbackDatasetId"));
+  if (!fallbackDatasetId) {
+    throw new Error("fallback_racer_dataset_missing");
+  }
+
+  return {
+    datasetId: fallbackDatasetId,
+    source: "fallback",
+  };
 }
 
 export const createQuizSession = onRequest({region}, async (request, response) => {
@@ -599,7 +640,17 @@ export const getRacers = onRequest({region}, async (request, response) => {
     await upsertUserProfile(token);
 
     const active = parseOptionalBoolean(request.query.active);
-    let query = db.collection("racers").orderBy("registrationNumber", "asc");
+    const datasetSelection = await resolveRacerDatasetSelection({
+      datasetId: request.query.datasetId,
+    });
+    const datasetRef = db.collection("racer_datasets").doc(datasetSelection.datasetId);
+    const datasetSnapshot = await datasetRef.get();
+    if (!datasetSnapshot.exists) {
+      sendError(response, 404, "dataset_not_found", "Requested racer dataset does not exist.");
+      return;
+    }
+
+    let query = datasetRef.collection("racers").orderBy("registrationNumber", "asc");
     if (active !== null) {
       query = query.where("isActive", "==", active) as typeof query;
     }
@@ -625,11 +676,25 @@ export const getRacers = onRequest({region}, async (request, response) => {
     logger.info("getRacers succeeded", {
       uid: token.uid,
       active,
+      datasetId: datasetSelection.datasetId,
+      datasetSource: datasetSelection.source,
       count: racers.length,
     });
     response.status(200).json(racers);
   } catch (error) {
     logger.error("getRacers failed", error);
+    if (error instanceof Error) {
+      if (error.message === "racer_dataset_state_missing") {
+        sendError(response, 503, "racer_dataset_state_missing", "No racer dataset state is configured.");
+        return;
+      }
+
+      if (error.message === "fallback_racer_dataset_missing") {
+        sendError(response, 404, "fallback_racer_dataset_missing", "No fallback racer dataset is configured.");
+        return;
+      }
+    }
+
     if (isAuthError(error)) {
       sendError(response, 401, "unauthenticated", "A valid Firebase ID token is required.");
       return;

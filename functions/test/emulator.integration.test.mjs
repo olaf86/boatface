@@ -86,8 +86,23 @@ async function signInUser() {
 }
 
 async function seedRacers() {
+  await db.doc("app_config/racer_dataset_state").set({
+    currentDatasetId: "dataset-current",
+    fallbackDatasetId: "dataset-fallback",
+  });
+
   await Promise.all([
-    db.collection("racers").doc("racer-active").set({
+    db.collection("racer_datasets").doc("dataset-current").set({
+      datasetId: "dataset-current",
+      racerCount: 2,
+      sourceType: "seed",
+    }),
+    db.collection("racer_datasets").doc("dataset-fallback").set({
+      datasetId: "dataset-fallback",
+      racerCount: 1,
+      sourceType: "seed",
+    }),
+    db.collection("racer_datasets").doc("dataset-current").collection("racers").doc("racer-active").set({
       name: "Active Racer",
       registrationNumber: 1001,
       imageUrl: "https://example.com/active.png",
@@ -95,13 +110,21 @@ async function seedRacers() {
       updatedAt: new Date("2026-03-15T00:00:00Z"),
       isActive: true,
     }),
-    db.collection("racers").doc("racer-inactive").set({
+    db.collection("racer_datasets").doc("dataset-current").collection("racers").doc("racer-inactive").set({
       name: "Inactive Racer",
       registrationNumber: 1002,
       imageUrl: "https://example.com/inactive.png",
       imageSource: "seed",
       updatedAt: new Date("2026-03-15T00:00:00Z"),
       isActive: false,
+    }),
+    db.collection("racer_datasets").doc("dataset-fallback").collection("racers").doc("racer-fallback").set({
+      name: "Fallback Racer",
+      registrationNumber: 901,
+      imageUrl: "https://example.com/fallback.png",
+      imageSource: "seed",
+      updatedAt: new Date("2025-09-15T00:00:00Z"),
+      isActive: true,
     }),
   ]);
 }
@@ -135,6 +158,18 @@ test("functions endpoints work together in the emulator suite", async () => {
   assert.equal(Array.isArray(racersResult.body), true);
   assert.equal(racersResult.body.length, 1);
   assert.equal(racersResult.body[0].id, "racer-active");
+
+  await db.doc("app_config/racer_dataset_state").set({
+    currentDatasetId: null,
+  }, {merge: true});
+
+  const fallbackRacersResult = await callFunction("getRacers", {
+    method: "GET",
+    headers: {Authorization: `Bearer ${idToken}`},
+  });
+  assert.equal(fallbackRacersResult.response.status, 200);
+  assert.equal(fallbackRacersResult.body.length, 1);
+  assert.equal(fallbackRacersResult.body[0].id, "racer-fallback");
 
   const sessionResult = await callFunction("createQuizSession", {
     method: "POST",
