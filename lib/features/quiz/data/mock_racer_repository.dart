@@ -9,7 +9,7 @@ class MockRacerRepository {
     }
 
     final DateTime now = DateTime.now().toUtc();
-    final List<RacerProfile> racers = List<RacerProfile>.generate(1600, (
+    final List<RacerProfile> racers = List<RacerProfile>.generate(4096, (
       int i,
     ) {
       final int registration = 1000 + i;
