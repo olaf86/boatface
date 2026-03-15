@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../quiz/domain/quiz_modes.dart';
 import '../../quiz/domain/quiz_models.dart';
+import '../../quiz/presentation/quiz_rule_screen.dart';
 import '../../quiz/presentation/quiz_screen.dart';
 import '../../ranking/presentation/ranking_screen.dart';
 import '../../result/presentation/result_screen.dart';
@@ -57,106 +58,68 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final bool twoColumn = constraints.maxWidth >= 900;
-          final int columns = twoColumn ? 2 : 1;
-          return Column(
-            children: <Widget>[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: Text('ログイン: $providerLabel'),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: GridView.builder(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: columns,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: twoColumn ? 2.4 : 2.2,
+      body: Column(
+        children: <Widget>[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            child: Text('ログイン: $providerLabel'),
+          ),
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: kQuizModes.length,
+              separatorBuilder: (BuildContext context, int index) =>
+                  const SizedBox(height: 8),
+              itemBuilder: (BuildContext context, int index) {
+                final QuizModeConfig mode = kQuizModes[index];
+                return ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant,
                     ),
-                    itemCount: kQuizModes.length,
-                    itemBuilder: (BuildContext context, int index) {
-                      final QuizModeConfig mode = kQuizModes[index];
-                      return _ModeCard(mode: mode);
-                    },
                   ),
-                ),
-              ),
-            ],
-          );
-        },
+                  title: Text(mode.label),
+                  subtitle: Text(mode.description),
+                  trailing: !mode.availableInMvp
+                      ? const Chip(
+                          label: Text('準備中'),
+                          visualDensity: VisualDensity.compact,
+                        )
+                      : const Icon(Icons.chevron_right),
+                  enabled: mode.availableInMvp,
+                  onTap: mode.availableInMvp
+                      ? () => _startFlow(context, mode)
+                      : null,
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
-}
 
-class _ModeCard extends StatelessWidget {
-  const _ModeCard({required this.mode});
+  Future<void> _startFlow(BuildContext context, QuizModeConfig mode) async {
+    final QuizModeConfig? resolvedMode = await Navigator.of(context)
+        .push<QuizModeConfig>(
+          MaterialPageRoute(builder: (_) => QuizRuleScreen(baseMode: mode)),
+        );
+    if (!context.mounted || resolvedMode == null) {
+      return;
+    }
 
-  final QuizModeConfig mode;
-
-  @override
-  Widget build(BuildContext context) {
-    final String timeText = mode.timeLimitSeconds == null
-        ? '時間無制限'
-        : '1問 ${mode.timeLimitSeconds} 秒';
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    mode.label,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                if (!mode.availableInMvp)
-                  const Chip(
-                    label: Text('準備中'),
-                    visualDensity: VisualDensity.compact,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(mode.description),
-            const SizedBox(height: 6),
-            Text('問題数: ${mode.questionCount}問 / $timeText'),
-            const Spacer(),
-            Align(
-              alignment: Alignment.bottomRight,
-              child: FilledButton(
-                onPressed: mode.availableInMvp
-                    ? () async {
-                        final quizResult = await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => QuizScreen(mode: mode),
-                          ),
-                        );
-                        if (context.mounted && quizResult != null) {
-                          await Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => ResultScreen(summary: quizResult),
-                            ),
-                          );
-                        }
-                      }
-                    : null,
-                child: const Text('開始'),
-              ),
-            ),
-          ],
+    final quizResult = await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => QuizScreen(mode: resolvedMode)));
+    if (context.mounted && quizResult != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ResultScreen(summary: quizResult),
         ),
-      ),
-    );
+      );
+    }
   }
 }

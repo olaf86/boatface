@@ -1,0 +1,272 @@
+import 'package:flutter/material.dart';
+
+import '../domain/quiz_models.dart';
+
+class QuizRuleScreen extends StatefulWidget {
+  const QuizRuleScreen({required this.baseMode, super.key});
+
+  final QuizModeConfig baseMode;
+
+  @override
+  State<QuizRuleScreen> createState() => _QuizRuleScreenState();
+}
+
+class _QuizRuleScreenState extends State<QuizRuleScreen> {
+  late final bool _isCustomMode;
+  late final Map<QuizPromptType, int> _editableCounts;
+  late bool _unlimitedTime;
+  late int _timeLimitSeconds;
+
+  @override
+  void initState() {
+    super.initState();
+    _isCustomMode = widget.baseMode.id == 'custom';
+    _editableCounts = <QuizPromptType, int>{
+      for (final QuizPromptType type in QuizPromptType.values) type: 0,
+    };
+    for (final QuizSegment segment in widget.baseMode.segments) {
+      _editableCounts[segment.promptType] = segment.count;
+    }
+    _unlimitedTime = widget.baseMode.timeLimitSeconds == null;
+    _timeLimitSeconds = widget.baseMode.timeLimitSeconds ?? 10;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final int totalQuestions = _totalQuestionCount();
+    return Scaffold(
+      appBar: AppBar(title: Text('${widget.baseMode.label} ルール')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: <Widget>[
+          Text(widget.baseMode.description),
+          const SizedBox(height: 12),
+          _SectionCard(
+            title: '基本設定',
+            children: <Widget>[
+              _ReadOnlyItem(label: 'モード', value: widget.baseMode.label),
+              _ReadOnlyItem(label: '問題数', value: '$totalQuestions 問'),
+              _RuleItem(
+                label: '時間制限',
+                readOnly: !_isCustomMode,
+                valueText: _unlimitedTime ? '無制限' : '$_timeLimitSeconds 秒',
+                editor: _isCustomMode
+                    ? Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('無制限'),
+                              value: _unlimitedTime,
+                              onChanged: (bool value) {
+                                setState(() {
+                                  _unlimitedTime = value;
+                                });
+                              },
+                            ),
+                          ),
+                          if (!_unlimitedTime)
+                            SizedBox(
+                              width: 140,
+                              child: DropdownButtonFormField<int>(
+                                initialValue: _timeLimitSeconds,
+                                decoration: const InputDecoration(
+                                  labelText: '秒数',
+                                  isDense: true,
+                                ),
+                                items: <int>[5, 10, 15, 20, 30]
+                                    .map(
+                                      (int second) => DropdownMenuItem<int>(
+                                        value: second,
+                                        child: Text('$second 秒'),
+                                      ),
+                                    )
+                                    .toList(growable: false),
+                                onChanged: (int? value) {
+                                  if (value == null) return;
+                                  setState(() {
+                                    _timeLimitSeconds = value;
+                                  });
+                                },
+                              ),
+                            ),
+                        ],
+                      )
+                    : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _SectionCard(
+            title: '出題形式',
+            children: <Widget>[
+              for (final QuizPromptType type in QuizPromptType.values)
+                _RuleItem(
+                  label: promptTypeLabel(type),
+                  readOnly: !_isCustomMode,
+                  valueText: '${_editableCounts[type] ?? 0} 問',
+                  editor: _isCustomMode
+                      ? _CountEditor(
+                          value: _editableCounts[type] ?? 0,
+                          onChanged: (int next) {
+                            setState(() {
+                              _editableCounts[type] = next;
+                            });
+                          },
+                        )
+                      : null,
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          FilledButton(
+            onPressed: totalQuestions > 0 ? _startQuiz : null,
+            child: const Text('スタート'),
+          ),
+          if (_isCustomMode && totalQuestions == 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                '問題数を1問以上に設定してください。',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  int _totalQuestionCount() {
+    return _editableCounts.values.fold<int>(
+      0,
+      (int sum, int count) => sum + count,
+    );
+  }
+
+  void _startQuiz() {
+    if (!_isCustomMode) {
+      Navigator.of(context).pop(widget.baseMode);
+      return;
+    }
+
+    final List<QuizSegment> segments = QuizPromptType.values
+        .map(
+          (QuizPromptType type) =>
+              QuizSegment(promptType: type, count: _editableCounts[type] ?? 0),
+        )
+        .where((QuizSegment segment) => segment.count > 0)
+        .toList(growable: false);
+
+    final QuizModeConfig resolved = widget.baseMode.copyWith(
+      description: 'カスタム設定',
+      clearTimeLimit: _unlimitedTime,
+      timeLimitSeconds: _unlimitedTime ? null : _timeLimitSeconds,
+      segments: segments,
+    );
+    Navigator.of(context).pop(resolved);
+  }
+}
+
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReadOnlyItem extends StatelessWidget {
+  const _ReadOnlyItem({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: <Widget>[
+          Expanded(child: Text(label)),
+          Text(value, style: Theme.of(context).textTheme.titleMedium),
+        ],
+      ),
+    );
+  }
+}
+
+class _RuleItem extends StatelessWidget {
+  const _RuleItem({
+    required this.label,
+    required this.readOnly,
+    required this.valueText,
+    this.editor,
+  });
+
+  final String label;
+  final bool readOnly;
+  final String valueText;
+  final Widget? editor;
+
+  @override
+  Widget build(BuildContext context) {
+    if (readOnly || editor == null) {
+      return _ReadOnlyItem(label: label, value: valueText);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[Text(label), const SizedBox(height: 8), editor!],
+      ),
+    );
+  }
+}
+
+class _CountEditor extends StatelessWidget {
+  const _CountEditor({required this.value, required this.onChanged});
+
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        IconButton(
+          onPressed: value > 0 ? () => onChanged(value - 1) : null,
+          icon: const Icon(Icons.remove_circle_outline),
+        ),
+        SizedBox(
+          width: 56,
+          child: Text(
+            '$value',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+        IconButton(
+          onPressed: value < 200 ? () => onChanged(value + 1) : null,
+          icon: const Icon(Icons.add_circle_outline),
+        ),
+      ],
+    );
+  }
+}

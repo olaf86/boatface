@@ -13,6 +13,13 @@ class QuizSegment {
 
   final QuizPromptType promptType;
   final int count;
+
+  QuizSegment copyWith({QuizPromptType? promptType, int? count}) {
+    return QuizSegment(
+      promptType: promptType ?? this.promptType,
+      count: count ?? this.count,
+    );
+  }
 }
 
 class QuizModeConfig {
@@ -34,6 +41,27 @@ class QuizModeConfig {
 
   int get questionCount =>
       segments.fold<int>(0, (sum, segment) => sum + segment.count);
+
+  QuizModeConfig copyWith({
+    String? id,
+    String? label,
+    String? description,
+    int? timeLimitSeconds,
+    bool clearTimeLimit = false,
+    List<QuizSegment>? segments,
+    bool? availableInMvp,
+  }) {
+    return QuizModeConfig(
+      id: id ?? this.id,
+      label: label ?? this.label,
+      description: description ?? this.description,
+      timeLimitSeconds: clearTimeLimit
+          ? null
+          : (timeLimitSeconds ?? this.timeLimitSeconds),
+      segments: segments ?? this.segments,
+      availableInMvp: availableInMvp ?? this.availableInMvp,
+    );
+  }
 }
 
 class RacerProfile {
@@ -96,4 +124,19 @@ class QuizResultSummary {
   final QuizEndReason endReason;
   final bool rankingEligible;
   final bool continuedByAd;
+}
+
+String promptTypeLabel(QuizPromptType type) {
+  switch (type) {
+    case QuizPromptType.faceToName:
+      return '顔 -> 選手名';
+    case QuizPromptType.nameToFace:
+      return '選手名 -> 顔';
+    case QuizPromptType.partialFaceToName:
+      return '顔の一部 -> 選手名';
+    case QuizPromptType.registrationToFace:
+      return '登録番号 -> 顔';
+    case QuizPromptType.faceToRegistration:
+      return '顔 -> 登録番号';
+  }
 }

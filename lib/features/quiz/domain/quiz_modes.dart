@@ -58,6 +58,6 @@ const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[
     segments: <QuizSegment>[
       QuizSegment(promptType: QuizPromptType.faceToName, count: 20),
     ],
-    availableInMvp: false,
+    availableInMvp: true,
   ),
 ];
