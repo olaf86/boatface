@@ -12,6 +12,8 @@ import '../../result/presentation/result_screen.dart';
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
+  static const double _modeButtonMaxWidth = 320;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final String providerLabel =
@@ -89,11 +91,18 @@ class HomeScreen extends ConsumerWidget {
               ...kQuizModes.map(
                 (QuizModeConfig mode) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: _ModeListItem(
-                    mode: mode,
-                    onTap: mode.availableInMvp
-                        ? () => _startFlow(context, mode)
-                        : null,
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: _modeButtonMaxWidth,
+                      ),
+                      child: _ModeListItem(
+                        mode: mode,
+                        onTap: mode.availableInMvp
+                            ? () => _startFlow(context, mode)
+                            : null,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -134,19 +143,142 @@ class _ModeListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final _DifficultyBadgeStyle? badge = _difficultyBadgeFor(mode.id);
+    final bool enabled = mode.availableInMvp;
+
     return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        enabled: mode.availableInMvp,
+      elevation: enabled ? 4 : 0,
+      shadowColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
         onTap: onTap,
-        title: Text(mode.label),
-        trailing: mode.availableInMvp
-            ? const Icon(Icons.chevron_right)
-            : const Chip(
-                label: Text('準備中'),
-                visualDensity: VisualDensity.compact,
-              ),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: enabled
+                ? LinearGradient(
+                    colors: <Color>[
+                      Colors.white,
+                      theme.colorScheme.surfaceContainerHighest,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+          ),
+          child: SizedBox(
+            height: 32,
+            child: Stack(
+              alignment: Alignment.center,
+              children: <Widget>[
+                if (badge != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: badge.backgroundColor,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        badge.label,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontSize: 12,
+                          color: badge.foregroundColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: badge != null ? 72 : 0,
+                    ),
+                    child: Text(
+                      mode.label,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: enabled
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (!enabled)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '準備中',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.55,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
+
+  _DifficultyBadgeStyle? _difficultyBadgeFor(String modeId) {
+    switch (modeId) {
+      case 'quick':
+        return const _DifficultyBadgeStyle(
+          label: 'かんたん',
+          backgroundColor: Color(0xFFDFF7E7),
+          foregroundColor: Color(0xFF217A3C),
+        );
+      case 'careful':
+        return const _DifficultyBadgeStyle(
+          label: 'ふつう',
+          backgroundColor: Color(0xFFFFF0C9),
+          foregroundColor: Color(0xFF8A5A00),
+        );
+      case 'challenge':
+        return const _DifficultyBadgeStyle(
+          label: '難しい',
+          backgroundColor: Color(0xFFFFDFD8),
+          foregroundColor: Color(0xFFB33A2B),
+        );
+      case 'master':
+        return const _DifficultyBadgeStyle(
+          label: '激ムズ',
+          backgroundColor: Color(0xFFE5DDFF),
+          foregroundColor: Color(0xFF5A33B3),
+        );
+      case 'custom':
+        return null;
+      default:
+        return const _DifficultyBadgeStyle(
+          label: 'モード',
+          backgroundColor: Color(0xFFDDF4FF),
+          foregroundColor: Color(0xFF0B4F9C),
+        );
+    }
+  }
+}
+
+class _DifficultyBadgeStyle {
+  const _DifficultyBadgeStyle({
+    required this.label,
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
+
+  final String label;
+  final Color backgroundColor;
+  final Color foregroundColor;
 }
