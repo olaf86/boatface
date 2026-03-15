@@ -1,6 +1,20 @@
 {
   "indexes": [
     {
+      "collectionGroup": "racers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isActive",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "registrationNumber",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "quiz_results",
       "queryScope": "COLLECTION",
       "fields": [
