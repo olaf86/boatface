@@ -8,10 +8,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "eslint --ext .ts src",
+    "seed:racers:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCLOUD_PROJECT=demo-boatface node ./scripts/seed-racers.mjs --clear",
     "serve": "npm run build && bash ./scripts/run-with-node20.sh firebase emulators:start --only functions,firestore,auth",
     "deploy": "firebase deploy --only functions",
     "test": "npm run build",
-    "test:emulators": "npm run build && bash ./scripts/run-with-node20.sh firebase emulators:exec --project demo-boatface --config ../firebase.json --only auth,firestore,functions \"node --test test/emulator.integration.test.mjs\""
+    "test:emulators": "npm run build && bash ./scripts/run-with-node20.sh firebase emulators:exec --project demo-boatface --config ../firebase.json --only auth,firestore,functions \"node --test --test-concurrency=1 test/emulator.integration.test.mjs test/seed-racers.integration.test.mjs\""
   },
   "dependencies": {
     "firebase-admin": "^13.7.0",
