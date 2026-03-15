@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "boatface-staging",
+    "staging": "boatface-staging",
+    "production": "boatface-prod"
+  }
+}

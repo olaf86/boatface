@@ -1,0 +1,326 @@
+# Boatface Backend Contracts v0.1
+
+Last updated: 2026-03-15
+
+## 1. Purpose
+
+This document freezes the first backend-facing contracts needed to let frontend and backend move independently.
+
+This version assumes:
+- Firebase Authentication is used
+- Firestore is used
+- Cloud Functions is used
+- quiz generation remains frontend-owned for MVP
+- backend only performs minimal session-based validation
+- staging and production use separate Firebase projects
+
+## 2. Environment Assumptions
+
+Recommended Firebase project layout:
+- `boatface-staging`
+- `boatface-prod`
+
+Reason:
+- safer Firestore rule iteration
+- safer ranking and aggregation testing
+- no accidental pollution of production leaderboard data
+
+Frontend and backend should treat environment selection as config, not as code branching.
+
+## 3. Auth Contract
+
+Authentication providers for MVP:
+- anonymous
+- Google
+- Game Center
+
+Backend assumptions:
+- every protected backend entry point requires a verified Firebase Auth user
+- backend uses `uid` as the canonical user identifier
+- user profile metadata is stored in Firestore under `users/{uid}`
+
+Recommended `users/{uid}` shape:
+
+```json
+{
+  "displayName": "Guest",
+  "authProviders": ["anonymous"],
+  "createdAt": "server timestamp",
+  "updatedAt": "server timestamp"
+}
+```
+
+## 4. Session Contract
+
+The backend issues one quiz session before each run.
+
+### Create session
+
+Operation:
+- `POST /quiz-sessions`
+
+Request:
+
+```json
+{
+  "modeId": "challenge"
+}
+```
+
+Response:
+
+```json
+{
+  "sessionId": "qs_01HQ...",
+  "expiresAt": "2026-03-15T10:15:00Z"
+}
+```
+
+Rules:
+- backend generates `sessionId`
+- a session belongs to exactly one `uid`
+- a session is valid for one result submission only
+- expired sessions cannot be consumed
+- mode ids are validated against an allowlist on the backend
+
+Recommended `quiz_sessions/{sessionId}` shape:
+
+```json
+{
+  "uid": "firebase uid",
+  "modeId": "challenge",
+  "status": "issued",
+  "createdAt": "server timestamp",
+  "expiresAt": "server timestamp",
+  "consumedAt": null
+}
+```
+
+Allowed `status` values:
+- `issued`
+- `consumed`
+- `expired`
+
+## 5. Result Submission Contract
+
+Operation:
+- `POST /quiz-results`
+
+Request:
+
+```json
+{
+  "sessionId": "qs_01HQ...",
+  "modeId": "challenge",
+  "modeLabel": "チャレンジ",
+  "score": 32,
+  "correctAnswers": 32,
+  "totalQuestions": 50,
+  "totalAnswerTimeMs": 28400,
+  "endReason": "wrongAnswer",
+  "rankingEligible": true,
+  "continuedByAd": true,
+  "clientFinishedAt": "2026-03-15T10:00:00Z"
+}
+```
+
+Backend minimum validation:
+- authenticated user exists
+- `sessionId` exists
+- `sessionId` belongs to the authenticated `uid`
+- `sessionId` is not yet consumed
+- `sessionId` is not expired
+
+Backend intentionally does not:
+- reconstruct each question
+- re-score the whole run
+- verify each answer
+
+This is acceptable for MVP because the goal is to prevent casual abuse, not determined client-side tampering.
+
+Recommended `quiz_results/{resultId}` shape:
+
+```json
+{
+  "uid": "firebase uid",
+  "sessionId": "qs_01HQ...",
+  "modeId": "challenge",
+  "modeLabel": "チャレンジ",
+  "score": 32,
+  "correctAnswers": 32,
+  "totalQuestions": 50,
+  "totalAnswerTimeMs": 28400,
+  "endReason": "wrongAnswer",
+  "rankingEligible": true,
+  "continuedByAd": true,
+  "clientFinishedAt": "2026-03-15T10:00:00Z",
+  "periodKeyDaily": "2026-03-15",
+  "periodKeyTerm": "2026-H1",
+  "createdAt": "server timestamp"
+}
+```
+
+Backend write behavior:
+- store the result
+- mark the referenced session as `consumed`
+- trigger ranking snapshot refresh for the relevant buckets
+
+## 6. Ranking Read Contract
+
+Operation:
+- `GET /rankings?modeId=challenge&period=today&limit=50`
+
+Allowed `period` values:
+- `today`
+- `term`
+
+Response:
+
+```json
+{
+  "modeId": "challenge",
+  "period": "today",
+  "generatedAt": "2026-03-15T10:01:00Z",
+  "entries": [
+    {
+      "rank": 1,
+      "userId": "uid_123",
+      "displayName": "あなた",
+      "score": 50,
+      "totalAnswerTimeMs": 9100
+    }
+  ]
+}
+```
+
+Ranking sort order:
+- `score` descending
+- `totalAnswerTimeMs` ascending
+
+Recommended source:
+- aggregated snapshot documents, not raw ad hoc result queries
+
+## 7. Racer Read Contract
+
+For MVP, frontend only needs a read-only racer pool.
+
+Operation:
+- `GET /racers`
+
+Optional filters:
+- `active=true`
+
+Response item shape:
+
+```json
+{
+  "id": "racer-1234",
+  "name": "選手1234",
+  "registrationNumber": 1234,
+  "imageUrl": "https://...",
+  "imageSource": "official-profile",
+  "updatedAt": "2026-03-15T00:00:00Z",
+  "isActive": true
+}
+```
+
+Recommended `racers/{racerId}` shape:
+
+```json
+{
+  "name": "選手1234",
+  "registrationNumber": 1234,
+  "imageUrl": "https://...",
+  "imageSource": "official-profile",
+  "updatedAt": "server timestamp",
+  "isActive": true
+}
+```
+
+## 8. Snapshot Storage Contract
+
+Recommended `ranking_snapshots/{snapshotId}` shape:
+
+```json
+{
+  "modeId": "challenge",
+  "period": "today",
+  "generatedAt": "server timestamp",
+  "entries": [
+    {
+      "rank": 1,
+      "userId": "uid_123",
+      "displayName": "Guest",
+      "score": 50,
+      "totalAnswerTimeMs": 9100
+    }
+  ]
+}
+```
+
+Recommended snapshot id convention:
+- `today_challenge_2026-03-15`
+- `term_challenge_2026-H1`
+
+## 9. Period Key Rules
+
+Daily bucket:
+- JST day boundary at `00:00`
+
+Term bucket:
+- `H1`: January 1 to June 30
+- `H2`: July 1 to December 31
+
+Recommended stored keys:
+- `periodKeyDaily`: `YYYY-MM-DD`
+- `periodKeyTerm`: `YYYY-H1` or `YYYY-H2`
+
+## 10. Firestore Rules Direction
+
+Recommended security posture:
+- clients do not write directly to `quiz_sessions`
+- clients do not write directly to `quiz_results`
+- clients do not write directly to `ranking_snapshots`
+- client writes are limited to fields explicitly owned by the client, if any
+- privileged writes happen through Cloud Functions using admin SDK
+
+This keeps leaderboard-critical writes out of direct client control.
+
+## 11. Cloud Functions Surface
+
+Recommended first functions:
+- `createQuizSession`
+- `submitQuizResult`
+- `getRankings`
+- `getRacers`
+
+Implementation style:
+- HTTP functions are acceptable for MVP
+- callable functions are also acceptable if frontend chooses Firebase Functions SDK integration
+
+Recommendation:
+- use HTTP functions first because the contracts are easier to review as explicit request/response DTOs
+
+## 12. Staging Checklist
+
+Before backend integration starts against real Firebase, the user should prepare:
+- a staging Firebase project
+- Authentication enabled for anonymous and Google
+- Firestore enabled
+- Cloud Functions enabled
+- chosen Firestore location
+- chosen Functions region
+
+Recommended to confirm later:
+- staging `projectId`
+- production `projectId`
+- Functions region
+- Firestore location
+
+## 13. Open Decisions
+
+Still open, but not blocking this scaffold:
+- exact session TTL
+- whether rankings should be top 50 or top 100 by default
+- whether racer read is direct Firestore read or via Cloud Function
+- whether HTTP or callable functions should be the final API surface
