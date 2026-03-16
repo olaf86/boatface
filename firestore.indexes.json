@@ -1,0 +1,63 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "racers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isActive",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "registrationNumber",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quiz_results",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "modeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "periodKeyDaily",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "score",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "totalAnswerTimeMs",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quiz_results",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "modeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "periodKeyTerm",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "score",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "totalAnswerTimeMs",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

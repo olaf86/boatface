@@ -1,0 +1,40 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    match /racer_datasets/{datasetId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /racer_datasets/{datasetId}/racers/{racerId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /app_config/{documentId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /quiz_sessions/{sessionId} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /quiz_results/{resultId} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /ranking_snapshots/{snapshotId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}
