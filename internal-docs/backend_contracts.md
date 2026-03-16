@@ -17,7 +17,7 @@ This version assumes:
 ## 2. Environment Assumptions
 
 Recommended Firebase project layout:
-- `boatface-staging`
+- `boatface-stg`
 - `boatface-prod`
 
 Reason:
@@ -312,10 +312,13 @@ Before backend integration starts against real Firebase, the user should prepare
 - chosen Functions region
 
 Recommended to confirm later:
-- staging `projectId`
+- staging `projectId`: `boatface-stg`
 - production `projectId`
 - Functions region
 - Firestore location
+
+Current staging Storage bucket:
+- `gs://boatface-stg.firebasestorage.app`
 
 ## 13. Open Decisions
 
