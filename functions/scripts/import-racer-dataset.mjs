@@ -17,7 +17,7 @@ import {
   extractDatasetArchiveUrl,
   mergeProfileDetails,
   parseRosterFileBuffer,
-} from "./lib/racer-dataset-helpers.mjs";
+} from "./helpers/racer-dataset-helpers.mjs";
 
 const racerDatasetStateDocPath = "app_config/racer_dataset_state";
 const defaultProfileConcurrency = 8;

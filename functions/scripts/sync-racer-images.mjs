@@ -8,7 +8,7 @@ import {initializeApp, applicationDefault} from "firebase-admin/app";
 import {FieldPath, FieldValue, getFirestore} from "firebase-admin/firestore";
 import {getStorage} from "firebase-admin/storage";
 
-import {buildImageStoragePath} from "./lib/racer-dataset-helpers.mjs";
+import {buildImageStoragePath} from "./helpers/racer-dataset-helpers.mjs";
 
 const defaultBatchSize = 250;
 const defaultConcurrency = 8;
