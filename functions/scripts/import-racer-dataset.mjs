@@ -10,7 +10,6 @@ import {pathToFileURL} from "node:url";
 import {initializeApp, applicationDefault} from "firebase-admin/app";
 import {FieldValue, getFirestore} from "firebase-admin/firestore";
 import {getStorage} from "firebase-admin/storage";
-import {path7za} from "7zip-bin";
 
 import {
   OFFICIAL_DOWNLOAD_PAGE_URL,
@@ -24,6 +23,10 @@ const racerDatasetStateDocPath = "app_config/racer_dataset_state";
 const defaultProfileConcurrency = 8;
 const defaultImageConcurrency = 4;
 const defaultBatchSize = 250;
+const defaultRequestHeaders = {
+  "user-agent": "Mozilla/5.0 (compatible; DataSync/1.0)",
+  "accept-language": "ja,en;q=0.8",
+};
 
 function parseArgs(argv) {
   const options = {
@@ -38,7 +41,8 @@ function parseArgs(argv) {
     clear: false,
     setCurrent: false,
     setFallback: false,
-    skipImages: false,
+    skipImages: true,
+    enrichProfiles: false,
     limit: 0,
     force: false,
   };
@@ -107,6 +111,14 @@ function parseArgs(argv) {
       options.skipImages = true;
       continue;
     }
+    if (arg === "--with-images") {
+      options.skipImages = false;
+      continue;
+    }
+    if (arg === "--enrich-profiles") {
+      options.enrichProfiles = true;
+      continue;
+    }
     if (arg === "--force") {
       options.force = true;
       continue;
@@ -139,7 +151,12 @@ function parseArgs(argv) {
   if (options.setCurrent && options.setFallback) {
     throw new Error("--set-current and --set-fallback cannot be used together");
   }
-  if (!options.force && !process.env.FIRESTORE_EMULATOR_HOST && !options.bucket && !options.skipImages) {
+  if (
+    !options.force &&
+    !process.env.FIRESTORE_EMULATOR_HOST &&
+    !options.bucket &&
+    !options.skipImages
+  ) {
     throw new Error("Refusing to run without a bucket outside the emulator. Pass --force to override.");
   }
 
@@ -147,7 +164,7 @@ function parseArgs(argv) {
 }
 
 async function fetchText(url) {
-  const response = await fetch(url);
+  const response = await fetch(url, {headers: defaultRequestHeaders});
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url}: ${response.status}`);
   }
@@ -155,11 +172,37 @@ async function fetchText(url) {
 }
 
 async function fetchBuffer(url) {
-  const response = await fetch(url);
+  const response = await fetch(url, {headers: defaultRequestHeaders});
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url}: ${response.status}`);
   }
   return Buffer.from(await response.arrayBuffer());
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(url, options = {}, attempts = 4) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await fetch(url, {
+        ...options,
+        headers: {
+          ...defaultRequestHeaders,
+          ...(options.headers ?? {}),
+        },
+      });
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await sleep(500 * attempt);
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 async function writeTempFile(buffer, name) {
@@ -173,7 +216,7 @@ async function extractArchive(archivePath) {
   const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "boatface-racer-extract-"));
 
   await new Promise((resolve, reject) => {
-    const child = spawn(path7za, ["x", archivePath, `-o${outputDir}`, "-y"], {
+    const child = spawn("bsdtar", ["-xf", archivePath, "-C", outputDir], {
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stderr = "";
@@ -243,15 +286,23 @@ async function deleteCollection(collectionRef, batchSize) {
   }
 }
 
-async function runWithConcurrency(items, concurrency, worker) {
+async function runWithConcurrency(items, concurrency, worker, options = {}) {
   const results = new Array(items.length);
   let index = 0;
+  let completed = 0;
+  const label = typeof options.label === "string" ? options.label : null;
+  const logEvery =
+    Number.isInteger(options.logEvery) && options.logEvery > 0 ? options.logEvery : 0;
 
   async function runner() {
     while (index < items.length) {
       const current = index;
       index += 1;
       results[current] = await worker(items[current], current);
+      completed += 1;
+      if (label && (completed === items.length || (logEvery > 0 && completed % logEvery === 0))) {
+        console.error(`[${label}] ${completed}/${items.length}`);
+      }
     }
   }
 
@@ -262,7 +313,7 @@ async function runWithConcurrency(items, concurrency, worker) {
 }
 
 async function fetchProfileHtml(racer) {
-  const response = await fetch(racer.profileUrl);
+  const response = await fetchWithRetry(racer.profileUrl);
   if (!response.ok) {
     throw new Error(`Failed to fetch profile for ${racer.registrationNumber}: ${response.status}`);
   }
@@ -274,7 +325,7 @@ async function uploadRacerImage(bucket, datasetId, racer) {
     return racer;
   }
 
-  const imageResponse = await fetch(racer.imageUrl);
+  const imageResponse = await fetchWithRetry(racer.imageUrl);
   if (!imageResponse.ok) {
     throw new Error(`Failed to fetch image for ${racer.registrationNumber}: ${imageResponse.status}`);
   }
@@ -398,14 +449,17 @@ export async function main(argv = process.argv.slice(2)) {
     racers = racers.slice(0, options.limit);
   }
 
-  const racersWithProfiles = await runWithConcurrency(
-    racers,
-    options.profileConcurrency,
-    async (racer) => {
-      const profileHtml = await fetchProfileHtml(racer);
-      return mergeProfileDetails(racer, profileHtml);
-    },
-  );
+  const racersWithProfiles = options.enrichProfiles ?
+    await runWithConcurrency(
+      racers,
+      options.profileConcurrency,
+      async (racer) => {
+        const profileHtml = await fetchProfileHtml(racer);
+        return mergeProfileDetails(racer, profileHtml);
+      },
+      {label: "profiles", logEvery: 50},
+    ) :
+    racers;
 
   const finalRacers = options.skipImages ?
     racersWithProfiles :
@@ -413,6 +467,7 @@ export async function main(argv = process.argv.slice(2)) {
       racersWithProfiles,
       options.imageConcurrency,
       async (racer) => uploadRacerImage(bucket, options.datasetId, racer),
+      {label: "images", logEvery: 50},
     );
 
   const datasetRef = db.collection("racer_datasets").doc(options.datasetId);
@@ -442,6 +497,7 @@ export async function main(argv = process.argv.slice(2)) {
     datasetId: options.datasetId,
     bucket: options.skipImages ? null : options.bucket,
     skipImages: options.skipImages,
+    enrichProfiles: options.enrichProfiles,
     cleared: options.clear,
     deleted,
     written,
