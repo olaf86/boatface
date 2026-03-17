@@ -8,7 +8,7 @@ const authHost = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? "127.0.0.1:9099";
 const firestoreHost = process.env.FIRESTORE_EMULATOR_HOST ?? "127.0.0.1:8080";
 const functionsBaseUrl =
   process.env.FUNCTIONS_BASE_URL ??
-  `http://127.0.0.1:5001/${projectId}/asia-northeast1`;
+  `http://127.0.0.1:5001/${projectId}/asia-northeast2`;
 const apiKey = "demo-api-key";
 
 initializeApp({projectId});

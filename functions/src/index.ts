@@ -14,7 +14,7 @@ initializeApp();
 
 const db = getFirestore();
 const auth = getAuth();
-const region = "asia-northeast1";
+const region = "asia-northeast2";
 const sessionLifetimeMinutes = 30;
 const defaultRankingLimit = 50;
 const maxRankingLimit = 100;
