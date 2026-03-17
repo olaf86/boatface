@@ -1,5 +1,9 @@
+import path from "node:path";
+import {spawn} from "node:child_process";
 import {onRequest} from "firebase-functions/v2/https";
+import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
+import {defineSecret} from "firebase-functions/params";
 import {initializeApp} from "firebase-admin/app";
 import {
   FieldValue,
@@ -20,6 +24,7 @@ const defaultRankingLimit = 50;
 const maxRankingLimit = 100;
 const rankingRefreshReadLimit = 200;
 const racerDatasetStateDocPath = "app_config/racer_dataset_state";
+const datasetRefreshToken = defineSecret("DATASET_REFRESH_TOKEN");
 const allowedModeIds = new Set([
   "quick",
   "careful",
@@ -62,6 +67,13 @@ type RankingEntry = {
   displayName: string;
   score: number;
   totalAnswerTimeMs: number;
+};
+
+type RacerDatasetRefreshRequest = {
+  datasetId?: string;
+  syncImages?: boolean;
+  clear?: boolean;
+  setCurrent?: boolean;
 };
 
 function setCorsHeaders(response: {
@@ -171,6 +183,116 @@ function parseClientFinishedAt(value: unknown): string | null {
   }
 
   return parsed.toISOString();
+}
+
+function getDefaultStorageBucket(projectId: string): string {
+  return `${projectId}.firebasestorage.app`;
+}
+
+async function runLocalNodeScript(
+  scriptName: string,
+  args: string[],
+): Promise<Record<string, unknown> | null> {
+  const scriptPath = path.resolve(process.cwd(), "scripts", scriptName);
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [scriptPath, ...args], {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: process.env,
+    });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      const text = chunk.toString();
+      stdout += text;
+      process.stdout.write(text);
+    });
+
+    child.stderr.on("data", (chunk) => {
+      const text = chunk.toString();
+      stderr += text;
+      process.stderr.write(text);
+    });
+
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(stderr || `${scriptName} exited with code ${code}`));
+        return;
+      }
+
+      const lines = stdout
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const lastLine = lines.at(-1) ?? "";
+
+      try {
+        resolve(lastLine ? JSON.parse(lastLine) as Record<string, unknown> : null);
+      } catch {
+        resolve({rawOutput: stdout});
+      }
+    });
+  });
+}
+
+async function refreshRacerDataset(datasetId: string, options?: {
+  syncImages?: boolean;
+  clear?: boolean;
+  setCurrent?: boolean;
+}): Promise<Record<string, unknown>> {
+  const projectId = process.env.GCLOUD_PROJECT ?? process.env.GCP_PROJECT;
+  if (!projectId) {
+    throw new Error("missing_project_id");
+  }
+
+  const syncImages = options?.syncImages ?? true;
+  const clear = options?.clear ?? true;
+  const setCurrent = options?.setCurrent ?? true;
+  const bucket = getDefaultStorageBucket(projectId);
+
+  const args = [
+    "--dataset",
+    datasetId,
+    "--project",
+    projectId,
+    "--bucket",
+    bucket,
+  ];
+  if (!clear) {
+    args.push("--no-clear");
+  }
+  if (!setCurrent) {
+    args.push("--no-set-current");
+  }
+  if (!syncImages) {
+    args.push("--skip-images");
+  }
+
+  const result = await runLocalNodeScript("refresh-racer-dataset.mjs", args);
+
+  return {
+    datasetId,
+    projectId,
+    bucket: syncImages ? bucket : null,
+    syncImages,
+    clear,
+    setCurrent,
+    result,
+  };
+}
+
+function requireRefreshToken(request: {
+  headers: Record<string, string | string[] | undefined>;
+}): boolean {
+  const headerValue = request.headers["x-boatface-admin-token"];
+  const token =
+    typeof headerValue === "string" ? headerValue.trim() :
+      Array.isArray(headerValue) ? (headerValue[0] ?? "").trim() :
+      "";
+
+  return Boolean(token) && token === datasetRefreshToken.value();
 }
 
 async function verifyRequestAuth(request: {
@@ -701,5 +823,58 @@ export const getRacers = onRequest({region}, async (request, response) => {
     }
 
     sendError(response, 500, "internal", "Failed to fetch racers.");
+  }
+});
+
+export const refreshRacerDatasetOnSchedule = onSchedule({
+  region,
+  schedule: "0 0 1 1,7 *",
+  timeZone: "Asia/Tokyo",
+  timeoutSeconds: 540,
+  memory: "1GiB",
+}, async (event) => {
+  const datasetId = getNowJstParts(new Date(event.scheduleTime)).term;
+  logger.info("refreshRacerDatasetOnSchedule started", {datasetId});
+  const result = await refreshRacerDataset(datasetId, {
+    syncImages: true,
+    clear: true,
+    setCurrent: true,
+  });
+  logger.info("refreshRacerDatasetOnSchedule completed", result);
+});
+
+export const runRacerDatasetRefresh = onRequest({
+  region,
+  timeoutSeconds: 540,
+  memory: "1GiB",
+  secrets: [datasetRefreshToken],
+}, async (request, response) => {
+  if (request.method !== "POST") {
+    sendError(response, 405, "method_not_allowed", "Use POST for manual dataset refresh.");
+    return;
+  }
+
+  if (!requireRefreshToken(request)) {
+    sendError(response, 401, "unauthorized", "A valid dataset refresh token is required.");
+    return;
+  }
+
+  try {
+    const body = (request.body ?? {}) as RacerDatasetRefreshRequest;
+    const datasetId = requireString(body.datasetId) ?? getNowJstParts(new Date()).term;
+    const syncImages = body.syncImages ?? true;
+    const clear = body.clear ?? true;
+    const setCurrent = body.setCurrent ?? true;
+
+    const result = await refreshRacerDataset(datasetId, {
+      syncImages,
+      clear,
+      setCurrent,
+    });
+    logger.info("runRacerDatasetRefresh completed", result);
+    response.status(200).json(result);
+  } catch (error) {
+    logger.error("runRacerDatasetRefresh failed", error);
+    sendError(response, 500, "internal", "Failed to refresh the racer dataset.");
   }
 });

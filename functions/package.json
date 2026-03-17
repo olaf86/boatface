@@ -9,6 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint --ext .ts src",
     "import:racers": "node ./scripts/import-racer-dataset.mjs",
+    "refresh:racers": "node ./scripts/refresh-racer-dataset.mjs",
     "sync:racer-images": "node ./scripts/sync-racer-images.mjs",
     "seed:racers:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCLOUD_PROJECT=demo-boatface node ./scripts/seed-racers.mjs --dataset mock-current --set-current --clear",
     "serve": "npm run build && bash ./scripts/run-with-node20.sh firebase emulators:start --only functions,firestore,auth",
