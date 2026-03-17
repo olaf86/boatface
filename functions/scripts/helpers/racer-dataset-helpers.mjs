@@ -168,6 +168,44 @@ function normalizeGender(genderCode) {
   return null;
 }
 
+function normalizeHometown(value) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.replaceAll("　", "").trim();
+  return normalized || null;
+}
+
+function normalizeName(value) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim();
+  const chunks = normalized
+    .split(/　{2,}/)
+    .map((chunk) => chunk.replaceAll("　", "").trim())
+    .filter(Boolean);
+
+  if (chunks.length >= 2) {
+    return `${chunks[0]} ${chunks.slice(1).join("")}`;
+  }
+
+  return normalized.replaceAll("　", "");
+}
+
+function normalizeNameKana(value) {
+  if (!value) {
+    return null;
+  }
+
+  return value
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function parseRosterFileBuffer(buffer, datasetId) {
   const racers = [];
   for (const rawLine of buffer.toString("binary").split("\n")) {
@@ -196,6 +234,9 @@ export function parseRosterFileBuffer(buffer, datasetId) {
       continue;
     }
 
+    racer.name = normalizeName(racer.name);
+    racer.nameKana = normalizeNameKana(racer.nameKana);
+
     racer.birthDate = expandBirthDate(racer.birthEra, racer.birthDateShort);
     racer.gender = normalizeGender(racer.genderCode);
     racer.term = convertField(
@@ -207,8 +248,10 @@ export function parseRosterFileBuffer(buffer, datasetId) {
         ),
       ),
     );
-    racer.hometown = decodeField(
-      lineBuffer.subarray(rosterHometownOffset, rosterHometownOffset + rosterHometownWidth),
+    racer.hometown = normalizeHometown(
+      decodeField(
+        lineBuffer.subarray(rosterHometownOffset, rosterHometownOffset + rosterHometownWidth),
+      ),
     );
     delete racer.birthEra;
     delete racer.birthDateShort;
