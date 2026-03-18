@@ -3,7 +3,7 @@
 set -euo pipefail
 
 if [ "$#" -eq 0 ]; then
-  echo "usage: run-with-node20.sh <command> [args...]" >&2
+  echo "usage: run-with-node22.sh <command> [args...]" >&2
   exit 1
 fi
 
@@ -19,9 +19,9 @@ fi
 # shellcheck source=/dev/null
 . "$NVM_DIR/nvm.sh"
 
-if ! nvm version 20 >/dev/null 2>&1; then
-  echo "Node 20 is not installed in nvm. Run: nvm install 20" >&2
+if ! nvm version 22 >/dev/null 2>&1; then
+  echo "Node 22 is not installed in nvm. Run: nvm install 22" >&2
   exit 1
 fi
 
-nvm exec 20 "$@"
+nvm exec 22 "$@"
