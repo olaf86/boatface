@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../app/navigation/app_route.dart';
 import '../domain/quiz_models.dart';
 import 'quiz_screen.dart';
-import '../../result/presentation/result_screen.dart';
 
 class QuizRuleScreen extends StatefulWidget {
   const QuizRuleScreen({required this.baseMode, super.key});
@@ -150,7 +149,7 @@ class _QuizRuleScreenState extends State<QuizRuleScreen> {
 
   Future<void> _startQuizFlow(BuildContext context) async {
     final QuizModeConfig resolvedMode = _resolveMode();
-    final quizResult = await Navigator.of(context).push(
+    await Navigator.of(context).push<void>(
       buildAppRoute(
         page: QuizScreen(mode: resolvedMode, showIntroCountdown: true),
         transition: AppRouteTransition.sharedAxisHorizontal,
@@ -158,17 +157,6 @@ class _QuizRuleScreenState extends State<QuizRuleScreen> {
     );
     if (!context.mounted) {
       return;
-    }
-    if (quizResult != null) {
-      await Navigator.of(context).push(
-        buildAppRoute<void>(
-          page: ResultScreen(summary: quizResult),
-          transition: AppRouteTransition.fadeThrough,
-        ),
-      );
-    }
-    if (context.mounted) {
-      Navigator.of(context).pop();
     }
   }
 

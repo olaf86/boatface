@@ -2,9 +2,11 @@ import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/navigation/app_route.dart';
 import '../application/quiz_session_controller.dart';
 import '../application/quiz_session_state.dart';
 import '../domain/quiz_models.dart';
+import '../../result/presentation/result_screen.dart';
 import 'quiz_start_countdown.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
@@ -258,6 +260,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final summary = ref
         .read(quizSessionControllerProvider(widget.mode).notifier)
         .summary;
-    Navigator.of(context).pop(summary);
+    Navigator.of(context).pushReplacement(
+      buildAppRoute<void>(
+        page: ResultScreen(summary: summary),
+        transition: AppRouteTransition.fadeThrough,
+      ),
+    );
   }
 }
