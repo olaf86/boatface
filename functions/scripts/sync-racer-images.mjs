@@ -312,6 +312,7 @@ export async function main(argv = process.argv.slice(2)) {
   await datasetRef.set({
     imageStorageBucket: options.bucket,
     imageSyncUpdatedAt: FieldValue.serverTimestamp(),
+    datasetUpdatedAt: FieldValue.serverTimestamp(),
   }, {merge: true});
 
   console.log(JSON.stringify({

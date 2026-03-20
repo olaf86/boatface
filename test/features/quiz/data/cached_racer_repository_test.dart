@@ -1,127 +1,179 @@
-import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:boatface/features/quiz/data/cached_racer_repository.dart';
 import 'package:boatface/features/quiz/data/racer_api_client.dart';
+import 'package:boatface/features/quiz/data/racer_master_local_store.dart';
+import 'package:boatface/features/quiz/data/racer_master_models.dart';
 import 'package:boatface/features/quiz/domain/quiz_models.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  group('FileRacerMasterLocalStore', () {
+    test('writes and reads compressed snapshot files', () async {
+      final Directory tempDir = await Directory.systemTemp.createTemp(
+        'boatface-racer-store-',
+      );
+      addTearDown(() => tempDir.delete(recursive: true));
+
+      final FileRacerMasterLocalStore store = FileRacerMasterLocalStore(
+        rootDirectoryProvider: () async => tempDir,
+      );
+      final RacerDatasetSnapshot snapshot = _buildSnapshot(
+        datasetId: '2026-H1',
+        updatedAt: DateTime.utc(2026, 3, 21),
+        prefix: 'local',
+      );
+
+      await store.writeSnapshot(snapshot);
+
+      final RacerDatasetSnapshot? restored = await store.readSnapshot();
+      expect(restored, isNotNull);
+      expect(restored!.manifest.datasetId, '2026-H1');
+      expect(restored.racers.length, 5);
+      expect(restored.racers.first.id, 'local-racer-0');
+    });
+  });
+
   group('CachedRacerRepository', () {
-    setUp(() {
-      SharedPreferences.setMockInitialValues(<String, Object>{});
-    });
-
-    test('preload fetches remote data and stores it in cache', () async {
-      final _FakeRacerApiClient apiClient = _FakeRacerApiClient(
-        racers: _buildRacers(prefix: 'remote'),
+    test('initializes from remote when no local snapshot exists', () async {
+      final _FakeRemoteDataSource remoteDataSource = _FakeRemoteDataSource(
+        manifest: _buildManifest(
+          datasetId: '2026-H1',
+          updatedAt: DateTime.utc(2026, 3, 21),
+        ),
+        snapshot: _buildSnapshot(
+          datasetId: '2026-H1',
+          updatedAt: DateTime.utc(2026, 3, 21),
+          prefix: 'remote',
+        ),
       );
+      final _InMemoryLocalStore localStore = _InMemoryLocalStore();
       final CachedRacerRepository repository = CachedRacerRepository(
-        apiClient: apiClient,
+        remoteDataSource: remoteDataSource,
+        localStore: localStore,
       );
 
-      await repository.preload();
+      await repository.initialize();
 
-      expect(apiClient.fetchCount, 1);
-      expect(repository.requireCachedAll().length, 4);
-
-      final SharedPreferences preferences =
-          await SharedPreferences.getInstance();
-      final String? rawCache = preferences.getString('quiz_racer_cache_v1');
-      expect(rawCache, isNotNull);
-      expect(rawCache, contains('remote-racer-0'));
-    });
-
-    test('preload restores cached data without hitting remote', () async {
-      final List<RacerProfile> cachedRacers = _buildRacers(prefix: 'disk');
-      SharedPreferences.setMockInitialValues(<String, Object>{
-        'quiz_racer_cache_v1': jsonEncode(<String, Object?>{
-          'fetchedAt': DateTime.now().toUtc().toIso8601String(),
-          'racers': cachedRacers
-              .map((RacerProfile racer) => racer.toJson())
-              .toList(growable: false),
-        }),
-      });
-
-      final _FakeRacerApiClient apiClient = _FakeRacerApiClient(
-        racers: _buildRacers(prefix: 'remote'),
-      );
-      final CachedRacerRepository repository = CachedRacerRepository(
-        apiClient: apiClient,
-      );
-
-      await repository.preload();
-
-      expect(apiClient.fetchCount, 0);
-      expect(
-        repository.requireCachedAll().map((RacerProfile racer) => racer.id),
-        cachedRacers.map((RacerProfile racer) => racer.id),
-      );
+      expect(remoteDataSource.manifestFetchCount, 1);
+      expect(remoteDataSource.snapshotFetchCount, 1);
+      expect(repository.requireCachedAll().first.id, 'remote-racer-0');
+      expect(localStore.snapshot?.manifest.datasetId, '2026-H1');
     });
 
     test(
-      'stale cache is used immediately and refreshed in background',
+      'uses local snapshot immediately and refreshes in background',
       () async {
-        final List<RacerProfile> staleRacers = _buildRacers(prefix: 'stale');
-        SharedPreferences.setMockInitialValues(<String, Object>{
-          'quiz_racer_cache_v1': jsonEncode(<String, Object?>{
-            'fetchedAt': DateTime.now()
-                .toUtc()
-                .subtract(const Duration(days: 2))
-                .toIso8601String(),
-            'racers': staleRacers
-                .map((RacerProfile racer) => racer.toJson())
-                .toList(growable: false),
-          }),
-        });
-
-        final _FakeRacerApiClient apiClient = _FakeRacerApiClient(
-          racers: _buildRacers(prefix: 'fresh'),
+        final _InMemoryLocalStore localStore = _InMemoryLocalStore(
+          snapshot: _buildSnapshot(
+            datasetId: '2026-H1',
+            updatedAt: DateTime.utc(2026, 3, 21),
+            prefix: 'local',
+          ),
+        );
+        final _FakeRemoteDataSource remoteDataSource = _FakeRemoteDataSource(
+          manifest: _buildManifest(
+            datasetId: '2026-H1',
+            updatedAt: DateTime.utc(2026, 3, 22),
+          ),
+          snapshot: _buildSnapshot(
+            datasetId: '2026-H1',
+            updatedAt: DateTime.utc(2026, 3, 22),
+            prefix: 'remote',
+          ),
         );
         final CachedRacerRepository repository = CachedRacerRepository(
-          apiClient: apiClient,
-          cacheTtl: const Duration(hours: 1),
+          remoteDataSource: remoteDataSource,
+          localStore: localStore,
         );
 
-        await repository.preload();
-        expect(repository.requireCachedAll().first.id, staleRacers.first.id);
+        await repository.initialize();
+
+        expect(repository.requireCachedAll().first.id, 'local-racer-0');
 
         await Future<void>.delayed(Duration.zero);
         await Future<void>.delayed(Duration.zero);
 
-        expect(apiClient.fetchCount, 1);
-        expect(repository.requireCachedAll().first.id, 'fresh-racer-0');
+        expect(remoteDataSource.manifestFetchCount, 1);
+        expect(remoteDataSource.snapshotFetchCount, 1);
+        expect(repository.requireCachedAll().first.id, 'remote-racer-0');
+        expect(
+          localStore.snapshot?.manifest.datasetUpdatedAt,
+          DateTime.utc(2026, 3, 22),
+        );
       },
     );
   });
 }
 
-class _FakeRacerApiClient implements RacerApiClient {
-  _FakeRacerApiClient({required this.racers});
+class _FakeRemoteDataSource implements RacerMasterRemoteDataSource {
+  _FakeRemoteDataSource({required this.manifest, required this.snapshot});
 
-  final List<RacerProfile> racers;
-  int fetchCount = 0;
+  final RacerDatasetManifest manifest;
+  final RacerDatasetSnapshot snapshot;
+  int manifestFetchCount = 0;
+  int snapshotFetchCount = 0;
 
   @override
-  Future<List<RacerProfile>> fetchAll({bool activeOnly = true}) async {
-    fetchCount += 1;
-    return racers;
+  Future<RacerDatasetManifest> fetchManifest() async {
+    manifestFetchCount += 1;
+    return manifest;
+  }
+
+  @override
+  Future<RacerDatasetSnapshot> fetchSnapshot({
+    required String datasetId,
+  }) async {
+    snapshotFetchCount += 1;
+    return snapshot;
   }
 }
 
-List<RacerProfile> _buildRacers({required String prefix}) {
-  final DateTime updatedAt = DateTime.utc(2026, 3, 20);
-  return List<RacerProfile>.generate(4, (int index) {
-    return RacerProfile(
-      id: '$prefix-racer-$index',
-      name: '選手$index',
-      registrationNumber: 1000 + index,
-      imageUrl: 'https://example.com/$prefix/$index.jpg',
-      imageSource: prefix,
-      updatedAt: updatedAt,
-    );
-  });
+class _InMemoryLocalStore implements RacerMasterLocalStore {
+  _InMemoryLocalStore({this.snapshot});
+
+  RacerDatasetSnapshot? snapshot;
+
+  @override
+  Future<RacerDatasetSnapshot?> readSnapshot() async => snapshot;
+
+  @override
+  Future<void> writeSnapshot(RacerDatasetSnapshot nextSnapshot) async {
+    snapshot = nextSnapshot;
+  }
+}
+
+RacerDatasetManifest _buildManifest({
+  required String datasetId,
+  required DateTime updatedAt,
+}) {
+  return RacerDatasetManifest(
+    datasetId: datasetId,
+    datasetUpdatedAt: updatedAt,
+    recordCount: 5,
+  );
+}
+
+RacerDatasetSnapshot _buildSnapshot({
+  required String datasetId,
+  required DateTime updatedAt,
+  required String prefix,
+}) {
+  return RacerDatasetSnapshot(
+    manifest: _buildManifest(datasetId: datasetId, updatedAt: updatedAt),
+    racers: List<RacerProfile>.generate(5, (int index) {
+      return RacerProfile(
+        id: '$prefix-racer-$index',
+        name: '選手$index',
+        registrationNumber: 1000 + index,
+        imageUrl: 'https://example.com/$prefix/$index.jpg',
+        imageSource: prefix,
+        updatedAt: updatedAt,
+        isActive: index < 4 || prefix == 'local',
+      );
+    }),
+  );
 }

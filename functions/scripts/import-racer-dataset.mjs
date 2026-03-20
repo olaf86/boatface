@@ -485,6 +485,7 @@ export async function main(argv = process.argv.slice(2)) {
     archiveFileName,
     sourceType: "boatrace-term-download",
     imageStorageBucket: options.skipImages ? null : options.bucket,
+    datasetUpdatedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }, {merge: true});
   await updateDatasetState(db, options.datasetId, options);

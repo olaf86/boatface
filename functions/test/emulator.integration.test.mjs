@@ -96,11 +96,13 @@ async function seedRacers() {
       datasetId: "dataset-current",
       racerCount: 2,
       sourceType: "seed",
+      datasetUpdatedAt: new Date("2026-03-16T00:00:00Z"),
     }),
     db.collection("racer_datasets").doc("dataset-fallback").set({
       datasetId: "dataset-fallback",
       racerCount: 1,
       sourceType: "seed",
+      datasetUpdatedAt: new Date("2025-09-16T00:00:00Z"),
     }),
     db.collection("racer_datasets").doc("dataset-current").collection("racers").doc("racer-active").set({
       name: "Active Racer",
@@ -158,6 +160,26 @@ test("functions endpoints work together in the emulator suite", async () => {
   assert.equal(Array.isArray(racersResult.body), true);
   assert.equal(racersResult.body.length, 1);
   assert.equal(racersResult.body[0].id, "racer-active");
+
+  const manifestResult = await callFunction("getRacerDatasetManifest", {
+    method: "GET",
+    headers: {Authorization: `Bearer ${idToken}`},
+  });
+  assert.equal(manifestResult.response.status, 200);
+  assert.equal(manifestResult.body.datasetId, "dataset-current");
+  assert.equal(manifestResult.body.datasetUpdatedAt, "2026-03-16T00:00:00.000Z");
+  assert.equal(manifestResult.body.recordCount, 2);
+
+  const snapshotResult = await callFunction("getRacerDatasetSnapshot", {
+    method: "GET",
+    headers: {Authorization: `Bearer ${idToken}`},
+  });
+  assert.equal(snapshotResult.response.status, 200);
+  assert.equal(snapshotResult.body.datasetId, "dataset-current");
+  assert.equal(snapshotResult.body.recordCount, 2);
+  assert.equal(snapshotResult.body.racers.length, 2);
+  assert.equal(snapshotResult.body.racers[0].id, "racer-active");
+  assert.equal(snapshotResult.body.racers[1].id, "racer-inactive");
 
   await db.doc("app_config/racer_dataset_state").set({
     currentDatasetId: null,

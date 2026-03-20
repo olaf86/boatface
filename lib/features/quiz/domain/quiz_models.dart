@@ -72,6 +72,7 @@ class RacerProfile {
     required this.imageUrl,
     required this.imageSource,
     required this.updatedAt,
+    required this.isActive,
   });
 
   final String id;
@@ -80,6 +81,7 @@ class RacerProfile {
   final String imageUrl;
   final String imageSource;
   final DateTime updatedAt;
+  final bool isActive;
 
   String get faceLabel => '顔画像 ${registrationNumber.toString()}';
 
@@ -91,6 +93,7 @@ class RacerProfile {
       'imageUrl': imageUrl,
       'imageSource': imageSource,
       'updatedAt': updatedAt.toUtc().toIso8601String(),
+      'isActive': isActive,
     };
   }
 
@@ -101,6 +104,7 @@ class RacerProfile {
     final Object? imageUrlValue = json['imageUrl'];
     final Object? imageSourceValue = json['imageSource'];
     final Object? updatedAtValue = json['updatedAt'];
+    final Object? isActiveValue = json['isActive'];
 
     if (idValue is! String ||
         idValue.isEmpty ||
@@ -111,7 +115,8 @@ class RacerProfile {
         imageUrlValue.isEmpty ||
         imageSourceValue is! String ||
         imageSourceValue.isEmpty ||
-        updatedAtValue is! String) {
+        updatedAtValue is! String ||
+        isActiveValue is! bool) {
       return null;
     }
 
@@ -127,6 +132,7 @@ class RacerProfile {
       imageUrl: imageUrlValue,
       imageSource: imageSourceValue,
       updatedAt: updatedAt.toUtc(),
+      isActive: isActiveValue,
     );
   }
 }

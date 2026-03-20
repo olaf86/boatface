@@ -189,6 +189,27 @@ function getDefaultStorageBucket(projectId: string): string {
   return `${projectId}.firebasestorage.app`;
 }
 
+function timestampToIsoString(value: unknown): string | null {
+  return value instanceof Timestamp ? value.toDate().toISOString() : null;
+}
+
+function getDatasetUpdatedAtIso(data: Record<string, unknown>): string | null {
+  return timestampToIsoString(data.datasetUpdatedAt) ??
+    timestampToIsoString(data.updatedAt);
+}
+
+function mapRacerResponse(id: string, data: Record<string, unknown>) {
+  return {
+    id,
+    name: data.name ?? null,
+    registrationNumber: data.registrationNumber ?? null,
+    imageUrl: data.imageUrl ?? null,
+    imageSource: data.imageSource ?? null,
+    updatedAt: timestampToIsoString(data.updatedAt),
+    isActive: data.isActive ?? null,
+  };
+}
+
 async function runLocalNodeScript(
   scriptName: string,
   args: string[],
@@ -746,6 +767,141 @@ export const getRankings = onRequest({region}, async (request, response) => {
   }
 });
 
+export const getRacerDatasetManifest = onRequest({region}, async (request, response) => {
+  setCorsHeaders(response);
+  if (handleOptions(request.method, response)) {
+    return;
+  }
+
+  if (request.method !== "GET") {
+    sendError(response, 405, "method_not_allowed", "Use GET for racer dataset manifest.");
+    return;
+  }
+
+  try {
+    const token = await verifyRequestAuth(request);
+    await upsertUserProfile(token);
+
+    const datasetSelection = await resolveRacerDatasetSelection({
+      datasetId: request.query.datasetId,
+    });
+    const datasetRef = db.collection("racer_datasets").doc(datasetSelection.datasetId);
+    const datasetSnapshot = await datasetRef.get();
+    if (!datasetSnapshot.exists) {
+      sendError(response, 404, "dataset_not_found", "Requested racer dataset does not exist.");
+      return;
+    }
+
+    const datasetData = datasetSnapshot.data() ?? {};
+    const datasetUpdatedAt = getDatasetUpdatedAtIso(datasetData);
+    if (!datasetUpdatedAt) {
+      sendError(response, 500, "dataset_metadata_incomplete", "Dataset metadata is incomplete.");
+      return;
+    }
+
+    const recordCount = requireNonNegativeInteger(datasetData.racerCount) ?? 0;
+    response.status(200).json({
+      datasetId: datasetSelection.datasetId,
+      datasetUpdatedAt,
+      recordCount,
+    });
+  } catch (error) {
+    logger.error("getRacerDatasetManifest failed", error);
+    if (error instanceof Error) {
+      if (error.message === "racer_dataset_state_missing") {
+        sendError(response, 503, "racer_dataset_state_missing", "No racer dataset state is configured.");
+        return;
+      }
+
+      if (error.message === "fallback_racer_dataset_missing") {
+        sendError(response, 404, "fallback_racer_dataset_missing", "No fallback racer dataset is configured.");
+        return;
+      }
+    }
+
+    if (isAuthError(error)) {
+      sendError(response, 401, "unauthenticated", "A valid Firebase ID token is required.");
+      return;
+    }
+
+    sendError(response, 500, "internal", "Failed to fetch racer dataset manifest.");
+  }
+});
+
+export const getRacerDatasetSnapshot = onRequest({region}, async (request, response) => {
+  setCorsHeaders(response);
+  if (handleOptions(request.method, response)) {
+    return;
+  }
+
+  if (request.method !== "GET") {
+    sendError(response, 405, "method_not_allowed", "Use GET for racer dataset snapshot.");
+    return;
+  }
+
+  try {
+    const token = await verifyRequestAuth(request);
+    await upsertUserProfile(token);
+
+    const datasetSelection = await resolveRacerDatasetSelection({
+      datasetId: request.query.datasetId,
+    });
+    const datasetRef = db.collection("racer_datasets").doc(datasetSelection.datasetId);
+    const datasetSnapshot = await datasetRef.get();
+    if (!datasetSnapshot.exists) {
+      sendError(response, 404, "dataset_not_found", "Requested racer dataset does not exist.");
+      return;
+    }
+
+    const datasetData = datasetSnapshot.data() ?? {};
+    const datasetUpdatedAt = getDatasetUpdatedAtIso(datasetData);
+    if (!datasetUpdatedAt) {
+      sendError(response, 500, "dataset_metadata_incomplete", "Dataset metadata is incomplete.");
+      return;
+    }
+
+    const racersSnapshot = await datasetRef.collection("racers")
+      .orderBy("registrationNumber", "asc")
+      .get();
+    const racers = racersSnapshot.docs.map((doc) =>
+      mapRacerResponse(doc.id, doc.data() as Record<string, unknown>),
+    );
+
+    logger.info("getRacerDatasetSnapshot succeeded", {
+      uid: token.uid,
+      datasetId: datasetSelection.datasetId,
+      datasetSource: datasetSelection.source,
+      count: racers.length,
+    });
+    response.status(200).json({
+      datasetId: datasetSelection.datasetId,
+      datasetUpdatedAt,
+      recordCount: racers.length,
+      racers,
+    });
+  } catch (error) {
+    logger.error("getRacerDatasetSnapshot failed", error);
+    if (error instanceof Error) {
+      if (error.message === "racer_dataset_state_missing") {
+        sendError(response, 503, "racer_dataset_state_missing", "No racer dataset state is configured.");
+        return;
+      }
+
+      if (error.message === "fallback_racer_dataset_missing") {
+        sendError(response, 404, "fallback_racer_dataset_missing", "No fallback racer dataset is configured.");
+        return;
+      }
+    }
+
+    if (isAuthError(error)) {
+      sendError(response, 401, "unauthenticated", "A valid Firebase ID token is required.");
+      return;
+    }
+
+    sendError(response, 500, "internal", "Failed to fetch racer dataset snapshot.");
+  }
+});
+
 export const getRacers = onRequest({region}, async (request, response) => {
   setCorsHeaders(response);
   if (handleOptions(request.method, response)) {
@@ -778,22 +934,9 @@ export const getRacers = onRequest({region}, async (request, response) => {
     }
 
     const snapshot = await query.get();
-    const racers = snapshot.docs.map((doc) => {
-      const data = doc.data();
-      const updatedAt = data.updatedAt instanceof Timestamp ?
-        data.updatedAt.toDate().toISOString() :
-        null;
-
-      return {
-        id: doc.id,
-        name: data.name ?? null,
-        registrationNumber: data.registrationNumber ?? null,
-        imageUrl: data.imageUrl ?? null,
-        imageSource: data.imageSource ?? null,
-        updatedAt,
-        isActive: data.isActive ?? null,
-      };
-    });
+    const racers = snapshot.docs.map((doc) =>
+      mapRacerResponse(doc.id, doc.data() as Record<string, unknown>),
+    );
 
     logger.info("getRacers succeeded", {
       uid: token.uid,

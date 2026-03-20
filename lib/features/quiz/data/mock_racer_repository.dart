@@ -5,7 +5,7 @@ class MockRacerRepository implements RacerRepository {
   List<RacerProfile>? _cache;
 
   @override
-  Future<void> preload() async {
+  Future<void> initialize() async {
     fetchAll();
   }
 
@@ -29,6 +29,7 @@ class MockRacerRepository implements RacerRepository {
         imageUrl: 'https://example.com/mock/racer/$registration.jpg',
         imageSource: 'mock-dataset',
         updatedAt: now,
+        isActive: true,
       );
     });
 

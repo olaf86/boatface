@@ -178,7 +178,7 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
     });
 
     try {
-      await ref.read(racerRepositoryProvider).preload();
+      await ref.read(racerRepositoryProvider).initialize();
     } catch (error) {
       if (!mounted) {
         return;

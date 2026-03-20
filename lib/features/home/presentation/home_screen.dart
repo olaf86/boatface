@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_route.dart';
 import '../../auth/application/auth_controller.dart';
+import '../../quiz/data/quiz_data_providers.dart';
 import '../../quiz/domain/quiz_modes.dart';
 import '../../quiz/domain/quiz_models.dart';
 import '../../quiz/presentation/quiz_rule_screen.dart';
@@ -16,6 +17,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider).valueOrNull;
+    final racerMasterInit = ref.watch(racerRepositoryInitializationProvider);
     final String providerLabel = authState?.providerLabel ?? '-';
 
     return Scaffold(
@@ -65,50 +67,19 @@ class HomeScreen extends ConsumerWidget {
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: <Widget>[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'モードを選択',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 8),
-                      Text('ログイン: $providerLabel'),
-                      const SizedBox(height: 4),
-                      Text(
-                        '詳細なルールは次の画面で確認できます。',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
+          child: racerMasterInit.when(
+            data: (_) => _HomeContent(
+              providerLabel: providerLabel,
+              onStartMode: (QuizModeConfig mode) => _startFlow(context, mode),
+            ),
+            loading: () =>
+                _RacerMasterPreparingView(providerLabel: providerLabel),
+            error: (Object error, StackTrace stackTrace) =>
+                _RacerMasterErrorView(
+                  providerLabel: providerLabel,
+                  onRetry: () =>
+                      ref.invalidate(racerRepositoryInitializationProvider),
                 ),
-              ),
-              const SizedBox(height: 12),
-              ...kQuizModes.map(
-                (QuizModeConfig mode) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: _modeButtonMaxWidth,
-                      ),
-                      child: _ModeListItem(
-                        mode: mode,
-                        onTap: mode.availableInMvp
-                            ? () => _startFlow(context, mode)
-                            : null,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ),
         ),
       ),
@@ -121,6 +92,138 @@ class HomeScreen extends ConsumerWidget {
         page: QuizRuleScreen(baseMode: mode),
         transition: AppRouteTransition.sharedAxisHorizontal,
       ),
+    );
+  }
+}
+
+class _HomeContent extends StatelessWidget {
+  const _HomeContent({required this.providerLabel, required this.onStartMode});
+
+  final String providerLabel;
+  final ValueChanged<QuizModeConfig> onStartMode;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: <Widget>[
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'モードを選択',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text('ログイン: $providerLabel'),
+                const SizedBox(height: 4),
+                Text(
+                  '詳細なルールは次の画面で確認できます。',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...kQuizModes.map(
+          (QuizModeConfig mode) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: HomeScreen._modeButtonMaxWidth,
+                ),
+                child: _ModeListItem(
+                  mode: mode,
+                  onTap: mode.availableInMvp ? () => onStartMode(mode) : null,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RacerMasterPreparingView extends StatelessWidget {
+  const _RacerMasterPreparingView({required this.providerLabel});
+
+  final String providerLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: <Widget>[
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'クイズデータを準備中',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text('ログイン: $providerLabel'),
+                const SizedBox(height: 12),
+                const Text(
+                  '初回起動時のみ、選手データを端末に保存します。完了するとオフラインでもクイズを開始しやすくなります。',
+                ),
+                const SizedBox(height: 20),
+                const Center(child: CircularProgressIndicator()),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RacerMasterErrorView extends StatelessWidget {
+  const _RacerMasterErrorView({
+    required this.providerLabel,
+    required this.onRetry,
+  });
+
+  final String providerLabel;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: <Widget>[
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'クイズデータを取得できませんでした',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text('ログイン: $providerLabel'),
+                const SizedBox(height: 12),
+                const Text(
+                  '通信状態を確認してから再試行してください。既存のローカルデータがある場合は次回以降この待機は短くなります。',
+                ),
+                const SizedBox(height: 20),
+                FilledButton(onPressed: onRetry, child: const Text('再試行')),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

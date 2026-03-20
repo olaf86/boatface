@@ -203,6 +203,7 @@ async function main() {
     datasetId: options.datasetId,
     racerCount: options.count,
     sourceType: "mock-dataset",
+    datasetUpdatedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }, {merge: true});
   await updateDatasetState(db, options.datasetId, options);

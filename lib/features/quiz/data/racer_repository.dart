@@ -1,7 +1,7 @@
 import '../domain/quiz_models.dart';
 
 abstract class RacerRepository {
-  Future<void> preload();
+  Future<void> initialize();
 
   List<RacerProfile> requireCachedAll();
 }
