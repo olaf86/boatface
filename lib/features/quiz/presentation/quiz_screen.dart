@@ -1,14 +1,23 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/navigation/app_route.dart';
 import '../application/quiz_session_controller.dart';
 import '../application/quiz_session_state.dart';
 import '../domain/quiz_models.dart';
+import '../../result/presentation/result_screen.dart';
+import 'quiz_start_countdown.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
-  const QuizScreen({required this.mode, super.key});
+  const QuizScreen({
+    required this.mode,
+    this.showIntroCountdown = false,
+    super.key,
+  });
 
   final QuizModeConfig mode;
+  final bool showIntroCountdown;
 
   @override
   ConsumerState<QuizScreen> createState() => _QuizScreenState();
@@ -18,11 +27,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     with WidgetsBindingObserver {
   bool _didPop = false;
   bool _dialogVisible = false;
+  late bool _isIntroCountdownActive;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _isIntroCountdownActive = widget.showIntroCountdown;
   }
 
   @override
@@ -33,6 +44,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_isIntroCountdownActive) {
+      return;
+    }
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       ref
@@ -43,6 +57,40 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (_isIntroCountdownActive) {
+      return Scaffold(
+        body: PageTransitionSwitcher(
+          duration: const Duration(milliseconds: 360),
+          reverse: false,
+          transitionBuilder:
+              (
+                Widget child,
+                Animation<double> primaryAnimation,
+                Animation<double> secondaryAnimation,
+              ) {
+                return FadeThroughTransition(
+                  animation: primaryAnimation,
+                  secondaryAnimation: secondaryAnimation,
+                  fillColor: Colors.transparent,
+                  child: child,
+                );
+              },
+          child: QuizStartCountdown(
+            key: const ValueKey<String>('quiz-start-countdown'),
+            modeLabel: widget.mode.label,
+            onCompleted: () {
+              if (!mounted) {
+                return;
+              }
+              setState(() {
+                _isIntroCountdownActive = false;
+              });
+            },
+          ),
+        ),
+      );
+    }
+
     final provider = quizSessionControllerProvider(widget.mode);
     ref.listen<QuizSessionState>(provider, (
       QuizSessionState? previous,
@@ -212,6 +260,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     final summary = ref
         .read(quizSessionControllerProvider(widget.mode).notifier)
         .summary;
-    Navigator.of(context).pop(summary);
+    Navigator.of(context).pushReplacement(
+      buildAppRoute<void>(
+        page: ResultScreen(summary: summary),
+        transition: AppRouteTransition.fadeThrough,
+      ),
+    );
   }
 }

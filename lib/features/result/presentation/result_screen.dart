@@ -17,7 +17,10 @@ class ResultScreen extends StatelessWidget {
     };
 
     return Scaffold(
-      appBar: AppBar(title: const Text('リザルト')),
+      appBar: AppBar(
+        title: const Text('リザルト'),
+        automaticallyImplyLeading: false,
+      ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
@@ -54,7 +57,9 @@ class ResultScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(
+                  context,
+                ).popUntil((Route<dynamic> route) => route.isFirst),
                 child: const Text('ホームに戻る'),
               ),
             ],

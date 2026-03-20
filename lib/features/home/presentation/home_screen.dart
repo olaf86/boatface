@@ -6,10 +6,7 @@ import '../../auth/application/auth_controller.dart';
 import '../../quiz/domain/quiz_modes.dart';
 import '../../quiz/domain/quiz_models.dart';
 import '../../quiz/presentation/quiz_rule_screen.dart';
-import '../../quiz/presentation/quiz_screen.dart';
-import '../../quiz/presentation/quiz_start_countdown.dart';
 import '../../ranking/presentation/ranking_screen.dart';
-import '../../result/presentation/result_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -119,36 +116,12 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Future<void> _startFlow(BuildContext context, QuizModeConfig mode) async {
-    final QuizModeConfig? resolvedMode = await Navigator.of(context)
-        .push<QuizModeConfig>(
-          buildAppRoute<QuizModeConfig>(
-            page: QuizRuleScreen(baseMode: mode),
-            transition: AppRouteTransition.sharedAxisHorizontal,
-          ),
-        );
-    if (!context.mounted || resolvedMode == null) {
-      return;
-    }
-
-    await showQuizStartCountdown(context, resolvedMode.label);
-    if (!context.mounted) {
-      return;
-    }
-
-    final quizResult = await Navigator.of(context).push(
-      buildAppRoute(
-        page: QuizScreen(mode: resolvedMode),
+    await Navigator.of(context).push<void>(
+      buildAppRoute<void>(
+        page: QuizRuleScreen(baseMode: mode),
         transition: AppRouteTransition.sharedAxisHorizontal,
       ),
     );
-    if (context.mounted && quizResult != null) {
-      await Navigator.of(context).push(
-        buildAppRoute<void>(
-          page: ResultScreen(summary: quizResult),
-          transition: AppRouteTransition.fadeThrough,
-        ),
-      );
-    }
   }
 }
 
