@@ -8,6 +8,11 @@ class LoginScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authCommand = ref.watch(authControllerProvider);
+    final authController = ref.read(authControllerProvider.notifier);
+    final String? errorMessage = authController.errorMessage;
+    final bool isBusy = authCommand.isLoading;
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -31,25 +36,44 @@ class LoginScreen extends ConsumerWidget {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
+                  if (errorMessage != null) ...<Widget>[
+                    Text(
+                      errorMessage,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   FilledButton(
-                    onPressed: () => ref
-                        .read(authControllerProvider.notifier)
-                        .signIn('匿名ログイン'),
-                    child: const Text('匿名ログイン'),
+                    onPressed: isBusy
+                        ? null
+                        : () => authController.signInAnonymously(),
+                    child: isBusy
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('匿名ログイン'),
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton(
-                    onPressed: () => ref
-                        .read(authControllerProvider.notifier)
-                        .signIn('Google'),
+                    onPressed: isBusy
+                        ? null
+                        : () => authController.signInWithGoogle(),
                     child: const Text('Google でログイン'),
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton(
-                    onPressed: () => ref
-                        .read(authControllerProvider.notifier)
-                        .signIn('GameCenter'),
+                    onPressed: null,
                     child: const Text('GameCenter でログイン'),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: null,
+                    child: const Text('Play Games でログイン'),
                   ),
                 ],
               ),

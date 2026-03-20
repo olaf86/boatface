@@ -1,15 +1,21 @@
 class AuthState {
-  const AuthState({this.providerLabel});
+  const AuthState({
+    required this.uid,
+    required this.providerIds,
+    required this.providerLabel,
+    required this.isAnonymous,
+  });
 
+  const AuthState.signedOut()
+    : uid = null,
+      providerIds = const <String>[],
+      providerLabel = null,
+      isAnonymous = false;
+
+  final String? uid;
+  final List<String> providerIds;
   final String? providerLabel;
+  final bool isAnonymous;
 
-  bool get isSignedIn => providerLabel != null;
-
-  AuthState copyWith({String? providerLabel, bool clearProvider = false}) {
-    return AuthState(
-      providerLabel: clearProvider
-          ? null
-          : (providerLabel ?? this.providerLabel),
-    );
-  }
+  bool get isSignedIn => uid != null;
 }

@@ -48,6 +48,23 @@ flutter run --flavor prod -t lib/main_prod.dart
 
 For iOS builds, `flutter run --flavor stg` maps to the shared `stg` Xcode scheme, and `prod` maps to `prod`.
 
+## Android Release Signing
+`android/app/build.gradle.kts` reads release signing settings from `android/key.properties`.
+
+Create `android/key.properties` locally with:
+
+```properties
+storeFile=/absolute/path/to/release-keystore.jks
+storePassword=YOUR_STORE_PASSWORD
+keyAlias=YOUR_KEY_ALIAS
+keyPassword=YOUR_KEY_PASSWORD
+```
+
+Notes:
+- `android/key.properties` is Git-ignored
+- release variants use the configured release keystore only when this file exists
+- without `android/key.properties`, `signingReport` will continue to show only debug signing
+
 ## CI
 GitHub Actions regenerates Firebase config during CI instead of committing generated files. Configure these repository settings:
 

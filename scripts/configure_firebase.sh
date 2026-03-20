@@ -51,16 +51,6 @@ case "$environment" in
     ;;
 esac
 
-backup_file="$(mktemp "${TMPDIR:-/tmp}/boatface-firebase.XXXXXX")"
-cp "$root_dir/firebase.json" "$backup_file"
-
-cleanup() {
-  cp "$backup_file" "$root_dir/firebase.json"
-  rm -f "$backup_file"
-}
-
-trap cleanup EXIT
-
 mkdir -p \
   "$root_dir/$(dirname "$android_out")" \
   "$root_dir/$(dirname "$ios_out")"
