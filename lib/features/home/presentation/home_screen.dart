@@ -7,7 +7,6 @@ import '../../quiz/domain/quiz_modes.dart';
 import '../../quiz/domain/quiz_models.dart';
 import '../../quiz/presentation/quiz_rule_screen.dart';
 import '../../quiz/presentation/quiz_screen.dart';
-import '../../quiz/presentation/quiz_start_countdown.dart';
 import '../../ranking/presentation/ranking_screen.dart';
 import '../../result/presentation/result_screen.dart';
 
@@ -130,14 +129,9 @@ class HomeScreen extends ConsumerWidget {
       return;
     }
 
-    await showQuizStartCountdown(context, resolvedMode.label);
-    if (!context.mounted) {
-      return;
-    }
-
     final quizResult = await Navigator.of(context).push(
       buildAppRoute(
-        page: QuizScreen(mode: resolvedMode),
+        page: QuizScreen(mode: resolvedMode, showIntroCountdown: true),
         transition: AppRouteTransition.sharedAxisHorizontal,
       ),
     );
