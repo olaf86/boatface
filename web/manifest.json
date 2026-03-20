@@ -1,6 +1,6 @@
 {
-    "name": "boatface",
-    "short_name": "boatface",
+    "name": "BoatFace",
+    "short_name": "BoatFace",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
