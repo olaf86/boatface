@@ -1,10 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/auth_state.dart';
 
 final Provider<FirebaseAuth> firebaseAuthProvider = Provider<FirebaseAuth>(
   (Ref ref) => FirebaseAuth.instance,
+);
+
+final Provider<GoogleSignIn> googleSignInProvider = Provider<GoogleSignIn>(
+  (Ref ref) => GoogleSignIn.instance,
 );
 
 final StreamProvider<AuthState> authStateProvider = StreamProvider<AuthState>((
@@ -59,6 +64,7 @@ String _providerLabelFor(User user, Set<String> providerIds) {
 
 class AuthController extends Notifier<AsyncValue<void>> {
   FirebaseAuth get _auth => ref.read(firebaseAuthProvider);
+  GoogleSignIn get _googleSignIn => ref.read(googleSignInProvider);
 
   @override
   AsyncValue<void> build() => const AsyncData<void>(null);
@@ -76,7 +82,28 @@ class AuthController extends Notifier<AsyncValue<void>> {
   Future<void> signOut() async {
     state = const AsyncLoading<void>();
     state = await AsyncValue.guard(() async {
+      await _googleSignIn.signOut();
       await _auth.signOut();
+    });
+  }
+
+  Future<void> signInWithGoogle() async {
+    state = const AsyncLoading<void>();
+    state = await AsyncValue.guard(() async {
+      await _googleSignIn.initialize();
+      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
+      );
+
+      final User? currentUser = _auth.currentUser;
+      if (currentUser != null && currentUser.isAnonymous) {
+        await currentUser.linkWithCredential(credential);
+        return;
+      }
+
+      await _auth.signInWithCredential(credential);
     });
   }
 

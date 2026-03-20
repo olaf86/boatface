@@ -239,7 +239,7 @@
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				5495149CB7BAA6A79A5DFAAE /* [CP] Embed Pods Frameworks */,
-				15F303BA96720280B2F9CB37 /* FlutterFire: "flutterfire bundle-service-file" */,
+				C098BFBAF234DD4B0B268A59 /* FlutterFire: "flutterfire bundle-service-file" */,
 			);
 			buildRules = (
 			);
@@ -311,24 +311,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		15F303BA96720280B2F9CB37 /* FlutterFire: "flutterfire bundle-service-file" */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "FlutterFire: \"flutterfire bundle-service-file\"";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\n#!/bin/bash\nPATH=\"${PATH}:$FLUTTER_ROOT/bin:${PUB_CACHE}/bin:$HOME/.pub-cache/bin\"\nflutterfire bundle-service-file --plist-destination=\"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app\" --build-configuration=${CONFIGURATION} --platform=ios --apple-project-path=\"${SRCROOT}\"\n";
-		};
 		20EB6BAE41891F9E19A4C313 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -441,6 +423,24 @@
 			shellPath = /bin/sh;
 			shellScript = "set -e\nif [ -z \"$FIREBASE_CONFIG_PATH\" ]; then\n  echo \"error: FIREBASE_CONFIG_PATH is not set\" >&2\n  exit 1\nfi\nSOURCE_PLIST=\"${PROJECT_DIR}/${FIREBASE_CONFIG_PATH}\"\nif [ ! -f \"$SOURCE_PLIST\" ]; then\n  echo \"error: Missing Firebase plist at $SOURCE_PLIST. Run ./scripts/configure_firebase.sh for this environment.\" >&2\n  exit 1\nfi\nDEST_PLIST=\"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/GoogleService-Info.plist\"\ncp \"$SOURCE_PLIST\" \"$DEST_PLIST\"\n";
 			showEnvVarsInLog = 0;
+		};
+		C098BFBAF234DD4B0B268A59 /* FlutterFire: "flutterfire bundle-service-file" */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "FlutterFire: \"flutterfire bundle-service-file\"";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\n#!/bin/bash\nPATH=\"${PATH}:$FLUTTER_ROOT/bin:${PUB_CACHE}/bin:$HOME/.pub-cache/bin\"\nflutterfire bundle-service-file --plist-destination=\"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app\" --build-configuration=${CONFIGURATION} --platform=ios --apple-project-path=\"${SRCROOT}\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

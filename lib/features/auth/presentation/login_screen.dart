@@ -11,6 +11,7 @@ class LoginScreen extends ConsumerWidget {
     final authCommand = ref.watch(authControllerProvider);
     final authController = ref.read(authControllerProvider.notifier);
     final String? errorMessage = authController.errorMessage;
+    final bool isBusy = authCommand.isLoading;
 
     return Scaffold(
       body: SafeArea(
@@ -46,10 +47,10 @@ class LoginScreen extends ConsumerWidget {
                     const SizedBox(height: 16),
                   ],
                   FilledButton(
-                    onPressed: authCommand.isLoading
+                    onPressed: isBusy
                         ? null
                         : () => authController.signInAnonymously(),
-                    child: authCommand.isLoading
+                    child: isBusy
                         ? const SizedBox(
                             width: 20,
                             height: 20,
@@ -59,13 +60,20 @@ class LoginScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton(
-                    onPressed: null,
+                    onPressed: isBusy
+                        ? null
+                        : () => authController.signInWithGoogle(),
                     child: const Text('Google でログイン'),
                   ),
                   const SizedBox(height: 12),
                   OutlinedButton(
                     onPressed: null,
                     child: const Text('GameCenter でログイン'),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: null,
+                    child: const Text('Play Games でログイン'),
                   ),
                 ],
               ),
