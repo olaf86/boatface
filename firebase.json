@@ -1,27 +1,55 @@
 {
-  "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
-  },
-  "functions": [
-    {
-      "source": "functions",
-      "codebase": "default",
-      "runtime": "nodejs22"
-    }
-  ],
-  "emulators": {
-    "auth": {
-      "port": 9099
-    },
     "firestore": {
-      "port": 8080
+        "rules": "firestore.rules",
+        "indexes": "firestore.indexes.json"
     },
-    "functions": {
-      "port": 5001
+    "functions": [
+        {
+            "source": "functions",
+            "codebase": "default",
+            "runtime": "nodejs22"
+        }
+    ],
+    "emulators": {
+        "auth": {
+            "port": 9099
+        },
+        "firestore": {
+            "port": 8080
+        },
+        "functions": {
+            "port": 5001
+        },
+        "ui": {
+            "enabled": true
+        }
     },
-    "ui": {
-      "enabled": true
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "boatface-stg",
+                    "appId": "1:883308790468:android:0c8c7143f4f64962a8ff91",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "ios": {
+                "default": {
+                    "projectId": "boatface-stg",
+                    "appId": "1:883308790468:ios:1db3a3ef24caaecaa8ff91",
+                    "uploadDebugSymbols": false,
+                    "fileOutput": "ios/Runner/GoogleService-Info.plist"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "boatface-stg",
+                    "configurations": {
+                        "android": "1:883308790468:android:0c8c7143f4f64962a8ff91",
+                        "ios": "1:883308790468:ios:1db3a3ef24caaecaa8ff91"
+                    }
+                }
+            }
+        }
     }
-  }
 }
