@@ -1,23 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_route.dart';
+import '../data/quiz_data_providers.dart';
 import '../domain/quiz_models.dart';
 import 'quiz_screen.dart';
 
-class QuizRuleScreen extends StatefulWidget {
+class QuizRuleScreen extends ConsumerStatefulWidget {
   const QuizRuleScreen({required this.baseMode, super.key});
 
   final QuizModeConfig baseMode;
 
   @override
-  State<QuizRuleScreen> createState() => _QuizRuleScreenState();
+  ConsumerState<QuizRuleScreen> createState() => _QuizRuleScreenState();
 }
 
-class _QuizRuleScreenState extends State<QuizRuleScreen> {
+class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
   late final bool _isCustomMode;
   late final Map<QuizPromptType, int> _editableCounts;
   late bool _unlimitedTime;
   late int _timeLimitSeconds;
+  bool _isStarting = false;
+  String? _startErrorMessage;
 
   @override
   void initState() {
@@ -122,11 +126,30 @@ class _QuizRuleScreenState extends State<QuizRuleScreen> {
           ),
           const SizedBox(height: 20),
           FilledButton(
-            onPressed: totalQuestions > 0
+            onPressed: totalQuestions > 0 && !_isStarting
                 ? () => _startQuizFlow(context)
                 : null,
-            child: const Text('スタート'),
+            child: _isStarting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('スタート'),
           ),
+          if (_isStarting)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('選手データを読み込んでいます…'),
+            ),
+          if (_startErrorMessage != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _startErrorMessage!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
           if (_isCustomMode && totalQuestions == 0)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -149,15 +172,40 @@ class _QuizRuleScreenState extends State<QuizRuleScreen> {
 
   Future<void> _startQuizFlow(BuildContext context) async {
     final QuizModeConfig resolvedMode = _resolveMode();
+    setState(() {
+      _isStarting = true;
+      _startErrorMessage = null;
+    });
+
+    try {
+      await ref.read(racerRepositoryProvider).preload();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final String message = switch (error) {
+        final Exception exception => exception.toString(),
+        _ => '選手データの読み込みに失敗しました。しばらくしてから再試行してください。',
+      };
+      setState(() {
+        _isStarting = false;
+        _startErrorMessage = message;
+      });
+      return;
+    }
+
+    if (!context.mounted) {
+      return;
+    }
+    setState(() {
+      _isStarting = false;
+    });
     await Navigator.of(context).push<void>(
       buildAppRoute(
         page: QuizScreen(mode: resolvedMode, showIntroCountdown: true),
         transition: AppRouteTransition.sharedAxisHorizontal,
       ),
     );
-    if (!context.mounted) {
-      return;
-    }
   }
 
   QuizModeConfig _resolveMode() {

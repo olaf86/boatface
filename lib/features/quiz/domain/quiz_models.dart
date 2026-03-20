@@ -82,6 +82,53 @@ class RacerProfile {
   final DateTime updatedAt;
 
   String get faceLabel => '顔画像 ${registrationNumber.toString()}';
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'id': id,
+      'name': name,
+      'registrationNumber': registrationNumber,
+      'imageUrl': imageUrl,
+      'imageSource': imageSource,
+      'updatedAt': updatedAt.toUtc().toIso8601String(),
+    };
+  }
+
+  static RacerProfile? tryParseJson(Map<String, Object?> json) {
+    final Object? idValue = json['id'];
+    final Object? nameValue = json['name'];
+    final Object? registrationNumberValue = json['registrationNumber'];
+    final Object? imageUrlValue = json['imageUrl'];
+    final Object? imageSourceValue = json['imageSource'];
+    final Object? updatedAtValue = json['updatedAt'];
+
+    if (idValue is! String ||
+        idValue.isEmpty ||
+        nameValue is! String ||
+        nameValue.isEmpty ||
+        registrationNumberValue is! int ||
+        imageUrlValue is! String ||
+        imageUrlValue.isEmpty ||
+        imageSourceValue is! String ||
+        imageSourceValue.isEmpty ||
+        updatedAtValue is! String) {
+      return null;
+    }
+
+    final DateTime? updatedAt = DateTime.tryParse(updatedAtValue);
+    if (updatedAt == null) {
+      return null;
+    }
+
+    return RacerProfile(
+      id: idValue,
+      name: nameValue,
+      registrationNumber: registrationNumberValue,
+      imageUrl: imageUrlValue,
+      imageSource: imageSourceValue,
+      updatedAt: updatedAt.toUtc(),
+    );
+  }
 }
 
 class QuizQuestion {

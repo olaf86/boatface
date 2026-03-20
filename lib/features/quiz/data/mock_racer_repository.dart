@@ -1,7 +1,16 @@
 import '../domain/quiz_models.dart';
+import 'racer_repository.dart';
 
-class MockRacerRepository {
+class MockRacerRepository implements RacerRepository {
   List<RacerProfile>? _cache;
+
+  @override
+  Future<void> preload() async {
+    fetchAll();
+  }
+
+  @override
+  List<RacerProfile> requireCachedAll() => fetchAll();
 
   List<RacerProfile> fetchAll() {
     if (_cache != null) {

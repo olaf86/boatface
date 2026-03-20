@@ -27,7 +27,7 @@ class QuizSessionController
 
   @override
   QuizSessionState build(QuizModeConfig mode) {
-    final racers = ref.read(mockRacerRepositoryProvider).fetchAll();
+    final racers = ref.read(racerRepositoryProvider).requireCachedAll();
 
     _session = QuizSessionFactory.create(mode: mode, racers: racers);
     _stopwatch = Stopwatch()..start();
