@@ -1,4 +1,4 @@
-# Boatface Backend Contracts v0.1
+# BoatFace Backend Contracts v0.1
 
 Last updated: 2026-03-15
 

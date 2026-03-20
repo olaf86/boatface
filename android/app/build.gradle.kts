@@ -49,12 +49,12 @@ android {
         create("stg") {
             dimension = "environment"
             applicationId = "dev.asobo.boatface.stg"
-            manifestPlaceholders["appName"] = "Boatface Stg"
+            manifestPlaceholders["appName"] = "BoatFace Stg"
         }
         create("prod") {
             dimension = "environment"
             applicationId = "dev.asobo.boatface"
-            manifestPlaceholders["appName"] = "Boatface"
+            manifestPlaceholders["appName"] = "BoatFace"
         }
     }
 

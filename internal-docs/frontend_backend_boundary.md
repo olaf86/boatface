@@ -1,4 +1,4 @@
-# Boatface Frontend / Backend Boundary Spec v0.1
+# BoatFace Frontend / Backend Boundary Spec v0.1
 
 Last updated: 2026-03-15
 

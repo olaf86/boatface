@@ -1,4 +1,4 @@
-# Boatface MVP 仕様 v0.2
+# BoatFace MVP 仕様 v0.2
 
 最終更新: 2026-03-15
 

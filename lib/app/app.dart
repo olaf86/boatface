@@ -99,7 +99,7 @@ class BoatfaceApp extends ConsumerWidget {
         );
 
     return MaterialApp(
-      title: 'Boatface',
+      title: 'BoatFace',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

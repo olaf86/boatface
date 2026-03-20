@@ -20,7 +20,7 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Boatface'),
+        title: const Text('BoatFace'),
         actions: <Widget>[
           IconButton(
             tooltip: 'ランキング',
