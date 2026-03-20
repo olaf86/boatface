@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/navigation/app_route.dart';
 import '../domain/quiz_models.dart';
+import 'quiz_screen.dart';
+import '../../result/presentation/result_screen.dart';
 
 class QuizRuleScreen extends StatefulWidget {
   const QuizRuleScreen({required this.baseMode, super.key});
@@ -120,7 +123,9 @@ class _QuizRuleScreenState extends State<QuizRuleScreen> {
           ),
           const SizedBox(height: 20),
           FilledButton(
-            onPressed: totalQuestions > 0 ? _startQuiz : null,
+            onPressed: totalQuestions > 0
+                ? () => _startQuizFlow(context)
+                : null,
             child: const Text('スタート'),
           ),
           if (_isCustomMode && totalQuestions == 0)
@@ -143,10 +148,33 @@ class _QuizRuleScreenState extends State<QuizRuleScreen> {
     );
   }
 
-  void _startQuiz() {
-    if (!_isCustomMode) {
-      Navigator.of(context).pop(widget.baseMode);
+  Future<void> _startQuizFlow(BuildContext context) async {
+    final QuizModeConfig resolvedMode = _resolveMode();
+    final quizResult = await Navigator.of(context).push(
+      buildAppRoute(
+        page: QuizScreen(mode: resolvedMode, showIntroCountdown: true),
+        transition: AppRouteTransition.sharedAxisHorizontal,
+      ),
+    );
+    if (!context.mounted) {
       return;
+    }
+    if (quizResult != null) {
+      await Navigator.of(context).push(
+        buildAppRoute<void>(
+          page: ResultScreen(summary: quizResult),
+          transition: AppRouteTransition.fadeThrough,
+        ),
+      );
+    }
+    if (context.mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  QuizModeConfig _resolveMode() {
+    if (!_isCustomMode) {
+      return widget.baseMode;
     }
 
     final List<QuizSegment> segments = QuizPromptType.values
@@ -157,13 +185,12 @@ class _QuizRuleScreenState extends State<QuizRuleScreen> {
         .where((QuizSegment segment) => segment.count > 0)
         .toList(growable: false);
 
-    final QuizModeConfig resolved = widget.baseMode.copyWith(
+    return widget.baseMode.copyWith(
       description: 'カスタム設定',
       clearTimeLimit: _unlimitedTime,
       timeLimitSeconds: _unlimitedTime ? null : _timeLimitSeconds,
       segments: segments,
     );
-    Navigator.of(context).pop(resolved);
   }
 }
 

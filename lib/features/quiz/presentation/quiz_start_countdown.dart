@@ -87,12 +87,6 @@ class _QuizStartCountdownState extends State<QuizStartCountdown> {
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   Text(widget.modeLabel, style: theme.textTheme.titleLarge),
-                  const SizedBox(height: 8),
-                  Text(
-                    '集中して、最初の一問へ',
-                    style: theme.textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
                   const SizedBox(height: 20),
                   SizedBox(
                     height: 92,
