@@ -18,8 +18,8 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final String providerLabel =
-        ref.watch(authControllerProvider).providerLabel ?? '-';
+    final authState = ref.watch(authStateProvider).valueOrNull;
+    final String providerLabel = authState?.providerLabel ?? '-';
 
     return Scaffold(
       appBar: AppBar(

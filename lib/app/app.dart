@@ -11,7 +11,7 @@ class BoatfaceApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authControllerProvider);
+    final authStateAsync = ref.watch(authStateProvider);
     const Color splashBlue = Color(0xFF22B7E8);
     const Color deepWater = Color(0xFF0B4F9C);
     const Color foamWhite = Color(0xFFF6FCFF);
@@ -193,7 +193,23 @@ class BoatfaceApp extends ConsumerWidget {
       builder: (BuildContext context, Widget? child) {
         return _AppBackground(child: child ?? const SizedBox.shrink());
       },
-      home: authState.isSignedIn ? const HomeScreen() : const LoginScreen(),
+      home: authStateAsync.when(
+        data: (authState) =>
+            authState.isSignedIn ? const HomeScreen() : const LoginScreen(),
+        loading: () =>
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
+        error: (Object error, StackTrace stackTrace) => Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                '認証状態の取得に失敗しました。\n$error',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
