@@ -1,0 +1,59 @@
+name: Flutter CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - stg
+          - prod
+
+    env:
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+      BOATFACE_FIREBASE_STG_PROJECT_ID: ${{ vars.BOATFACE_FIREBASE_STG_PROJECT_ID }}
+      BOATFACE_FIREBASE_PROD_PROJECT_ID: ${{ vars.BOATFACE_FIREBASE_PROD_PROJECT_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Firebase tooling
+        run: |
+          gem install xcodeproj
+          npm install -g firebase-tools
+          dart pub global activate flutterfire_cli
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Generate Firebase config
+        run: ./scripts/configure_firebase.sh ${{ matrix.environment }}
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Build Android
+        run: flutter build apk --debug --flavor ${{ matrix.environment }} -t lib/main_${{ matrix.environment }}.dart
+
+      - name: Build iOS simulator
+        run: flutter build ios --simulator --debug --no-codesign --flavor ${{ matrix.environment }} -t lib/main_${{ matrix.environment }}.dart

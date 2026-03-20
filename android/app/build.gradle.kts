@@ -21,7 +21,7 @@ dependencies {
 }
 
 android {
-    namespace = "dev.asobo.boatface.stg"
+    namespace = "dev.asobo.boatface"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -35,14 +35,27 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "dev.asobo.boatface.stg"
+        applicationId = "dev.asobo.boatface"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    flavorDimensions += "environment"
+    productFlavors {
+        create("stg") {
+            dimension = "environment"
+            applicationId = "dev.asobo.boatface.stg"
+            manifestPlaceholders["appName"] = "Boatface Stg"
+        }
+        create("prod") {
+            dimension = "environment"
+            applicationId = "dev.asobo.boatface"
+            manifestPlaceholders["appName"] = "Boatface"
+        }
     }
 
     buildTypes {
