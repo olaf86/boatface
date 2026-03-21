@@ -531,13 +531,13 @@ class _QuizTextOptionButton extends StatelessWidget {
             child: Stack(
               children: <Widget>[
                 Padding(
-                  padding: EdgeInsets.only(right: highlighted ? 92 : 0),
+                  padding: EdgeInsets.only(right: highlighted ? 76 : 0),
                   child: Text(label),
                 ),
                 if (highlighted)
                   Positioned(
-                    top: -2,
-                    right: 0,
+                    top: 4,
+                    right: 2,
                     child: _QuizOptionResultBadge(
                       visualState: visualState,
                       accentColor: accentColor,
@@ -603,8 +603,8 @@ class _QuizImageOptionButton extends StatelessWidget {
               child,
               if (highlighted)
                 Positioned(
-                  top: 12,
-                  right: 12,
+                  top: 8,
+                  right: 8,
                   child: _QuizOptionResultBadge(
                     visualState: visualState,
                     accentColor: accentColor,
@@ -679,17 +679,20 @@ class _QuizOptionResultBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(iconAndLabel.icon, size: 16, color: Colors.white),
-            const SizedBox(width: 4),
+            Icon(iconAndLabel.icon, size: 13, color: Colors.white),
+            const SizedBox(width: 2),
             Text(
               iconAndLabel.label,
-              style: Theme.of(
-                context,
-              ).textTheme.labelLarge?.copyWith(color: Colors.white),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+                height: 0.95,
+              ),
             ),
           ],
         ),
