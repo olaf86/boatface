@@ -499,40 +499,18 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
     final String? localImagePath = widget.localImagePath;
     if (localImagePath != null && localImagePath.isNotEmpty) {
       final File localImageFile = File(localImagePath);
-      if (localImageFile.existsSync()) {
-        return Image.file(
-          localImageFile,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          errorBuilder:
-              (BuildContext context, Object error, StackTrace? trace) {
-                return _QuizImageFallback(label: widget.semanticLabel);
-              },
-        );
-      }
+      return Image.file(
+        localImageFile,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (BuildContext context, Object error, StackTrace? trace) {
+          return _QuizImageFallback(label: widget.semanticLabel);
+        },
+      );
     }
 
-    return Image.network(
-      widget.imageUrl,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      errorBuilder: (BuildContext context, Object error, StackTrace? trace) {
-        return _QuizImageFallback(label: widget.semanticLabel);
-      },
-      loadingBuilder:
-          (
-            BuildContext context,
-            Widget child,
-            ImageChunkEvent? loadingProgress,
-          ) {
-            if (loadingProgress == null) {
-              return child;
-            }
-            return const Center(child: CircularProgressIndicator());
-          },
-    );
+    return _QuizImageFallback(label: widget.semanticLabel);
   }
 }
 

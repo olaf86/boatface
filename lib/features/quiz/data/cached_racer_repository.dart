@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import '../domain/quiz_models.dart';
 import 'racer_api_client.dart';
 import 'racer_master_local_store.dart';
@@ -245,9 +243,7 @@ class CachedRacerRepository implements RacerRepository {
         datasetId: snapshot.manifest.datasetId,
         racer: racer,
       );
-      if (localImagePath == null ||
-          localImagePath.isEmpty ||
-          !File(localImagePath).existsSync()) {
+      if (localImagePath == null || localImagePath.isEmpty) {
         racersWithPaths.add(racer.copyWith(clearLocalImagePath: true));
         continue;
       }

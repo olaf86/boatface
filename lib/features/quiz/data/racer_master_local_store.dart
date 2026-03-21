@@ -38,6 +38,7 @@ class FileRacerMasterLocalStore implements RacerMasterLocalStore {
   static const String _imagesDirectoryName = 'images';
 
   final Future<Directory> Function() _rootDirectoryProvider;
+  Future<Directory>? _directoryFuture;
 
   @override
   Future<RacerDatasetSnapshot?> readSnapshot() async {
@@ -217,6 +218,17 @@ class FileRacerMasterLocalStore implements RacerMasterLocalStore {
   }
 
   Future<Directory> _ensureDirectory() async {
+    final Future<Directory>? currentFuture = _directoryFuture;
+    if (currentFuture != null) {
+      return currentFuture;
+    }
+
+    final Future<Directory> nextFuture = _createDirectory();
+    _directoryFuture = nextFuture;
+    return nextFuture;
+  }
+
+  Future<Directory> _createDirectory() async {
     final Directory root = await _rootDirectoryProvider();
     final Directory directory = Directory('${root.path}/$_directoryName');
     if (!directory.existsSync()) {
