@@ -1,0 +1,92 @@
+name: Android Publish to Play Console
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      track:
+        description: Play Console track
+        required: true
+        default: internal
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+      release_status:
+        description: Release status
+        required: true
+        default: completed
+        type: choice
+        options:
+          - completed
+          - draft
+          - inProgress
+          - halted
+
+jobs:
+  publish-play-stg:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore Android staging secrets
+        shell: bash
+        run: |
+          mkdir -p android/app/src/stg
+          echo "${{ secrets.ANDROID_STG_GOOGLE_SERVICES_JSON_BASE64 }}" | base64 --decode > android/app/src/stg/google-services.json
+          echo "${{ secrets.ANDROID_STG_UPLOAD_KEYSTORE_BASE64 }}" | base64 --decode > android/boatface_stg_upload.jks
+          cat <<EOF > android/key.properties
+          storeFile=${{ github.workspace }}/android/boatface_stg_upload.jks
+          storePassword=${{ secrets.ANDROID_STG_UPLOAD_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_STG_UPLOAD_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_STG_UPLOAD_KEY_PASSWORD }}
+          EOF
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Compute build number
+        shell: bash
+        run: |
+          BUILD_NUMBER=$((GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))
+          echo "BUILD_NUMBER=${BUILD_NUMBER}" >> "$GITHUB_ENV"
+
+      - name: Build staging AAB
+        run: flutter build appbundle --flavor stg --release --build-number="${BUILD_NUMBER}"
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-stg-release-aab-${{ env.BUILD_NUMBER }}
+          path: build/app/outputs/bundle/stgRelease/app-stg-release.aab
+          if-no-files-found: error
+
+      - name: Upload to Play Console internal testing
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_STG_SERVICE_ACCOUNT_JSON }}
+          packageName: dev.asobo.boatface.stg
+          releaseFiles: build/app/outputs/bundle/stgRelease/app-stg-release.aab
+          track: ${{ github.event_name == 'workflow_dispatch' && inputs.track || 'internal' }}
+          status: ${{ github.event_name == 'workflow_dispatch' && inputs.release_status || 'completed' }}

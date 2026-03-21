@@ -5,15 +5,13 @@ BoatFace is a quiz app for learning and recognizing professional boat racers by 
 ## MVP Specification
 - [internal-docs/mvp_spec.md](internal-docs/mvp_spec.md)
 
-## Firebase Environments
-BoatFace uses separate Flutter flavors / Xcode schemes for staging and production.
+## Environments
+BoatFace uses separate Flutter flavors and Xcode schemes for staging and production.
 
 | Environment | Android flavor | iOS scheme | Package / bundle ID | Firebase project default |
 | --- | --- | --- | --- | --- |
 | `stg` | `stg` | `stg` | `dev.asobo.boatface.stg` | `boatface-stg` |
 | `prod` | `prod` | `prod` | `dev.asobo.boatface` | `boatface-prod` |
-
-If your Firebase project IDs differ, set `BOATFACE_FIREBASE_STG_PROJECT_ID` or `BOATFACE_FIREBASE_PROD_PROJECT_ID` before running the configure script.
 
 ## Local Setup
 Install the required tooling first.
@@ -25,30 +23,35 @@ dart pub global activate flutterfire_cli
 flutter pub get
 ```
 
-Generate Firebase files for the environment you want to run.
+If your Firebase project IDs differ from the defaults above, set these environment variables before generating config:
+
+```bash
+export BOATFACE_FIREBASE_STG_PROJECT_ID=your-stg-project-id
+export BOATFACE_FIREBASE_PROD_PROJECT_ID=your-prod-project-id
+```
+
+Generate Firebase files for the environment you want to run:
 
 ```bash
 ./scripts/configure_firebase.sh stg
 ./scripts/configure_firebase.sh prod
 ```
 
-Required generated files stay out of Git:
+Generated native config files stay out of Git:
 - `android/app/src/<env>/google-services.json`
 - `ios/Firebase/<env>/GoogleService-Info.plist`
 
-Notes:
-- The app entrypoints now initialize Firebase from the native Android/iOS config files, so `flutter analyze` does not depend on local Dart `firebase_options*.dart` files.
-- `flutterfire` may still emit temporary Dart config files during setup, but they are not required by the app runtime.
+The app initializes Firebase from those native files, so runtime does not depend on checked-in Dart `firebase_options*.dart` files.
 
 ## Run Commands
-Use the matching entrypoint and flavor / scheme.
+Use the matching flavor with the shared `lib/main.dart` entrypoint.
 
 ```bash
-flutter run --flavor stg
-flutter run --flavor prod
+flutter run --flavor stg -t lib/main.dart
+flutter run --flavor prod -t lib/main.dart
 ```
 
-For iOS builds, `flutter run --flavor stg` maps to the shared `stg` Xcode scheme, and `prod` maps to `prod`.
+For iOS builds, `flutter run --flavor stg` maps to the shared `stg` scheme, and `prod` maps to `prod`.
 
 ## Android Release Signing
 `android/app/build.gradle.kts` reads release signing settings from `android/key.properties`.
@@ -63,13 +66,57 @@ keyPassword=YOUR_KEY_PASSWORD
 ```
 
 Notes:
-- `android/key.properties` is Git-ignored
-- release variants use the configured release keystore only when this file exists
-- without `android/key.properties`, `signingReport` will continue to show only debug signing
+- `android/key.properties` is Git-ignored.
+- Release variants use the configured release keystore only when this file exists.
+- Without `android/key.properties`, release builds fall back to unsigned behavior for local development.
 
-## CI
-GitHub Actions regenerates Firebase config during CI instead of committing generated files. Configure these repository settings:
+## CI/CD
+### GitHub Actions
+GitHub Actions has two responsibilities:
+- [`flutter.yml`](.github/workflows/flutter.yml): analyze and test on push / pull request.
+- [`android-publish-play.yml`](.github/workflows/android-publish-play.yml): build the `stg` Android App Bundle on `main` pushes and upload it to the Play Console `internal` track.
 
-- Secret: `FIREBASE_TOKEN`
-- Variable: `BOATFACE_FIREBASE_STG_PROJECT_ID` if not `boatface-stg`
-- Variable: `BOATFACE_FIREBASE_PROD_PROJECT_ID` if not `boatface-prod`
+Android staging releases use an auto-incremented build number:
+
+```text
+BUILD_NUMBER = GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT
+```
+
+Configure these GitHub repository secrets for Android staging delivery:
+- `ANDROID_STG_GOOGLE_SERVICES_JSON_BASE64`
+- `ANDROID_STG_UPLOAD_KEYSTORE_BASE64`
+- `ANDROID_STG_UPLOAD_KEYSTORE_PASSWORD`
+- `ANDROID_STG_UPLOAD_KEY_ALIAS`
+- `ANDROID_STG_UPLOAD_KEY_PASSWORD`
+- `PLAY_STG_SERVICE_ACCOUNT_JSON`
+
+Base64 encode file-based secrets before registering them:
+
+```bash
+base64 -i android/app/src/stg/google-services.json | pbcopy
+base64 -i /absolute/path/to/boatface_stg_upload.jks | pbcopy
+```
+
+### Xcode Cloud
+Xcode Cloud is expected to handle iOS staging archives from `main` and deploy them to TestFlight.
+
+This repository includes [`ios/ci_scripts/ci_post_clone.sh`](ios/ci_scripts/ci_post_clone.sh) for Xcode Cloud. The script:
+- installs Flutter,
+- restores the staging `GoogleService-Info.plist` from a secret,
+- runs `flutter build ios --config-only --release --flavor stg`,
+- installs CocoaPods dependencies.
+
+Configure the Xcode Cloud workflow with:
+- Start condition: branch changes on `main`
+- Scheme: `stg`
+- Archive action enabled
+- TestFlight distribution enabled
+- Environment variable: `IOS_FIREBASE_STG_GOOGLE_SERVICE_INFO_PLIST_BASE64` as a secret
+
+Base64 encode the iOS Firebase plist before adding it to Xcode Cloud:
+
+```bash
+base64 -i ios/Firebase/stg/GoogleService-Info.plist | pbcopy
+```
+
+Xcode Cloud provides `CI_BUILD_NUMBER`; the post-clone script forwards that value to Flutter so iOS build numbers also auto-increment.
