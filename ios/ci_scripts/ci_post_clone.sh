@@ -9,6 +9,7 @@ export PATH="$PATH:$HOME/flutter/bin:$HOME/.pub-cache/bin"
 
 flutter precache --ios
 flutter pub get
+dart pub global activate flutterfire_cli
 
 mkdir -p ios/Firebase/stg
 
