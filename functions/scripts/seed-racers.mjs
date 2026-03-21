@@ -97,6 +97,8 @@ function buildMockRacer(registrationNumber, datasetId) {
     id: `racer-${registrationNumber}`,
     name: `選手${registrationNumber}`,
     registrationNumber,
+    class: registrationNumber % 4 === 0 ? "A1" : "B1",
+    gender: registrationNumber % 2 === 0 ? "male" : "female",
     imageUrl: `https://example.com/mock/racer/${registrationNumber}.jpg`,
     imageStoragePath: `racer-images/${datasetId}/${registrationNumber}.jpg`,
     imageSource: `mock-dataset:${datasetId}`,

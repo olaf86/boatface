@@ -388,6 +388,8 @@ RacerDatasetSnapshot _buildSnapshot({
         id: '$prefix-racer-$index',
         name: '選手$index',
         registrationNumber: 1000 + index,
+        racerClass: index < 4 ? 'A1' : 'B1',
+        gender: index.isEven ? 'male' : 'female',
         imageUrl: 'https://example.com/$prefix/$index.jpg',
         imageStoragePath: 'racer-images/$datasetId/${1000 + index}.jpg',
         imageSource: prefix,

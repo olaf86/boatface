@@ -51,6 +51,13 @@ class MockRacerRepository implements RacerRepository {
         id: 'racer-${registration.toString()}',
         name: '選手${registration.toString()}',
         registrationNumber: registration,
+        racerClass: switch (i % 4) {
+          0 => 'A1',
+          1 => 'A2',
+          2 => 'B1',
+          _ => 'B2',
+        },
+        gender: i.isEven ? 'male' : 'female',
         imageUrl: 'https://example.com/mock/racer/$registration.jpg',
         imageStoragePath: 'racer-images/mock-dataset/$registration.jpg',
         imageSource: 'mock-dataset',

@@ -115,6 +115,8 @@ async function seedRacers() {
     db.collection("racer_datasets").doc("dataset-current").collection("racers").doc("racer-active").set({
       name: "Active Racer",
       registrationNumber: 1001,
+      class: "A1",
+      gender: "male",
       imageUrl: "https://example.com/active.png",
       imageStoragePath: "racer-images/dataset-current/1001.png",
       imageSource: "seed",
@@ -124,6 +126,8 @@ async function seedRacers() {
     db.collection("racer_datasets").doc("dataset-current").collection("racers").doc("racer-inactive").set({
       name: "Inactive Racer",
       registrationNumber: 1002,
+      class: "B1",
+      gender: "female",
       imageUrl: "https://example.com/inactive.png",
       imageStoragePath: "racer-images/dataset-current/1002.png",
       imageSource: "seed",
@@ -133,6 +137,8 @@ async function seedRacers() {
     db.collection("racer_datasets").doc("dataset-fallback").collection("racers").doc("racer-fallback").set({
       name: "Fallback Racer",
       registrationNumber: 901,
+      class: "A2",
+      gender: "male",
       imageUrl: "https://example.com/fallback.png",
       imageStoragePath: "racer-images/dataset-fallback/0901.png",
       imageSource: "seed",
@@ -171,6 +177,8 @@ test("functions endpoints work together in the emulator suite", async () => {
   assert.equal(Array.isArray(racersResult.body), true);
   assert.equal(racersResult.body.length, 1);
   assert.equal(racersResult.body[0].id, "racer-active");
+  assert.equal(racersResult.body[0].class, "A1");
+  assert.equal(racersResult.body[0].gender, "male");
 
   const manifestResult = await callFunction("getRacerDatasetManifest", {
     method: "GET",
@@ -199,6 +207,8 @@ test("functions endpoints work together in the emulator suite", async () => {
   assert.equal(snapshotResult.body.racers[0].id, "racer-active");
   assert.equal(snapshotResult.body.racers[1].id, "racer-inactive");
   assert.equal(snapshotResult.body.racers[0].imageStoragePath, "racer-images/dataset-current/1001.png");
+  assert.equal(snapshotResult.body.racers[0].class, "A1");
+  assert.equal(snapshotResult.body.racers[0].gender, "male");
 
   await db.doc("app_config/racer_dataset_state").set({
     currentDatasetId: null,

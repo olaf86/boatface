@@ -108,7 +108,8 @@ class QuizSessionFactory {
   }) {
     final Random random = Random();
     final int count = mode.questionCount;
-    final List<RacerProfile> base = List<RacerProfile>.from(racers)
+    final List<RacerProfile> targetPool = _targetPoolForMode(mode, racers);
+    final List<RacerProfile> base = List<RacerProfile>.from(targetPool)
       ..shuffle(random);
     final List<RacerProfile> picked = <RacerProfile>[
       for (int i = 0; i < count; i++) base[i % base.length],
@@ -124,6 +125,7 @@ class QuizSessionFactory {
             promptType: segment.promptType,
             target: target,
             racers: racers,
+            mode: mode,
             random: random,
             timeLimitSeconds: mode.timeLimitSeconds,
           ),
@@ -139,15 +141,21 @@ class QuizSessionFactory {
     required QuizPromptType promptType,
     required RacerProfile target,
     required List<RacerProfile> racers,
+    required QuizModeConfig mode,
     required Random random,
     required int? timeLimitSeconds,
   }) {
-    final List<RacerProfile> pool = List<RacerProfile>.from(racers)
-      ..removeWhere((RacerProfile r) => r.id == target.id)
-      ..shuffle(random);
+    final String? requiredRacerClass = _requiredRacerClassForMode(mode);
+    final List<RacerProfile> candidatePool = _candidatePoolForQuestion(
+      target: target,
+      racers: racers,
+      random: random,
+      racerClass: requiredRacerClass ?? target.racerClass,
+      gender: target.gender,
+    );
     final List<RacerProfile> candidates = <RacerProfile>[
       target,
-      ...pool.take(3),
+      ...candidatePool.take(3),
     ]..shuffle(random);
     final int correctIndex = candidates.indexWhere(
       (RacerProfile r) => r.id == target.id,
@@ -243,16 +251,135 @@ class QuizSessionFactory {
     switch (type) {
       case QuizPromptType.faceToName:
       case QuizPromptType.partialFaceToName:
-        return QuizOption(label: racer.name);
+        return QuizOption(racerId: racer.id, label: racer.name);
       case QuizPromptType.nameToFace:
       case QuizPromptType.registrationToFace:
         return QuizOption(
+          racerId: racer.id,
           label: racer.name,
           imageUrl: racer.imageUrl,
           localImagePath: racer.localImagePath,
         );
       case QuizPromptType.faceToRegistration:
-        return QuizOption(label: racer.registrationNumber.toString());
+        return QuizOption(
+          racerId: racer.id,
+          label: racer.registrationNumber.toString(),
+        );
     }
   }
+
+  static List<RacerProfile> _targetPoolForMode(
+    QuizModeConfig mode,
+    List<RacerProfile> racers,
+  ) {
+    final String? requiredRacerClass = _requiredRacerClassForMode(mode);
+    if (requiredRacerClass == null) {
+      return racers;
+    }
+
+    final List<RacerProfile>? filteredPool = _filterRacersByAttributes(
+      racers: racers,
+      racerClass: requiredRacerClass,
+      minimumCount: _minimumCandidatePoolSize,
+    );
+    if (filteredPool != null) {
+      return filteredPool;
+    }
+
+    return racers;
+  }
+
+  static List<RacerProfile> _candidatePoolForQuestion({
+    required RacerProfile target,
+    required List<RacerProfile> racers,
+    required Random random,
+    String? racerClass,
+    String? gender,
+  }) {
+    final List<RacerProfile> basePool = List<RacerProfile>.from(racers)
+      ..removeWhere((RacerProfile racer) => racer.id == target.id);
+    final List<RacerProfile>? filteredPool = _filterRacersByAttributes(
+      racers: basePool,
+      racerClass: racerClass,
+      gender: gender,
+      minimumCount: _requiredDistractorCount,
+    );
+
+    return _prioritizeSimilarRacers(
+      target: target,
+      pool: filteredPool ?? basePool,
+      random: random,
+    );
+  }
+
+  static String? _requiredRacerClassForMode(QuizModeConfig mode) {
+    switch (mode.id) {
+      case 'quick':
+        return 'A1';
+      default:
+        return null;
+    }
+  }
+
+  static List<RacerProfile>? _filterRacersByAttributes({
+    required List<RacerProfile> racers,
+    String? racerClass,
+    String? gender,
+    required int minimumCount,
+  }) {
+    final List<RacerProfile> filtered = racers.where((RacerProfile racer) {
+      if (racerClass != null && racer.racerClass != racerClass) {
+        return false;
+      }
+      if (gender != null && racer.gender != gender) {
+        return false;
+      }
+      return true;
+    }).toList(growable: false);
+    if (filtered.length < minimumCount) {
+      return null;
+    }
+    return filtered;
+  }
+
+  static List<RacerProfile> _prioritizeSimilarRacers({
+    required RacerProfile target,
+    required List<RacerProfile> pool,
+    required Random random,
+  }) {
+    final List<RacerProfile> exactMatches = <RacerProfile>[];
+    final List<RacerProfile> sameClass = <RacerProfile>[];
+    final List<RacerProfile> sameGender = <RacerProfile>[];
+    final List<RacerProfile> rest = <RacerProfile>[];
+
+    for (final RacerProfile racer in pool) {
+      final bool matchesClass = racer.racerClass == target.racerClass;
+      final bool matchesGender = racer.gender == target.gender;
+
+      if (matchesClass && matchesGender) {
+        exactMatches.add(racer);
+      } else if (matchesClass) {
+        sameClass.add(racer);
+      } else if (matchesGender) {
+        sameGender.add(racer);
+      } else {
+        rest.add(racer);
+      }
+    }
+
+    exactMatches.shuffle(random);
+    sameClass.shuffle(random);
+    sameGender.shuffle(random);
+    rest.shuffle(random);
+
+    return <RacerProfile>[
+      ...exactMatches,
+      ...sameClass,
+      ...sameGender,
+      ...rest,
+    ];
+  }
+
+  static const int _requiredDistractorCount = 3;
+  static const int _minimumCandidatePoolSize = _requiredDistractorCount + 1;
 }
