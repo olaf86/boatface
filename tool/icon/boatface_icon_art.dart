@@ -19,7 +19,12 @@ void paintBoatfaceIcon(Canvas canvas, Size size) {
   final Path cardPath = Path()..addRRect(card);
 
   canvas.drawRect(bounds, Paint()..color = _outerSky);
-  canvas.drawShadow(cardPath, _deepBlue.withValues(alpha: 0.18), 42 * unit, false);
+  canvas.drawShadow(
+    cardPath,
+    _deepBlue.withValues(alpha: 0.18),
+    42 * unit,
+    false,
+  );
 
   canvas.drawRRect(
     card,
@@ -86,7 +91,12 @@ void paintBoatfaceIcon(Canvas canvas, Size size) {
 
   canvas.save();
   canvas.clipPath(fPath);
-  final Rect glossRect = Rect.fromLTWH(326 * unit, 236 * unit, 414 * unit, 220 * unit);
+  final Rect glossRect = Rect.fromLTWH(
+    326 * unit,
+    236 * unit,
+    414 * unit,
+    220 * unit,
+  );
   canvas.drawRRect(
     RRect.fromRectAndRadius(glossRect, Radius.circular(80 * unit)),
     Paint()
