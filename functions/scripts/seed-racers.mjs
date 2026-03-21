@@ -98,6 +98,7 @@ function buildMockRacer(registrationNumber, datasetId) {
     name: `選手${registrationNumber}`,
     registrationNumber,
     imageUrl: `https://example.com/mock/racer/${registrationNumber}.jpg`,
+    imageStoragePath: `racer-images/${datasetId}/${registrationNumber}.jpg`,
     imageSource: `mock-dataset:${datasetId}`,
     updatedAt: FieldValue.serverTimestamp(),
     isActive: true,
@@ -204,6 +205,10 @@ async function main() {
     racerCount: options.count,
     sourceType: "mock-dataset",
     datasetUpdatedAt: FieldValue.serverTimestamp(),
+    imagePackStoragePath: `racer-image-packs/${options.datasetId}.zip`,
+    imagePackImageCount: options.count,
+    imagePackByteSize: options.count * 1024,
+    imagePackUpdatedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }, {merge: true});
   await updateDatasetState(db, options.datasetId, options);

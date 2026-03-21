@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../domain/quiz_models.dart';
@@ -10,6 +11,18 @@ abstract class RacerMasterLocalStore {
   Future<RacerDatasetSnapshot?> readSnapshot();
 
   Future<void> writeSnapshot(RacerDatasetSnapshot snapshot);
+
+  Future<RacerImagePackLocalState?> readImagePackState();
+
+  Future<void> writeImagePack({
+    required RacerDatasetManifest manifest,
+    required List<int> zipBytes,
+  });
+
+  Future<String?> resolveLocalImagePath({
+    required String datasetId,
+    required RacerProfile racer,
+  });
 }
 
 class FileRacerMasterLocalStore implements RacerMasterLocalStore {
@@ -21,6 +34,8 @@ class FileRacerMasterLocalStore implements RacerMasterLocalStore {
   static const String _directoryName = 'racer_master';
   static const String _manifestFileName = 'manifest.json';
   static const String _snapshotFileName = 'racers.json.gz';
+  static const String _imagePackStateFileName = 'image-pack.json';
+  static const String _imagesDirectoryName = 'images';
 
   final Future<Directory> Function() _rootDirectoryProvider;
 
@@ -95,6 +110,112 @@ class FileRacerMasterLocalStore implements RacerMasterLocalStore {
     );
   }
 
+  @override
+  Future<RacerImagePackLocalState?> readImagePackState() async {
+    final Directory directory = await _ensureDirectory();
+    final File stateFile = File('${directory.path}/$_imagePackStateFileName');
+    if (!stateFile.existsSync()) {
+      return null;
+    }
+
+    try {
+      final Object? decoded = jsonDecode(await stateFile.readAsString());
+      if (decoded is! Map<Object?, Object?>) {
+        return null;
+      }
+
+      return RacerImagePackLocalState.tryParseJson(
+        Map<String, Object?>.from(decoded),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> writeImagePack({
+    required RacerDatasetManifest manifest,
+    required List<int> zipBytes,
+  }) async {
+    final RacerImagePackManifest? imagePack = manifest.imagePack;
+    if (imagePack == null) {
+      throw const FileSystemException('image pack metadata is missing');
+    }
+
+    final Directory directory = await _ensureDirectory();
+    final Directory imagesRoot = Directory(
+      '${directory.path}/$_imagesDirectoryName',
+    );
+    if (!imagesRoot.existsSync()) {
+      await imagesRoot.create(recursive: true);
+    }
+
+    final Directory datasetDirectory = Directory(
+      '${imagesRoot.path}/${manifest.datasetId}',
+    );
+    if (datasetDirectory.existsSync()) {
+      await datasetDirectory.delete(recursive: true);
+    }
+    await datasetDirectory.create(recursive: true);
+
+    final Archive archive = ZipDecoder().decodeBytes(zipBytes, verify: true);
+    int writtenImageCount = 0;
+    for (final ArchiveFile file in archive) {
+      if (!file.isFile) {
+        continue;
+      }
+
+      final List<int> data = file.content as List<int>;
+      final String entryName = _basename(file.name);
+      final File outputFile = File('${datasetDirectory.path}/$entryName');
+      await outputFile.parent.create(recursive: true);
+      await outputFile.writeAsBytes(data, flush: true);
+      writtenImageCount += 1;
+    }
+
+    if (writtenImageCount < imagePack.imageCount) {
+      throw FileSystemException(
+        'expected ${imagePack.imageCount} images but extracted $writtenImageCount',
+      );
+    }
+
+    final File stateFile = File('${directory.path}/$_imagePackStateFileName');
+    await stateFile.writeAsString(
+      jsonEncode(
+        RacerImagePackLocalState(
+          datasetId: manifest.datasetId,
+          updatedAt: imagePack.updatedAt,
+        ).toJson(),
+      ),
+      flush: true,
+    );
+
+    final List<FileSystemEntity> staleEntities = imagesRoot
+        .listSync(followLinks: false)
+        .where((FileSystemEntity entity) {
+          return entity is Directory &&
+              _basename(entity.path) != manifest.datasetId;
+        })
+        .toList(growable: false);
+    for (final FileSystemEntity entity in staleEntities) {
+      await entity.delete(recursive: true);
+    }
+  }
+
+  @override
+  Future<String?> resolveLocalImagePath({
+    required String datasetId,
+    required RacerProfile racer,
+  }) async {
+    final String? imageFileName = _imageFileNameFor(racer);
+    if (imageFileName == null) {
+      return null;
+    }
+
+    final Directory directory = await _ensureDirectory();
+    return '${directory.path}/$_imagesDirectoryName/$datasetId/$imageFileName';
+  }
+
   Future<Directory> _ensureDirectory() async {
     final Directory root = await _rootDirectoryProvider();
     final Directory directory = Directory('${root.path}/$_directoryName');
@@ -102,5 +223,24 @@ class FileRacerMasterLocalStore implements RacerMasterLocalStore {
       await directory.create(recursive: true);
     }
     return directory;
+  }
+
+  String _basename(String pathValue) {
+    final List<String> segments = pathValue.split('/');
+    return segments.isEmpty ? pathValue : segments.last;
+  }
+
+  String? _imageFileNameFor(RacerProfile racer) {
+    final String? storagePath = racer.imageStoragePath;
+    if (storagePath != null && storagePath.isNotEmpty) {
+      return _basename(storagePath);
+    }
+
+    final Uri? imageUri = Uri.tryParse(racer.imageUrl);
+    if (imageUri == null || imageUri.pathSegments.isEmpty) {
+      return null;
+    }
+
+    return imageUri.pathSegments.last;
   }
 }

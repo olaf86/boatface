@@ -485,6 +485,10 @@ export async function main(argv = process.argv.slice(2)) {
     archiveFileName,
     sourceType: "boatrace-term-download",
     imageStorageBucket: options.skipImages ? null : options.bucket,
+    imagePackStoragePath: null,
+    imagePackImageCount: null,
+    imagePackByteSize: null,
+    imagePackUpdatedAt: null,
     datasetUpdatedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }, {merge: true});

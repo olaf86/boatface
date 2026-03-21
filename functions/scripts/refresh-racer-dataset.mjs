@@ -136,6 +136,7 @@ export async function main(argv = process.argv.slice(2)) {
   const importResult = await runNodeScript("import-racer-dataset.mjs", importArgs);
 
   let imageSyncResult = null;
+  let imagePackResult = null;
   if (options.syncImages) {
     const syncArgs = [
       "--dataset",
@@ -148,6 +149,7 @@ export async function main(argv = process.argv.slice(2)) {
     ];
 
     imageSyncResult = await runNodeScript("sync-racer-images.mjs", syncArgs);
+    imagePackResult = await runNodeScript("build-racer-image-pack.mjs", syncArgs);
   }
 
   console.log(JSON.stringify({
@@ -156,6 +158,7 @@ export async function main(argv = process.argv.slice(2)) {
     bucket: options.syncImages ? options.bucket : null,
     importResult,
     imageSyncResult,
+    imagePackResult,
   }));
 }
 

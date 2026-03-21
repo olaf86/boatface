@@ -70,20 +70,57 @@ class RacerProfile {
     required this.name,
     required this.registrationNumber,
     required this.imageUrl,
+    this.imageStoragePath,
     required this.imageSource,
     required this.updatedAt,
     required this.isActive,
+    this.localImagePath,
   });
 
   final String id;
   final String name;
   final int registrationNumber;
   final String imageUrl;
+  final String? imageStoragePath;
   final String imageSource;
   final DateTime updatedAt;
   final bool isActive;
+  final String? localImagePath;
 
   String get faceLabel => '顔画像 ${registrationNumber.toString()}';
+
+  bool get hasLocalImagePath =>
+      localImagePath != null && localImagePath!.isNotEmpty;
+
+  RacerProfile copyWith({
+    String? id,
+    String? name,
+    int? registrationNumber,
+    String? imageUrl,
+    String? imageStoragePath,
+    bool clearImageStoragePath = false,
+    String? imageSource,
+    DateTime? updatedAt,
+    bool? isActive,
+    String? localImagePath,
+    bool clearLocalImagePath = false,
+  }) {
+    return RacerProfile(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      registrationNumber: registrationNumber ?? this.registrationNumber,
+      imageUrl: imageUrl ?? this.imageUrl,
+      imageStoragePath: clearImageStoragePath
+          ? null
+          : (imageStoragePath ?? this.imageStoragePath),
+      imageSource: imageSource ?? this.imageSource,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isActive: isActive ?? this.isActive,
+      localImagePath: clearLocalImagePath
+          ? null
+          : (localImagePath ?? this.localImagePath),
+    );
+  }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -91,6 +128,7 @@ class RacerProfile {
       'name': name,
       'registrationNumber': registrationNumber,
       'imageUrl': imageUrl,
+      'imageStoragePath': imageStoragePath,
       'imageSource': imageSource,
       'updatedAt': updatedAt.toUtc().toIso8601String(),
       'isActive': isActive,
@@ -102,6 +140,7 @@ class RacerProfile {
     final Object? nameValue = json['name'];
     final Object? registrationNumberValue = json['registrationNumber'];
     final Object? imageUrlValue = json['imageUrl'];
+    final Object? imageStoragePathValue = json['imageStoragePath'];
     final Object? imageSourceValue = json['imageSource'];
     final Object? updatedAtValue = json['updatedAt'];
     final Object? isActiveValue = json['isActive'];
@@ -130,6 +169,10 @@ class RacerProfile {
       name: nameValue,
       registrationNumber: registrationNumberValue,
       imageUrl: imageUrlValue,
+      imageStoragePath:
+          imageStoragePathValue is String && imageStoragePathValue.isNotEmpty
+          ? imageStoragePathValue
+          : null,
       imageSource: imageSourceValue,
       updatedAt: updatedAt.toUtc(),
       isActive: isActiveValue,
@@ -152,12 +195,15 @@ class QuizImageReveal {
 }
 
 class QuizOption {
-  const QuizOption({required this.label, this.imageUrl});
+  const QuizOption({required this.label, this.imageUrl, this.localImagePath});
 
   final String label;
   final String? imageUrl;
+  final String? localImagePath;
 
-  bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
+  bool get hasImage =>
+      (imageUrl != null && imageUrl!.isNotEmpty) ||
+      (localImagePath != null && localImagePath!.isNotEmpty);
 }
 
 class QuizQuestion {
@@ -165,6 +211,7 @@ class QuizQuestion {
     required this.promptType,
     required this.prompt,
     this.promptImageUrl,
+    this.promptImageLocalPath,
     this.promptImageReveal,
     required this.options,
     required this.correctIndex,
@@ -174,13 +221,15 @@ class QuizQuestion {
   final QuizPromptType promptType;
   final String prompt;
   final String? promptImageUrl;
+  final String? promptImageLocalPath;
   final QuizImageReveal? promptImageReveal;
   final List<QuizOption> options;
   final int correctIndex;
   final String correctRacerId;
 
   bool get hasPromptImage =>
-      promptImageUrl != null && promptImageUrl!.isNotEmpty;
+      (promptImageUrl != null && promptImageUrl!.isNotEmpty) ||
+      (promptImageLocalPath != null && promptImageLocalPath!.isNotEmpty);
 
   bool get hasImageOptions =>
       options.any((QuizOption option) => option.hasImage);

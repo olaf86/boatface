@@ -8,6 +8,7 @@ environment:
 
 dependencies:
   animations: ^2.0.11
+  archive: ^4.0.7
   firebase_auth: ^6.1.0
   firebase_core: ^4.5.0
   flutter:

@@ -10,6 +10,8 @@ abstract class RacerRepository {
 
   bool get hasUsableData;
 
+  bool get hasUsableSnapshot;
+
   List<RacerProfile> requireCachedAll();
 }
 

@@ -1,4 +1,5 @@
 import 'dart:ui' show lerpDouble;
+import 'dart:io';
 
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
@@ -284,6 +285,7 @@ class _QuizPromptCard extends StatelessWidget {
               height: promptImageHeight,
               child: _QuizImagePanel(
                 imageUrl: question.promptImageUrl!,
+                localImagePath: question.promptImageLocalPath,
                 semanticLabel: question.prompt,
                 reveal: question.promptImageReveal,
               ),
@@ -366,6 +368,7 @@ class _QuizImageOptionGrid extends StatelessWidget {
                   padding: const EdgeInsets.all(10),
                   child: _QuizImagePanel(
                     imageUrl: option.imageUrl ?? '',
+                    localImagePath: option.localImagePath,
                     semanticLabel: option.label,
                   ),
                 ),
@@ -404,11 +407,13 @@ class _QuizImagePanel extends StatefulWidget {
   const _QuizImagePanel({
     required this.imageUrl,
     required this.semanticLabel,
+    this.localImagePath,
     this.reveal,
   });
 
   final String imageUrl;
   final String semanticLabel;
+  final String? localImagePath;
   final QuizImageReveal? reveal;
 
   @override
@@ -429,6 +434,7 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
   void didUpdateWidget(covariant _QuizImagePanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.imageUrl != widget.imageUrl ||
+        oldWidget.localImagePath != widget.localImagePath ||
         oldWidget.reveal != widget.reveal) {
       _configureAnimation();
     }
@@ -442,26 +448,7 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
 
   @override
   Widget build(BuildContext context) {
-    final Widget image = Image.network(
-      widget.imageUrl,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      errorBuilder: (BuildContext context, Object error, StackTrace? trace) {
-        return _QuizImageFallback(label: widget.semanticLabel);
-      },
-      loadingBuilder:
-          (
-            BuildContext context,
-            Widget child,
-            ImageChunkEvent? loadingProgress,
-          ) {
-            if (loadingProgress == null) {
-              return child;
-            }
-            return const Center(child: CircularProgressIndicator());
-          },
-    );
+    final Widget image = _buildImage();
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
@@ -506,6 +493,46 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
 
     _controller = AnimationController(vsync: this, duration: reveal.duration)
       ..forward();
+  }
+
+  Widget _buildImage() {
+    final String? localImagePath = widget.localImagePath;
+    if (localImagePath != null && localImagePath.isNotEmpty) {
+      final File localImageFile = File(localImagePath);
+      if (localImageFile.existsSync()) {
+        return Image.file(
+          localImageFile,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder:
+              (BuildContext context, Object error, StackTrace? trace) {
+                return _QuizImageFallback(label: widget.semanticLabel);
+              },
+        );
+      }
+    }
+
+    return Image.network(
+      widget.imageUrl,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (BuildContext context, Object error, StackTrace? trace) {
+        return _QuizImageFallback(label: widget.semanticLabel);
+      },
+      loadingBuilder:
+          (
+            BuildContext context,
+            Widget child,
+            ImageChunkEvent? loadingProgress,
+          ) {
+            if (loadingProgress == null) {
+              return child;
+            }
+            return const Center(child: CircularProgressIndicator());
+          },
+    );
   }
 }
 

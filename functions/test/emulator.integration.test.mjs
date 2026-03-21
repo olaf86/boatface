@@ -97,17 +97,26 @@ async function seedRacers() {
       racerCount: 2,
       sourceType: "seed",
       datasetUpdatedAt: new Date("2026-03-16T00:00:00Z"),
+      imagePackStoragePath: "racer-image-packs/dataset-current.zip",
+      imagePackImageCount: 2,
+      imagePackByteSize: 2048,
+      imagePackUpdatedAt: new Date("2026-03-16T01:00:00Z"),
     }),
     db.collection("racer_datasets").doc("dataset-fallback").set({
       datasetId: "dataset-fallback",
       racerCount: 1,
       sourceType: "seed",
       datasetUpdatedAt: new Date("2025-09-16T00:00:00Z"),
+      imagePackStoragePath: "racer-image-packs/dataset-fallback.zip",
+      imagePackImageCount: 1,
+      imagePackByteSize: 1024,
+      imagePackUpdatedAt: new Date("2025-09-16T01:00:00Z"),
     }),
     db.collection("racer_datasets").doc("dataset-current").collection("racers").doc("racer-active").set({
       name: "Active Racer",
       registrationNumber: 1001,
       imageUrl: "https://example.com/active.png",
+      imageStoragePath: "racer-images/dataset-current/1001.png",
       imageSource: "seed",
       updatedAt: new Date("2026-03-15T00:00:00Z"),
       isActive: true,
@@ -116,6 +125,7 @@ async function seedRacers() {
       name: "Inactive Racer",
       registrationNumber: 1002,
       imageUrl: "https://example.com/inactive.png",
+      imageStoragePath: "racer-images/dataset-current/1002.png",
       imageSource: "seed",
       updatedAt: new Date("2026-03-15T00:00:00Z"),
       isActive: false,
@@ -124,6 +134,7 @@ async function seedRacers() {
       name: "Fallback Racer",
       registrationNumber: 901,
       imageUrl: "https://example.com/fallback.png",
+      imageStoragePath: "racer-images/dataset-fallback/0901.png",
       imageSource: "seed",
       updatedAt: new Date("2025-09-15T00:00:00Z"),
       isActive: true,
@@ -169,6 +180,12 @@ test("functions endpoints work together in the emulator suite", async () => {
   assert.equal(manifestResult.body.datasetId, "dataset-current");
   assert.equal(manifestResult.body.datasetUpdatedAt, "2026-03-16T00:00:00.000Z");
   assert.equal(manifestResult.body.recordCount, 2);
+  assert.deepEqual(manifestResult.body.imagePack, {
+    storagePath: "racer-image-packs/dataset-current.zip",
+    updatedAt: "2026-03-16T01:00:00.000Z",
+    imageCount: 2,
+    byteSize: 2048,
+  });
 
   const snapshotResult = await callFunction("getRacerDatasetSnapshot", {
     method: "GET",
@@ -177,9 +194,11 @@ test("functions endpoints work together in the emulator suite", async () => {
   assert.equal(snapshotResult.response.status, 200);
   assert.equal(snapshotResult.body.datasetId, "dataset-current");
   assert.equal(snapshotResult.body.recordCount, 2);
+  assert.equal(snapshotResult.body.imagePack.storagePath, "racer-image-packs/dataset-current.zip");
   assert.equal(snapshotResult.body.racers.length, 2);
   assert.equal(snapshotResult.body.racers[0].id, "racer-active");
   assert.equal(snapshotResult.body.racers[1].id, "racer-inactive");
+  assert.equal(snapshotResult.body.racers[0].imageStoragePath, "racer-images/dataset-current/1001.png");
 
   await db.doc("app_config/racer_dataset_state").set({
     currentDatasetId: null,

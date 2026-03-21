@@ -355,3 +355,7 @@ export function buildImageStoragePath(datasetId, registrationNumber, imageUrl) {
   const extension = path.extname(new URL(imageUrl).pathname) || ".jpg";
   return `racer-images/${datasetId}/${registrationNumber}${extension}`;
 }
+
+export function buildImagePackStoragePath(datasetId) {
+  return `racer-image-packs/${datasetId}.zip`;
+}

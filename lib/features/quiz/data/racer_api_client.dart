@@ -12,6 +12,8 @@ abstract class RacerMasterRemoteDataSource {
   Future<RacerDatasetManifest> fetchManifest();
 
   Future<RacerDatasetSnapshot> fetchSnapshot({required String datasetId});
+
+  Future<List<int>> downloadImagePack({required String datasetId});
 }
 
 class FirebaseRacerMasterRemoteDataSource
@@ -51,12 +53,9 @@ class FirebaseRacerMasterRemoteDataSource
       queryParameters: <String, String>{'datasetId': datasetId},
     );
 
-    final RacerDatasetManifest? manifest =
-        RacerDatasetManifest.tryParseJson(<String, Object?>{
-          'datasetId': json['datasetId'],
-          'datasetUpdatedAt': json['datasetUpdatedAt'],
-          'recordCount': json['recordCount'],
-        });
+    final RacerDatasetManifest? manifest = RacerDatasetManifest.tryParseJson(
+      Map<String, Object?>.from(json),
+    );
     final Object? racersValue = json['racers'];
     if (manifest == null || racersValue is! List<Object?>) {
       throw const RacerRepositoryException('選手データ snapshot の形式が不正です。');
@@ -74,9 +73,45 @@ class FirebaseRacerMasterRemoteDataSource
     return RacerDatasetSnapshot(manifest: manifest, racers: racers);
   }
 
+  @override
+  Future<List<int>> downloadImagePack({required String datasetId}) async {
+    final http.Response response = await _get(
+      '/getRacerDatasetImagePack',
+      queryParameters: <String, String>{'datasetId': datasetId},
+      acceptHeader: 'application/zip',
+    );
+    if (response.statusCode != 200) {
+      throw RacerRepositoryException(_buildErrorMessage(response));
+    }
+
+    return response.bodyBytes;
+  }
+
   Future<Map<String, Object?>> _getJsonObject(
     String path, {
     Map<String, String>? queryParameters,
+  }) async {
+    final http.Response response = await _get(
+      path,
+      queryParameters: queryParameters,
+      acceptHeader: 'application/json',
+    );
+    if (response.statusCode != 200) {
+      throw RacerRepositoryException(_buildErrorMessage(response));
+    }
+
+    final Object? decoded = jsonDecode(response.body);
+    if (decoded is! Map<Object?, Object?>) {
+      throw const RacerRepositoryException('選手データの形式が不正です。');
+    }
+
+    return Map<String, Object?>.from(decoded);
+  }
+
+  Future<http.Response> _get(
+    String path, {
+    Map<String, String>? queryParameters,
+    required String acceptHeader,
   }) async {
     final User? user = _auth.currentUser;
     if (user == null) {
@@ -102,19 +137,10 @@ class FirebaseRacerMasterRemoteDataSource
       uri,
       headers: <String, String>{
         'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
+        'Accept': acceptHeader,
       },
     );
-    if (response.statusCode != 200) {
-      throw RacerRepositoryException(_buildErrorMessage(response));
-    }
-
-    final Object? decoded = jsonDecode(response.body);
-    if (decoded is! Map<Object?, Object?>) {
-      throw const RacerRepositoryException('選手データの形式が不正です。');
-    }
-
-    return Map<String, Object?>.from(decoded);
+    return response;
   }
 
   String _buildErrorMessage(http.Response response) {

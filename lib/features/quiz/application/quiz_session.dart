@@ -157,6 +157,7 @@ class QuizSessionFactory {
       promptType: promptType,
       prompt: _buildPrompt(promptType, target),
       promptImageUrl: _buildPromptImageUrl(promptType, target),
+      promptImageLocalPath: _buildPromptImageLocalPath(promptType, target),
       promptImageReveal: _buildPromptImageReveal(
         promptType: promptType,
         random: random,
@@ -184,6 +185,21 @@ class QuizSessionFactory {
         return '登録番号 ${target.registrationNumber} の顔はどれ？';
       case QuizPromptType.faceToRegistration:
         return 'この顔の登録番号は？';
+    }
+  }
+
+  static String? _buildPromptImageLocalPath(
+    QuizPromptType type,
+    RacerProfile target,
+  ) {
+    switch (type) {
+      case QuizPromptType.faceToName:
+      case QuizPromptType.partialFaceToName:
+      case QuizPromptType.faceToRegistration:
+        return target.localImagePath;
+      case QuizPromptType.nameToFace:
+      case QuizPromptType.registrationToFace:
+        return null;
     }
   }
 
@@ -230,7 +246,11 @@ class QuizSessionFactory {
         return QuizOption(label: racer.name);
       case QuizPromptType.nameToFace:
       case QuizPromptType.registrationToFace:
-        return QuizOption(label: racer.name, imageUrl: racer.imageUrl);
+        return QuizOption(
+          label: racer.name,
+          imageUrl: racer.imageUrl,
+          localImagePath: racer.localImagePath,
+        );
       case QuizPromptType.faceToRegistration:
         return QuizOption(label: racer.registrationNumber.toString());
     }

@@ -13,6 +13,7 @@ import {
 } from "firebase-admin/firestore";
 import {getAuth} from "firebase-admin/auth";
 import type {DecodedIdToken} from "firebase-admin/auth";
+import {getStorage} from "firebase-admin/storage";
 
 initializeApp();
 
@@ -198,12 +199,42 @@ function getDatasetUpdatedAtIso(data: Record<string, unknown>): string | null {
     timestampToIsoString(data.updatedAt);
 }
 
+function requirePositiveInteger(value: unknown): number | null {
+  return typeof value === "number" &&
+      Number.isInteger(value) &&
+      value > 0 ?
+    value :
+    null;
+}
+
+function getImagePackResponse(data: Record<string, unknown>) {
+  const storagePath = typeof data.imagePackStoragePath === "string" &&
+      data.imagePackStoragePath ?
+    data.imagePackStoragePath :
+    null;
+  const updatedAt = timestampToIsoString(data.imagePackUpdatedAt);
+  const imageCount = requirePositiveInteger(data.imagePackImageCount);
+  const byteSize = requirePositiveInteger(data.imagePackByteSize);
+
+  if (!storagePath || !updatedAt || imageCount == null || byteSize == null) {
+    return null;
+  }
+
+  return {
+    storagePath,
+    updatedAt,
+    imageCount,
+    byteSize,
+  };
+}
+
 function mapRacerResponse(id: string, data: Record<string, unknown>) {
   return {
     id,
     name: data.name ?? null,
     registrationNumber: data.registrationNumber ?? null,
     imageUrl: data.imageUrl ?? null,
+    imageStoragePath: data.imageStoragePath ?? null,
     imageSource: data.imageSource ?? null,
     updatedAt: timestampToIsoString(data.updatedAt),
     isActive: data.isActive ?? null,
@@ -804,6 +835,7 @@ export const getRacerDatasetManifest = onRequest({region}, async (request, respo
       datasetId: datasetSelection.datasetId,
       datasetUpdatedAt,
       recordCount,
+      imagePack: getImagePackResponse(datasetData),
     });
   } catch (error) {
     logger.error("getRacerDatasetManifest failed", error);
@@ -866,6 +898,7 @@ export const getRacerDatasetSnapshot = onRequest({region}, async (request, respo
     const racers = racersSnapshot.docs.map((doc) =>
       mapRacerResponse(doc.id, doc.data() as Record<string, unknown>),
     );
+    const imagePack = getImagePackResponse(datasetData);
 
     logger.info("getRacerDatasetSnapshot succeeded", {
       uid: token.uid,
@@ -877,6 +910,7 @@ export const getRacerDatasetSnapshot = onRequest({region}, async (request, respo
       datasetId: datasetSelection.datasetId,
       datasetUpdatedAt,
       recordCount: racers.length,
+      imagePack,
       racers,
     });
   } catch (error) {
@@ -899,6 +933,89 @@ export const getRacerDatasetSnapshot = onRequest({region}, async (request, respo
     }
 
     sendError(response, 500, "internal", "Failed to fetch racer dataset snapshot.");
+  }
+});
+
+export const getRacerDatasetImagePack = onRequest({region}, async (request, response) => {
+  setCorsHeaders(response);
+  if (handleOptions(request.method, response)) {
+    return;
+  }
+
+  if (request.method !== "GET") {
+    sendError(response, 405, "method_not_allowed", "Use GET for racer dataset image pack.");
+    return;
+  }
+
+  try {
+    const token = await verifyRequestAuth(request);
+    await upsertUserProfile(token);
+
+    const datasetSelection = await resolveRacerDatasetSelection({
+      datasetId: request.query.datasetId,
+    });
+    const datasetRef = db.collection("racer_datasets").doc(datasetSelection.datasetId);
+    const datasetSnapshot = await datasetRef.get();
+    if (!datasetSnapshot.exists) {
+      sendError(response, 404, "dataset_not_found", "Requested racer dataset does not exist.");
+      return;
+    }
+
+    const datasetData = datasetSnapshot.data() ?? {};
+    const imagePack = getImagePackResponse(datasetData);
+    if (!imagePack) {
+      sendError(response, 404, "image_pack_not_found", "Requested racer image pack does not exist.");
+      return;
+    }
+
+    const bucket = getStorage().bucket();
+    const file = bucket.file(imagePack.storagePath);
+    const [exists] = await file.exists();
+    if (!exists) {
+      sendError(response, 404, "image_pack_not_found", "Requested racer image pack does not exist.");
+      return;
+    }
+
+    logger.info("getRacerDatasetImagePack succeeded", {
+      uid: token.uid,
+      datasetId: datasetSelection.datasetId,
+      datasetSource: datasetSelection.source,
+      storagePath: imagePack.storagePath,
+    });
+    response.set("Content-Type", "application/zip");
+    response.set("Content-Disposition", `attachment; filename="${path.basename(imagePack.storagePath)}"`);
+    response.set("Cache-Control", "private, max-age=0, must-revalidate");
+    response.set("Content-Length", String(imagePack.byteSize));
+    file.createReadStream()
+      .on("error", (error) => {
+        logger.error("getRacerDatasetImagePack stream failed", error);
+        if (!response.headersSent) {
+          sendError(response, 500, "internal", "Failed to fetch racer image pack.");
+        } else {
+          response.end();
+        }
+      })
+      .pipe(response);
+  } catch (error) {
+    logger.error("getRacerDatasetImagePack failed", error);
+    if (error instanceof Error) {
+      if (error.message === "racer_dataset_state_missing") {
+        sendError(response, 503, "racer_dataset_state_missing", "No racer dataset state is configured.");
+        return;
+      }
+
+      if (error.message === "fallback_racer_dataset_missing") {
+        sendError(response, 404, "fallback_racer_dataset_missing", "No fallback racer dataset is configured.");
+        return;
+      }
+    }
+
+    if (isAuthError(error)) {
+      sendError(response, 401, "unauthenticated", "A valid Firebase ID token is required.");
+      return;
+    }
+
+    sendError(response, 500, "internal", "Failed to fetch racer image pack.");
   }
 });
 

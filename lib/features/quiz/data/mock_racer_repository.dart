@@ -12,6 +12,7 @@ class MockRacerRepository implements RacerRepository {
       activeManifest: currentManifest,
       remoteManifest: currentManifest,
       downloadedSnapshot: false,
+      downloadedImagePack: false,
       usedLocalSnapshot: true,
     );
   }
@@ -24,10 +25,14 @@ class MockRacerRepository implements RacerRepository {
     datasetId: 'mock-dataset',
     datasetUpdatedAt: DateTime.utc(2026, 3, 21),
     recordCount: fetchAll().length,
+    imagePack: null,
   );
 
   @override
   bool get hasUsableData => fetchAll().length >= 4;
+
+  @override
+  bool get hasUsableSnapshot => fetchAll().length >= 4;
 
   @override
   List<RacerProfile> requireCachedAll() => fetchAll();
@@ -47,6 +52,7 @@ class MockRacerRepository implements RacerRepository {
         name: '選手${registration.toString()}',
         registrationNumber: registration,
         imageUrl: 'https://example.com/mock/racer/$registration.jpg',
+        imageStoragePath: 'racer-images/mock-dataset/$registration.jpg',
         imageSource: 'mock-dataset',
         updatedAt: now,
         isActive: true,
