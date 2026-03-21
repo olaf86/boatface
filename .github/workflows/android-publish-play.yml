@@ -79,7 +79,7 @@ jobs:
           echo "BUILD_NUMBER=${BUILD_NUMBER}" >> "$GITHUB_ENV"
 
       - name: Build staging AAB
-        run: flutter build appbundle --flavor stg --release --build-number="${BUILD_NUMBER}"
+        run: flutter build appbundle --flavor stg --target lib/main_stg.dart --release --build-number="${BUILD_NUMBER}"
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4

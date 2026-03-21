@@ -21,7 +21,7 @@ else
 fi
 
 BUILD_NUMBER="${CI_BUILD_NUMBER:-1}"
-flutter build ios --config-only --release --flavor stg --build-number="$BUILD_NUMBER"
+flutter build ios --config-only --release --flavor stg --target lib/main_stg.dart --build-number="$BUILD_NUMBER"
 
 HOMEBREW_NO_AUTO_UPDATE=1 brew install cocoapods
 
