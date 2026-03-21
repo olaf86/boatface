@@ -33,7 +33,6 @@ class SettingsScreen extends ConsumerWidget {
                     label: 'ログイン方法',
                     value: authState?.providerLabel ?? '未ログイン',
                   ),
-                  _InfoRow(label: 'UID', value: authState?.uid ?? '-'),
                   const SizedBox(height: 16),
                   FilledButton.tonal(
                     onPressed: () async {

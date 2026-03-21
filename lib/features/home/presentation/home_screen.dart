@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_route.dart';
-import '../../auth/application/auth_controller.dart';
 import '../../quiz/application/racer_master_sync_controller.dart';
 import '../../quiz/application/racer_master_sync_state.dart';
 import '../../quiz/domain/quiz_modes.dart';
@@ -34,11 +33,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authStateProvider).valueOrNull;
     final RacerMasterSyncState syncState = ref.watch(
       racerMasterSyncControllerProvider,
     );
-    final String providerLabel = authState?.providerLabel ?? '-';
 
     return Scaffold(
       appBar: AppBar(
@@ -76,10 +73,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: <Widget>[
-              _HomeSummaryCard(
-                providerLabel: providerLabel,
-                syncState: syncState,
-              ),
+              _HomeSummaryCard(syncState: syncState),
               const SizedBox(height: 12),
               ...kQuizModes.map(
                 (QuizModeConfig mode) => Padding(
@@ -117,12 +111,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _HomeSummaryCard extends StatelessWidget {
-  const _HomeSummaryCard({
-    required this.providerLabel,
-    required this.syncState,
-  });
+  const _HomeSummaryCard({required this.syncState});
 
-  final String providerLabel;
   final RacerMasterSyncState syncState;
 
   @override
@@ -141,8 +131,6 @@ class _HomeSummaryCard extends StatelessWidget {
           children: <Widget>[
             Text('モードを選択', style: theme.textTheme.headlineSmall),
             const SizedBox(height: 8),
-            Text('ログイン: $providerLabel'),
-            const SizedBox(height: 4),
             Text('詳細なルールは次の画面で確認できます。', style: theme.textTheme.bodyMedium),
             const SizedBox(height: 12),
             Wrap(
