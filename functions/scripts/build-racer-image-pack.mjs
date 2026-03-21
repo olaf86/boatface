@@ -3,12 +3,14 @@
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs/promises";
-import {spawn} from "node:child_process";
+import {createWriteStream} from "node:fs";
+import {pipeline} from "node:stream/promises";
 import {pathToFileURL} from "node:url";
 
 import {initializeApp, applicationDefault} from "firebase-admin/app";
 import {FieldValue, getFirestore} from "firebase-admin/firestore";
 import {getStorage} from "firebase-admin/storage";
+import yazl from "yazl";
 
 import {buildImagePackStoragePath} from "./helpers/racer-dataset-helpers.mjs";
 
@@ -62,27 +64,21 @@ function parseArgs(argv) {
   return options;
 }
 
-async function runZipCommand(outputPath, cwd) {
-  return new Promise((resolve, reject) => {
-    const child = spawn("zip", ["-qr", outputPath, "."], {
-      cwd,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: process.env,
-    });
+async function writeZipFile(outputPath, inputDirectory) {
+  const zipFile = new yazl.ZipFile();
+  const directoryEntries = await fs.readdir(inputDirectory, {withFileTypes: true});
 
-    let stderr = "";
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code !== 0) {
-        reject(new Error(stderr || `zip exited with code ${code}`));
-        return;
-      }
-      resolve();
-    });
-  });
+  for (const entry of directoryEntries) {
+    if (!entry.isFile()) {
+      continue;
+    }
+
+    const sourcePath = path.join(inputDirectory, entry.name);
+    zipFile.addFile(sourcePath, entry.name);
+  }
+
+  zipFile.end();
+  await pipeline(zipFile.outputStream, createWriteStream(outputPath));
 }
 
 export async function main(argv = process.argv.slice(2)) {
@@ -126,7 +122,7 @@ export async function main(argv = process.argv.slice(2)) {
     }
 
     const zipPath = path.join(tempDir, `${options.datasetId}.zip`);
-    await runZipCommand(zipPath, imagesDir);
+    await writeZipFile(zipPath, imagesDir);
 
     const imagePackStoragePath = buildImagePackStoragePath(options.datasetId);
     await bucket.upload(zipPath, {
