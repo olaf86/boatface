@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/home/presentation/home_screen.dart';
+import '../features/quiz/application/racer_master_sync_controller.dart';
+import '../features/quiz/application/racer_master_sync_state.dart';
 
 class BoatfaceApp extends ConsumerWidget {
   const BoatfaceApp({super.key});
@@ -191,7 +194,14 @@ class BoatfaceApp extends ConsumerWidget {
         ),
       ),
       builder: (BuildContext context, Widget? child) {
-        return _AppBackground(child: child ?? const SizedBox.shrink());
+        return _AppBackground(
+          child: Stack(
+            children: <Widget>[
+              child ?? const SizedBox.shrink(),
+              if (kDebugMode) const _RacerMasterDebugOverlay(),
+            ],
+          ),
+        );
       },
       home: authStateAsync.when(
         data: (authState) =>
@@ -286,4 +296,69 @@ class _Bubble extends StatelessWidget {
       decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
+}
+
+class _RacerMasterDebugOverlay extends ConsumerWidget {
+  const _RacerMasterDebugOverlay();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final RacerMasterSyncState syncState = ref.watch(
+      racerMasterSyncControllerProvider,
+    );
+    final ThemeData theme = Theme.of(context);
+    final String status = switch (syncState.phase) {
+      RacerMasterSyncPhase.idle => syncState.hasUsableData ? 'READY' : 'IDLE',
+      RacerMasterSyncPhase.checking => 'CHECK',
+      RacerMasterSyncPhase.downloading => 'LOAD',
+      RacerMasterSyncPhase.ready => 'READY',
+      RacerMasterSyncPhase.error => 'ERROR',
+    };
+    final String datasetId = syncState.activeManifest?.datasetId ?? '-';
+    final String updatedAt = syncState.activeManifest == null
+        ? '-'
+        : _formatDebugTime(syncState.activeManifest!.datasetUpdatedAt);
+
+    return IgnorePointer(
+      child: SafeArea(
+        child: Align(
+          alignment: Alignment.bottomRight,
+          child: Container(
+            margin: const EdgeInsets.only(right: 12, bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xE611314C),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0x66FFFFFF)),
+            ),
+            child: DefaultTextStyle(
+              style:
+                  theme.textTheme.labelMedium?.copyWith(
+                    color: Colors.white,
+                    fontFamily: 'monospace',
+                  ) ??
+                  const TextStyle(color: Colors.white),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('SYNC $status'),
+                  Text('DS $datasetId'),
+                  Text('AT $updatedAt'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _formatDebugTime(DateTime dateTime) {
+  final DateTime local = dateTime.toLocal();
+  return '${local.month.toString().padLeft(2, '0')}/'
+      '${local.day.toString().padLeft(2, '0')} '
+      '${local.hour.toString().padLeft(2, '0')}:'
+      '${local.minute.toString().padLeft(2, '0')}';
 }
