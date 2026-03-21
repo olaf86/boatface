@@ -268,6 +268,8 @@ class _QuizPromptCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
+    final double screenHeight = MediaQuery.sizeOf(context).height;
+    final double promptImageHeight = (screenHeight * 0.24).clamp(180.0, 220.0);
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -278,8 +280,8 @@ class _QuizPromptCard extends StatelessWidget {
           Text(question.prompt, style: textTheme.headlineSmall),
           if (question.hasPromptImage) ...<Widget>[
             const SizedBox(height: 16),
-            AspectRatio(
-              aspectRatio: 4 / 5,
+            SizedBox(
+              height: promptImageHeight,
               child: _QuizImagePanel(
                 imageUrl: question.promptImageUrl!,
                 semanticLabel: question.prompt,
