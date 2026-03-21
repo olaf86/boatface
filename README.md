@@ -82,6 +82,8 @@ Android staging releases use an auto-incremented build number:
 BUILD_NUMBER = GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT
 ```
 
+The Android publish workflow is triggered automatically by pushes to `main`. Manual runs are also available through `workflow_dispatch`.
+
 Configure these GitHub repository secrets for Android staging delivery:
 - `ANDROID_STG_GOOGLE_SERVICES_JSON_BASE64`
 - `ANDROID_STG_UPLOAD_KEYSTORE_BASE64`
@@ -98,6 +100,19 @@ base64 -i /absolute/path/to/boatface_stg_upload.jks | pbcopy
 ```
 
 The Android workflow restores those secrets only inside step-scoped `env` values and removes the generated files in a final cleanup step.
+
+Before the workflow can publish successfully, prepare Google Play Console:
+- Create the `dev.asobo.boatface.stg` app.
+- Enable Play App Signing.
+- Create or confirm the `internal` testing track.
+- Create a service account with Play Console release permissions for this app.
+- Register internal testers or a tester group.
+
+Store the Play service account JSON as the `PLAY_STG_SERVICE_ACCOUNT_JSON` GitHub secret.
+
+After these secrets are configured, pushing a commit to `main` should trigger [`android-publish-play.yml`](.github/workflows/android-publish-play.yml) automatically. Check the GitHub Actions run named `Android Publish to Play Console` to confirm that:
+- `Build staging AAB` succeeds.
+- `Upload to Play Console internal testing` succeeds.
 
 ### Xcode Cloud
 Xcode Cloud is expected to handle iOS staging archives from `main` and deploy them to TestFlight.

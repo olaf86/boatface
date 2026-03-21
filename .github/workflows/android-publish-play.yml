@@ -27,6 +27,10 @@ on:
           - inProgress
           - halted
 
+concurrency:
+  group: android-publish-play-stg-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   publish-play-stg:
     runs-on: ubuntu-latest
