@@ -37,6 +37,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   bool _dialogVisible = false;
   late bool _isIntroCountdownActive;
   QuizAnswerFeedback? _activeFeedback;
+  bool _isFeedbackOverlayVisible = false;
 
   @override
   void initState() {
@@ -213,7 +214,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                   ),
                 ],
               ),
-              if (activeFeedback != null)
+              if (activeFeedback != null && _isFeedbackOverlayVisible)
                 Positioned.fill(
                   child: _QuizAnswerFeedbackOverlay(
                     key: ValueKey<String>(
@@ -242,6 +243,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           if (canContinue)
             TextButton(
               onPressed: () {
+                if (mounted) {
+                  setState(() {
+                    _activeFeedback = null;
+                  });
+                }
                 ref
                     .read(quizSessionControllerProvider(widget.mode).notifier)
                     .continueAfterAd();
@@ -267,6 +273,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     );
     if (state.gameOver || state.isCompleted) {
       _goToResult();
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _activeFeedback = null;
+      });
     }
   }
 
@@ -300,6 +313,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
     setState(() {
       _activeFeedback = feedback;
+      _isFeedbackOverlayVisible = true;
     });
   }
 
@@ -308,8 +322,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return;
     }
 
+    final bool isCorrect = _activeFeedback!.isCorrect;
     setState(() {
-      _activeFeedback = null;
+      _isFeedbackOverlayVisible = false;
+      if (isCorrect) {
+        _activeFeedback = null;
+      }
     });
     ref
         .read(quizSessionControllerProvider(widget.mode).notifier)
