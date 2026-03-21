@@ -135,7 +135,7 @@ void main() {
       );
     });
 
-    test('limits quick mode questions and options to A1 racers', () {
+    test('limits quick mode questions and options to A1 racers of same gender', () {
       final List<RacerProfile> racers = _buildRacers();
       final Map<String, RacerProfile> racerById = <String, RacerProfile>{
         for (final RacerProfile racer in racers) racer.id: racer,
@@ -161,6 +161,13 @@ void main() {
           question.options.every(
             (QuizOption option) =>
                 racerById[option.racerId]!.racerClass == 'A1',
+          ),
+          true,
+        );
+        expect(
+          question.options.every(
+            (QuizOption option) =>
+                racerById[option.racerId]!.gender == target.gender,
           ),
           true,
         );

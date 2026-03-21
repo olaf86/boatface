@@ -145,13 +145,16 @@ class QuizSessionFactory {
     required Random random,
     required int? timeLimitSeconds,
   }) {
-    final String? requiredRacerClass = _requiredRacerClassForMode(mode);
+    final _CandidateFilter filter = _candidateFilterForQuestion(
+      mode: mode,
+      target: target,
+    );
     final List<RacerProfile> candidatePool = _candidatePoolForQuestion(
       target: target,
       racers: racers,
       random: random,
-      racerClass: requiredRacerClass ?? target.racerClass,
-      gender: target.gender,
+      racerClass: filter.racerClass,
+      gender: filter.gender,
     );
     final List<RacerProfile> candidates = <RacerProfile>[
       target,
@@ -321,6 +324,21 @@ class QuizSessionFactory {
     }
   }
 
+  static _CandidateFilter _candidateFilterForQuestion({
+    required QuizModeConfig mode,
+    required RacerProfile target,
+  }) {
+    switch (mode.id) {
+      case 'quick':
+        return _CandidateFilter(racerClass: 'A1', gender: target.gender);
+      default:
+        return _CandidateFilter(
+          racerClass: target.racerClass,
+          gender: target.gender,
+        );
+    }
+  }
+
   static List<RacerProfile>? _filterRacersByAttributes({
     required List<RacerProfile> racers,
     String? racerClass,
@@ -382,4 +400,11 @@ class QuizSessionFactory {
 
   static const int _requiredDistractorCount = 3;
   static const int _minimumCandidatePoolSize = _requiredDistractorCount + 1;
+}
+
+class _CandidateFilter {
+  const _CandidateFilter({this.racerClass, this.gender});
+
+  final String? racerClass;
+  final String? gender;
 }
