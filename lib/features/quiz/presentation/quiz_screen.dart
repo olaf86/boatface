@@ -376,10 +376,9 @@ class _QuizTextOptionList extends StatelessWidget {
       separatorBuilder: (BuildContext context, int index) =>
           const SizedBox(height: 6),
       itemBuilder: (BuildContext context, int i) {
-        return _QuizOptionButton(
+        return _QuizTextOptionButton(
           buttonKey: ValueKey<String>('quiz-option-$i'),
           label: options[i].label,
-          indexLabel: '${i + 1}',
           visualState: _visualStateForOption(index: i, feedback: feedback),
           enabled: enabled,
           onPressed: () => onSelected(i),
@@ -422,45 +421,30 @@ class _QuizImageOptionGrid extends StatelessWidget {
         return Semantics(
           button: true,
           label: option.label,
-          child: _QuizOptionButton(
+          child: _QuizImageOptionButton(
             buttonKey: ValueKey<String>('quiz-option-$index'),
-            label: option.label,
             indexLabel: '${index + 1}',
             visualState: visualState,
             enabled: enabled,
             onPressed: () => onSelected(index),
-            contentPadding: const EdgeInsets.all(10),
             child: Stack(
               fit: StackFit.expand,
               children: <Widget>[
-                _QuizImagePanel(
-                  imageUrl: option.imageUrl ?? '',
-                  localImagePath: option.localImagePath,
-                  semanticLabel: option.label,
+                Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: _QuizImagePanel(
+                    imageUrl: option.imageUrl ?? '',
+                    localImagePath: option.localImagePath,
+                    semanticLabel: option.label,
+                  ),
                 ),
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.92),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        child: Text(
-                          option.label,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.labelLarge,
-                        ),
-                      ),
-                    ),
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  child: _QuizOptionIndexChip(
+                    label: '${index + 1}',
+                    accentColor: _accentColorFor(context, visualState),
+                    highlighted: _isHighlighted(visualState),
                   ),
                 ),
               ],
@@ -501,132 +485,132 @@ _QuizOptionVisualState _visualStateForOption({
   return _QuizOptionVisualState.dimmed;
 }
 
-class _QuizOptionButton extends StatelessWidget {
-  const _QuizOptionButton({
+class _QuizTextOptionButton extends StatelessWidget {
+  const _QuizTextOptionButton({
     required this.buttonKey,
     required this.label,
-    required this.indexLabel,
     required this.visualState,
     required this.enabled,
     required this.onPressed,
-    this.child,
-    this.contentPadding = const EdgeInsets.symmetric(
-      horizontal: 16,
-      vertical: 14,
-    ),
   });
 
   final Key buttonKey;
   final String label;
+  final _QuizOptionVisualState visualState;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color accentColor = _accentColorFor(context, visualState);
+    final bool highlighted = _isHighlighted(visualState);
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 220),
+      opacity: _opacityFor(visualState),
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutBack,
+        scale: _scaleFor(visualState),
+        child: FilledButton.tonal(
+          key: buttonKey,
+          onPressed: enabled ? onPressed : null,
+          style: FilledButton.styleFrom(
+            alignment: Alignment.centerLeft,
+            backgroundColor: _backgroundColorFor(context, visualState),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            side: highlighted
+                ? BorderSide(
+                    color: accentColor.withValues(alpha: 0.9),
+                    width: 2,
+                  )
+                : null,
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            child: Stack(
+              children: <Widget>[
+                Padding(
+                  padding: EdgeInsets.only(right: highlighted ? 92 : 0),
+                  child: Text(label),
+                ),
+                if (highlighted)
+                  Positioned(
+                    top: -2,
+                    right: 0,
+                    child: _QuizOptionResultBadge(
+                      visualState: visualState,
+                      accentColor: accentColor,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuizImageOptionButton extends StatelessWidget {
+  const _QuizImageOptionButton({
+    required this.buttonKey,
+    required this.indexLabel,
+    required this.visualState,
+    required this.enabled,
+    required this.onPressed,
+    required this.child,
+  });
+
+  final Key buttonKey;
   final String indexLabel;
   final _QuizOptionVisualState visualState;
   final bool enabled;
   final VoidCallback onPressed;
-  final Widget? child;
-  final EdgeInsets contentPadding;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final ColorScheme colorScheme = theme.colorScheme;
-    final bool highlighted =
-        visualState == _QuizOptionVisualState.selectedCorrect ||
-        visualState == _QuizOptionVisualState.selectedWrong ||
-        visualState == _QuizOptionVisualState.correctReveal;
-    final bool isWrong = visualState == _QuizOptionVisualState.selectedWrong;
-    final bool isCorrect =
-        visualState == _QuizOptionVisualState.selectedCorrect ||
-        visualState == _QuizOptionVisualState.correctReveal;
-    final Color accentColor = isWrong
-        ? colorScheme.error
-        : (isCorrect ? const Color(0xFF18A56B) : colorScheme.primary);
-    final double opacity = switch (visualState) {
-      _QuizOptionVisualState.dimmed => 0.42,
-      _ => 1,
-    };
-    final double scale = switch (visualState) {
-      _QuizOptionVisualState.selectedCorrect => 1.02,
-      _QuizOptionVisualState.selectedWrong => 0.985,
-      _QuizOptionVisualState.correctReveal => 1.01,
-      _ => 1,
-    };
-    final Widget contents =
-        child ??
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Text(label, style: theme.textTheme.titleMedium),
-        );
+    final Color accentColor = _accentColorFor(context, visualState);
+    final bool highlighted = _isHighlighted(visualState);
 
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 220),
-      opacity: opacity,
+      opacity: _opacityFor(visualState),
       child: AnimatedScale(
         duration: const Duration(milliseconds: 240),
         curve: Curves.easeOutBack,
-        scale: scale,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          constraints: BoxConstraints(minHeight: child == null ? 76 : 0),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              colors: highlighted
-                  ? <Color>[
-                      accentColor.withValues(alpha: isWrong ? 0.18 : 0.16),
-                      Colors.white,
-                    ]
-                  : <Color>[
-                      colorScheme.surface,
-                      colorScheme.surfaceContainerHighest,
-                    ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            border: Border.all(
-              color: highlighted
-                  ? accentColor.withValues(alpha: 0.92)
-                  : colorScheme.outlineVariant,
-              width: highlighted ? 2 : 1.2,
-            ),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: accentColor.withValues(alpha: highlighted ? 0.16 : 0.05),
-                blurRadius: highlighted ? 20 : 10,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              key: buttonKey,
+        scale: _scaleFor(visualState),
+        child: FilledButton.tonal(
+          key: buttonKey,
+          onPressed: enabled ? onPressed : null,
+          style: FilledButton.styleFrom(
+            backgroundColor: _backgroundColorFor(context, visualState),
+            padding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
-              onTap: enabled ? onPressed : null,
-              child: Stack(
-                children: <Widget>[
-                  Padding(padding: contentPadding, child: contents),
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    child: _QuizOptionIndexChip(
-                      label: indexLabel,
-                      accentColor: accentColor,
-                      highlighted: highlighted,
-                    ),
-                  ),
-                  if (highlighted)
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: _QuizOptionResultBadge(
-                        visualState: visualState,
-                        accentColor: accentColor,
-                      ),
-                    ),
-                ],
-              ),
+              side: highlighted
+                  ? BorderSide(
+                      color: accentColor.withValues(alpha: 0.9),
+                      width: 2,
+                    )
+                  : BorderSide.none,
             ),
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              child,
+              if (highlighted)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: _QuizOptionResultBadge(
+                    visualState: visualState,
+                    accentColor: accentColor,
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -651,7 +635,7 @@ class _QuizOptionIndexChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: highlighted
             ? accentColor.withValues(alpha: 0.14)
-            : Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+            : Theme.of(context).colorScheme.surface.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
@@ -719,6 +703,52 @@ class _IconAndLabel {
 
   final IconData icon;
   final String label;
+}
+
+bool _isHighlighted(_QuizOptionVisualState visualState) {
+  return visualState == _QuizOptionVisualState.selectedCorrect ||
+      visualState == _QuizOptionVisualState.selectedWrong ||
+      visualState == _QuizOptionVisualState.correctReveal;
+}
+
+double _opacityFor(_QuizOptionVisualState visualState) {
+  return switch (visualState) {
+    _QuizOptionVisualState.dimmed => 0.42,
+    _ => 1,
+  };
+}
+
+double _scaleFor(_QuizOptionVisualState visualState) {
+  return switch (visualState) {
+    _QuizOptionVisualState.selectedCorrect => 1.02,
+    _QuizOptionVisualState.selectedWrong => 0.985,
+    _QuizOptionVisualState.correctReveal => 1.01,
+    _ => 1,
+  };
+}
+
+Color _accentColorFor(
+  BuildContext context,
+  _QuizOptionVisualState visualState,
+) {
+  return visualState == _QuizOptionVisualState.selectedWrong
+      ? Theme.of(context).colorScheme.error
+      : const Color(0xFF18A56B);
+}
+
+Color? _backgroundColorFor(
+  BuildContext context,
+  _QuizOptionVisualState visualState,
+) {
+  final Color accentColor = _accentColorFor(context, visualState);
+  return switch (visualState) {
+    _QuizOptionVisualState.selectedCorrect => accentColor.withValues(
+      alpha: 0.16,
+    ),
+    _QuizOptionVisualState.selectedWrong => accentColor.withValues(alpha: 0.16),
+    _QuizOptionVisualState.correctReveal => accentColor.withValues(alpha: 0.16),
+    _ => null,
+  };
 }
 
 class _QuizAnswerFeedbackOverlay extends StatelessWidget {
