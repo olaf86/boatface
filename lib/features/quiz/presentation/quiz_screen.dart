@@ -270,17 +270,17 @@ class _QuizPromptCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final double screenHeight = MediaQuery.sizeOf(context).height;
-    final double promptImageHeight = (screenHeight * 0.24).clamp(180.0, 220.0);
+    final double promptImageHeight = (screenHeight * 0.42).clamp(286.0, 380.0);
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           Text(question.prompt, style: textTheme.headlineSmall),
           if (question.hasPromptImage) ...<Widget>[
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             SizedBox(
               height: promptImageHeight,
               child: _QuizImagePanel(
@@ -288,6 +288,9 @@ class _QuizPromptCard extends StatelessWidget {
                 localImagePath: question.promptImageLocalPath,
                 semanticLabel: question.prompt,
                 reveal: question.promptImageReveal,
+                fit: question.promptImageReveal == null
+                    ? BoxFit.contain
+                    : BoxFit.cover,
               ),
             ),
           ],
@@ -313,12 +316,12 @@ class _QuizTextOptionList extends StatelessWidget {
     return ListView.separated(
       itemCount: options.length,
       separatorBuilder: (BuildContext context, int index) =>
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
       itemBuilder: (BuildContext context, int i) => FilledButton.tonal(
         onPressed: enabled ? () => onSelected(i) : null,
         style: FilledButton.styleFrom(
           alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
         child: Text(options[i].label),
       ),
@@ -409,12 +412,14 @@ class _QuizImagePanel extends StatefulWidget {
     required this.semanticLabel,
     this.localImagePath,
     this.reveal,
+    this.fit = BoxFit.contain,
   });
 
   final String imageUrl;
   final String semanticLabel;
   final String? localImagePath;
   final QuizImageReveal? reveal;
+  final BoxFit fit;
 
   @override
   State<_QuizImagePanel> createState() => _QuizImagePanelState();
@@ -435,7 +440,8 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.imageUrl != widget.imageUrl ||
         oldWidget.localImagePath != widget.localImagePath ||
-        oldWidget.reveal != widget.reveal) {
+        oldWidget.reveal != widget.reveal ||
+        oldWidget.fit != widget.fit) {
       _configureAnimation();
     }
   }
@@ -501,7 +507,7 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
       final File localImageFile = File(localImagePath);
       return Image.file(
         localImageFile,
-        fit: BoxFit.cover,
+        fit: widget.fit,
         width: double.infinity,
         height: double.infinity,
         errorBuilder: (BuildContext context, Object error, StackTrace? trace) {
