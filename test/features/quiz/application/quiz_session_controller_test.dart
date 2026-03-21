@@ -155,6 +155,8 @@ class _FakeRacerRepository implements RacerRepository {
         id: 'racer-$index',
         name: '選手$index',
         registrationNumber: 5000 + index,
+        racerClass: index.isEven ? 'A1' : 'A2',
+        gender: index.isEven ? 'male' : 'female',
         imageUrl: 'https://example.com/racer-$index.jpg',
         imageSource: 'test',
         updatedAt: DateTime.utc(2026, 3, 21),
