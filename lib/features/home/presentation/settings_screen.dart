@@ -34,7 +34,11 @@ class SettingsScreen extends ConsumerWidget {
                     value: authState?.providerLabel ?? '未ログイン',
                   ),
                   const SizedBox(height: 16),
-                  FilledButton.tonal(
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      foregroundColor: Theme.of(context).colorScheme.onError,
+                    ),
                     onPressed: () async {
                       final bool? confirmed = await showDialog<bool>(
                         context: context,
@@ -47,6 +51,14 @@ class SettingsScreen extends ConsumerWidget {
                               child: const Text('キャンセル'),
                             ),
                             FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.error,
+                                foregroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.onError,
+                              ),
                               onPressed: () => Navigator.of(context).pop(true),
                               child: const Text('ログアウト'),
                             ),
@@ -78,45 +90,8 @@ class SettingsScreen extends ConsumerWidget {
                   Text('クイズデータ', style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 12),
                   _InfoRow(label: '同期状態', value: _statusLabel(syncState)),
-                  _InfoRow(
-                    label: '使用中 dataset',
-                    value: syncState.activeManifest?.datasetId ?? '未取得',
-                  ),
-                  _InfoRow(
-                    label: '使用中 dataset 更新日時',
-                    value: syncState.activeManifest == null
-                        ? '-'
-                        : formatDateTimeYmdHm(
-                            syncState.activeManifest!.datasetUpdatedAt,
-                          ),
-                  ),
-                  _InfoRow(
-                    label: '最新確認 dataset',
-                    value: syncState.remoteManifest?.datasetId ?? '-',
-                  ),
-                  _InfoRow(
-                    label: '最新確認 更新日時',
-                    value: syncState.remoteManifest == null
-                        ? '-'
-                        : formatDateTimeYmdHm(
-                            syncState.remoteManifest!.datasetUpdatedAt,
-                          ),
-                  ),
-                  _InfoRow(
-                    label: '最終同期完了',
-                    value: syncState.lastCompletedAt == null
-                        ? '-'
-                        : formatDateTimeYmdHm(syncState.lastCompletedAt!),
-                  ),
-                  if (syncState.errorMessage != null) ...<Widget>[
-                    const SizedBox(height: 8),
-                    Text(
-                      syncState.errorMessage!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
+                  const SizedBox(height: 8),
+                  _SyncDetailsAccordion(syncState: syncState),
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: syncState.isSyncing
@@ -148,6 +123,59 @@ class SettingsScreen extends ConsumerWidget {
       case RacerMasterSyncPhase.error:
         return state.hasUsableData ? 'ローカルデータで利用中' : '同期失敗';
     }
+  }
+}
+
+class _SyncDetailsAccordion extends StatelessWidget {
+  const _SyncDetailsAccordion({required this.syncState});
+
+  final RacerMasterSyncState syncState;
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: EdgeInsets.zero,
+      title: const Text('同期詳細を見る'),
+      shape: const Border(),
+      collapsedShape: const Border(),
+      children: <Widget>[
+        _InfoRow(
+          label: '使用中データセット',
+          value: syncState.activeManifest?.datasetId ?? '未取得',
+        ),
+        _InfoRow(
+          label: '使用中データセット更新日時',
+          value: syncState.activeManifest == null
+              ? '-'
+              : formatDateTimeYmdHm(syncState.activeManifest!.datasetUpdatedAt),
+        ),
+        _InfoRow(
+          label: '最新確認データセット',
+          value: syncState.remoteManifest?.datasetId ?? '-',
+        ),
+        _InfoRow(
+          label: '最新確認更新日時',
+          value: syncState.remoteManifest == null
+              ? '-'
+              : formatDateTimeYmdHm(syncState.remoteManifest!.datasetUpdatedAt),
+        ),
+        _InfoRow(
+          label: '最終同期完了',
+          value: syncState.lastCompletedAt == null
+              ? '-'
+              : formatDateTimeYmdHm(syncState.lastCompletedAt!),
+        ),
+        if (syncState.errorMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              syncState.errorMessage!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+      ],
+    );
   }
 }
 
