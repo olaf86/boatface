@@ -53,6 +53,21 @@ flutter run --flavor prod -t lib/main_prod.dart
 
 For iOS builds, `flutter run --flavor stg` maps to the shared `stg` scheme, and `prod` maps to `prod`.
 
+## App Icon Generation
+The app icon source is drawn in Flutter/Dart, then exported to the checked-in iOS and Android icon files.
+
+Regenerate every icon size with:
+
+```bash
+./scripts/generate_app_icons.sh
+```
+
+This updates:
+- `design/generated/app_icon_casual_1024.png`
+- `design/generated/app_icon_casual_512.png`
+- `ios/Runner/Assets.xcassets/AppIcon.appiconset/*.png`
+- `android/app/src/main/res/mipmap-*/ic_launcher.png`
+
 ## Android Release Signing
 `android/app/build.gradle.kts` reads release signing settings from `android/key.properties`.
 
