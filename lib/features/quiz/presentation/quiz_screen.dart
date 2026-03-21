@@ -1,3 +1,5 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -177,33 +179,22 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 12),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    question.prompt,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                ),
-              ),
+              Card(child: _QuizPromptCard(question: question)),
               const SizedBox(height: 12),
               Expanded(
-                child: ListView.separated(
-                  itemCount: question.options.length,
-                  separatorBuilder: (BuildContext context, int index) =>
-                      const SizedBox(height: 8),
-                  itemBuilder: (BuildContext context, int i) =>
-                      FilledButton.tonal(
-                        onPressed: state.isProcessing
-                            ? null
-                            : () => ref.read(provider.notifier).submitAnswer(i),
-                        style: FilledButton.styleFrom(
-                          alignment: Alignment.centerLeft,
-                          padding: const EdgeInsets.all(16),
-                        ),
-                        child: Text(question.options[i]),
+                child: question.hasImageOptions
+                    ? _QuizImageOptionGrid(
+                        options: question.options,
+                        enabled: !state.isProcessing,
+                        onSelected: (int index) =>
+                            ref.read(provider.notifier).submitAnswer(index),
+                      )
+                    : _QuizTextOptionList(
+                        options: question.options,
+                        enabled: !state.isProcessing,
+                        onSelected: (int index) =>
+                            ref.read(provider.notifier).submitAnswer(index),
                       ),
-                ),
               ),
             ],
           ),
@@ -264,6 +255,286 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       buildAppRoute<void>(
         page: ResultScreen(summary: summary),
         transition: AppRouteTransition.fadeThrough,
+      ),
+    );
+  }
+}
+
+class _QuizPromptCard extends StatelessWidget {
+  const _QuizPromptCard({required this.question});
+
+  final QuizQuestion question;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(question.prompt, style: textTheme.headlineSmall),
+          if (question.hasPromptImage) ...<Widget>[
+            const SizedBox(height: 16),
+            AspectRatio(
+              aspectRatio: 4 / 5,
+              child: _QuizImagePanel(
+                imageUrl: question.promptImageUrl!,
+                semanticLabel: question.prompt,
+                reveal: question.promptImageReveal,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _QuizTextOptionList extends StatelessWidget {
+  const _QuizTextOptionList({
+    required this.options,
+    required this.enabled,
+    required this.onSelected,
+  });
+
+  final List<QuizOption> options;
+  final bool enabled;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      itemCount: options.length,
+      separatorBuilder: (BuildContext context, int index) =>
+          const SizedBox(height: 8),
+      itemBuilder: (BuildContext context, int i) => FilledButton.tonal(
+        onPressed: enabled ? () => onSelected(i) : null,
+        style: FilledButton.styleFrom(
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.all(16),
+        ),
+        child: Text(options[i].label),
+      ),
+    );
+  }
+}
+
+class _QuizImageOptionGrid extends StatelessWidget {
+  const _QuizImageOptionGrid({
+    required this.options,
+    required this.enabled,
+    required this.onSelected,
+  });
+
+  final List<QuizOption> options;
+  final bool enabled;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      itemCount: options.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.82,
+      ),
+      itemBuilder: (BuildContext context, int index) {
+        final QuizOption option = options[index];
+
+        return Semantics(
+          button: true,
+          label: option.label,
+          child: FilledButton.tonal(
+            onPressed: enabled ? () => onSelected(index) : null,
+            style: FilledButton.styleFrom(
+              padding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: _QuizImagePanel(
+                    imageUrl: option.imageUrl ?? '',
+                    semanticLabel: option.label,
+                  ),
+                ),
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surface.withValues(alpha: 0.88),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      child: Text(
+                        '${index + 1}',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _QuizImagePanel extends StatefulWidget {
+  const _QuizImagePanel({
+    required this.imageUrl,
+    required this.semanticLabel,
+    this.reveal,
+  });
+
+  final String imageUrl;
+  final String semanticLabel;
+  final QuizImageReveal? reveal;
+
+  @override
+  State<_QuizImagePanel> createState() => _QuizImagePanelState();
+}
+
+class _QuizImagePanelState extends State<_QuizImagePanel>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _configureAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant _QuizImagePanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageUrl != widget.imageUrl ||
+        oldWidget.reveal != widget.reveal) {
+      _configureAnimation();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget image = Image.network(
+      widget.imageUrl,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (BuildContext context, Object error, StackTrace? trace) {
+        return _QuizImageFallback(label: widget.semanticLabel);
+      },
+      loadingBuilder:
+          (
+            BuildContext context,
+            Widget child,
+            ImageChunkEvent? loadingProgress,
+          ) {
+            if (loadingProgress == null) {
+              return child;
+            }
+            return const Center(child: CircularProgressIndicator());
+          },
+    );
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: ColoredBox(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        child: widget.reveal == null || _controller == null
+            ? image
+            : AnimatedBuilder(
+                animation: _controller!,
+                child: image,
+                builder: (BuildContext context, Widget? child) {
+                  final QuizImageReveal reveal = widget.reveal!;
+                  final double progress = Curves.easeOutCubic.transform(
+                    _controller!.value,
+                  );
+                  final Alignment alignment = Alignment.lerp(
+                    Alignment(reveal.startAlignmentX, reveal.startAlignmentY),
+                    Alignment.center,
+                    progress,
+                  )!;
+                  final double scale =
+                      lerpDouble(reveal.startScale, 1, progress) ?? 1;
+
+                  return Transform.scale(
+                    scale: scale,
+                    alignment: alignment,
+                    child: child,
+                  );
+                },
+              ),
+      ),
+    );
+  }
+
+  void _configureAnimation() {
+    _controller?.dispose();
+    final QuizImageReveal? reveal = widget.reveal;
+    if (reveal == null) {
+      _controller = null;
+      return;
+    }
+
+    _controller = AnimationController(vsync: this, duration: reveal.duration)
+      ..forward();
+  }
+}
+
+class _QuizImageFallback extends StatelessWidget {
+  const _QuizImageFallback({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              Icons.broken_image_outlined,
+              size: 36,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$label の画像を読み込めませんでした',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
       ),
     );
   }

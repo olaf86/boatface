@@ -125,6 +125,7 @@ class QuizSessionFactory {
             target: target,
             racers: racers,
             random: random,
+            timeLimitSeconds: mode.timeLimitSeconds,
           ),
         );
         cursor += 1;
@@ -139,6 +140,7 @@ class QuizSessionFactory {
     required RacerProfile target,
     required List<RacerProfile> racers,
     required Random random,
+    required int? timeLimitSeconds,
   }) {
     final List<RacerProfile> pool = List<RacerProfile>.from(racers)
       ..removeWhere((RacerProfile r) => r.id == target.id)
@@ -154,9 +156,15 @@ class QuizSessionFactory {
     return QuizQuestion(
       promptType: promptType,
       prompt: _buildPrompt(promptType, target),
+      promptImageUrl: _buildPromptImageUrl(promptType, target),
+      promptImageReveal: _buildPromptImageReveal(
+        promptType: promptType,
+        random: random,
+        timeLimitSeconds: timeLimitSeconds,
+      ),
       options: candidates
-          .map<String>(
-            (RacerProfile racer) => _buildOptionLabel(promptType, racer),
+          .map<QuizOption>(
+            (RacerProfile racer) => _buildOption(promptType, racer),
           )
           .toList(growable: false),
       correctIndex: correctIndex,
@@ -167,28 +175,64 @@ class QuizSessionFactory {
   static String _buildPrompt(QuizPromptType type, RacerProfile target) {
     switch (type) {
       case QuizPromptType.faceToName:
-        return 'この顔の選手名は？ (${target.faceLabel})';
+        return 'この顔の選手名は？';
       case QuizPromptType.nameToFace:
         return '「${target.name}」の顔はどれ？';
       case QuizPromptType.partialFaceToName:
-        return '拡大された顔の一部から選手名を選んでください (${target.faceLabel})';
+        return '拡大された顔の一部から選手名を選んでください';
       case QuizPromptType.registrationToFace:
         return '登録番号 ${target.registrationNumber} の顔はどれ？';
       case QuizPromptType.faceToRegistration:
-        return 'この顔の登録番号は？ (${target.faceLabel})';
+        return 'この顔の登録番号は？';
     }
   }
 
-  static String _buildOptionLabel(QuizPromptType type, RacerProfile racer) {
+  static String? _buildPromptImageUrl(
+    QuizPromptType type,
+    RacerProfile target,
+  ) {
     switch (type) {
       case QuizPromptType.faceToName:
       case QuizPromptType.partialFaceToName:
-        return racer.name;
+      case QuizPromptType.faceToRegistration:
+        return target.imageUrl;
       case QuizPromptType.nameToFace:
       case QuizPromptType.registrationToFace:
-        return racer.faceLabel;
+        return null;
+    }
+  }
+
+  static QuizImageReveal? _buildPromptImageReveal({
+    required QuizPromptType promptType,
+    required Random random,
+    required int? timeLimitSeconds,
+  }) {
+    if (promptType != QuizPromptType.partialFaceToName) {
+      return null;
+    }
+
+    final int durationMs = timeLimitSeconds == null
+        ? 5000
+        : (timeLimitSeconds * 650).round().clamp(3500, 7000);
+
+    return QuizImageReveal(
+      startScale: 2.2 + (random.nextDouble() * 0.8),
+      startAlignmentX: (random.nextDouble() * 0.7) - 0.35,
+      startAlignmentY: (random.nextDouble() * 0.45) - 0.25,
+      duration: Duration(milliseconds: durationMs),
+    );
+  }
+
+  static QuizOption _buildOption(QuizPromptType type, RacerProfile racer) {
+    switch (type) {
+      case QuizPromptType.faceToName:
+      case QuizPromptType.partialFaceToName:
+        return QuizOption(label: racer.name);
+      case QuizPromptType.nameToFace:
+      case QuizPromptType.registrationToFace:
+        return QuizOption(label: racer.name, imageUrl: racer.imageUrl);
       case QuizPromptType.faceToRegistration:
-        return racer.registrationNumber.toString();
+        return QuizOption(label: racer.registrationNumber.toString());
     }
   }
 }

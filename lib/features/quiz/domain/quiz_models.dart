@@ -137,10 +137,35 @@ class RacerProfile {
   }
 }
 
+class QuizImageReveal {
+  const QuizImageReveal({
+    required this.startScale,
+    required this.startAlignmentX,
+    required this.startAlignmentY,
+    required this.duration,
+  });
+
+  final double startScale;
+  final double startAlignmentX;
+  final double startAlignmentY;
+  final Duration duration;
+}
+
+class QuizOption {
+  const QuizOption({required this.label, this.imageUrl});
+
+  final String label;
+  final String? imageUrl;
+
+  bool get hasImage => imageUrl != null && imageUrl!.isNotEmpty;
+}
+
 class QuizQuestion {
   const QuizQuestion({
     required this.promptType,
     required this.prompt,
+    this.promptImageUrl,
+    this.promptImageReveal,
     required this.options,
     required this.correctIndex,
     required this.correctRacerId,
@@ -148,9 +173,17 @@ class QuizQuestion {
 
   final QuizPromptType promptType;
   final String prompt;
-  final List<String> options;
+  final String? promptImageUrl;
+  final QuizImageReveal? promptImageReveal;
+  final List<QuizOption> options;
   final int correctIndex;
   final String correctRacerId;
+
+  bool get hasPromptImage =>
+      promptImageUrl != null && promptImageUrl!.isNotEmpty;
+
+  bool get hasImageOptions =>
+      options.any((QuizOption option) => option.hasImage);
 }
 
 class QuizResultSummary {
