@@ -26,6 +26,8 @@ flutter build ios --config-only --release --flavor stg --build-number="$BUILD_NU
 HOMEBREW_NO_AUTO_UPDATE=1 brew install cocoapods
 
 cd ios
+# GoogleService-Info.plist must remain in the workspace after this script ends
+# because the subsequent Xcode archive step copies it into the app bundle.
 pod install
 
 exit 0

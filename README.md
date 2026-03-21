@@ -97,6 +97,8 @@ base64 -i android/app/src/stg/google-services.json | pbcopy
 base64 -i /absolute/path/to/boatface_stg_upload.jks | pbcopy
 ```
 
+The Android workflow restores those secrets only inside step-scoped `env` values and removes the generated files in a final cleanup step.
+
 ### Xcode Cloud
 Xcode Cloud is expected to handle iOS staging archives from `main` and deploy them to TestFlight.
 
@@ -120,3 +122,4 @@ base64 -i ios/Firebase/stg/GoogleService-Info.plist | pbcopy
 ```
 
 Xcode Cloud provides `CI_BUILD_NUMBER`; the post-clone script forwards that value to Flutter so iOS build numbers also auto-increment.
+The restored plist is intentionally left in the workspace because the later Xcode archive step still needs to copy it into the app bundle. The runner itself is ephemeral.

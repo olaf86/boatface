@@ -40,15 +40,21 @@ jobs:
 
       - name: Restore Android staging secrets
         shell: bash
+        env:
+          ANDROID_STG_GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.ANDROID_STG_GOOGLE_SERVICES_JSON_BASE64 }}
+          ANDROID_STG_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_STG_UPLOAD_KEYSTORE_BASE64 }}
+          ANDROID_STG_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_STG_UPLOAD_KEYSTORE_PASSWORD }}
+          ANDROID_STG_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_STG_UPLOAD_KEY_ALIAS }}
+          ANDROID_STG_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_STG_UPLOAD_KEY_PASSWORD }}
         run: |
           mkdir -p android/app/src/stg
-          echo "${{ secrets.ANDROID_STG_GOOGLE_SERVICES_JSON_BASE64 }}" | base64 --decode > android/app/src/stg/google-services.json
-          echo "${{ secrets.ANDROID_STG_UPLOAD_KEYSTORE_BASE64 }}" | base64 --decode > android/boatface_stg_upload.jks
+          printf '%s' "$ANDROID_STG_GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/src/stg/google-services.json
+          printf '%s' "$ANDROID_STG_UPLOAD_KEYSTORE_BASE64" | base64 --decode > android/boatface_stg_upload.jks
           cat <<EOF > android/key.properties
           storeFile=${{ github.workspace }}/android/boatface_stg_upload.jks
-          storePassword=${{ secrets.ANDROID_STG_UPLOAD_KEYSTORE_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_STG_UPLOAD_KEY_ALIAS }}
-          keyPassword=${{ secrets.ANDROID_STG_UPLOAD_KEY_PASSWORD }}
+          storePassword=$ANDROID_STG_UPLOAD_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_STG_UPLOAD_KEY_ALIAS
+          keyPassword=$ANDROID_STG_UPLOAD_KEY_PASSWORD
           EOF
 
       - name: Setup Java
@@ -84,9 +90,19 @@ jobs:
 
       - name: Upload to Play Console internal testing
         uses: r0adkll/upload-google-play@v1
+        env:
+          PLAY_STG_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_STG_SERVICE_ACCOUNT_JSON }}
         with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_STG_SERVICE_ACCOUNT_JSON }}
+          serviceAccountJsonPlainText: ${{ env.PLAY_STG_SERVICE_ACCOUNT_JSON }}
           packageName: dev.asobo.boatface.stg
           releaseFiles: build/app/outputs/bundle/stgRelease/app-stg-release.aab
           track: ${{ github.event_name == 'workflow_dispatch' && inputs.track || 'internal' }}
           status: ${{ github.event_name == 'workflow_dispatch' && inputs.release_status || 'completed' }}
+
+      - name: Cleanup staging secrets
+        if: always()
+        shell: bash
+        run: |
+          rm -f android/key.properties
+          rm -f android/boatface_stg_upload.jks
+          rm -f android/app/src/stg/google-services.json
