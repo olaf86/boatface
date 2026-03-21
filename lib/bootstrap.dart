@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/app.dart';
 
-Future<void> bootstrapBoatface(FirebaseOptions options) async {
+Future<void> bootstrapBoatface() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: options);
+  await Firebase.initializeApp();
   runApp(const ProviderScope(child: BoatfaceApp()));
 }

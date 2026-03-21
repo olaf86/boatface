@@ -32,18 +32,20 @@ Generate Firebase files for the environment you want to run.
 ./scripts/configure_firebase.sh prod
 ```
 
-Generated files stay out of Git:
-- `lib/firebase_options_stg.dart`
-- `lib/firebase_options_prod.dart`
+Required generated files stay out of Git:
 - `android/app/src/<env>/google-services.json`
 - `ios/Firebase/<env>/GoogleService-Info.plist`
+
+Notes:
+- The app entrypoints now initialize Firebase from the native Android/iOS config files, so `flutter analyze` does not depend on local Dart `firebase_options*.dart` files.
+- `flutterfire` may still emit temporary Dart config files during setup, but they are not required by the app runtime.
 
 ## Run Commands
 Use the matching entrypoint and flavor / scheme.
 
 ```bash
-flutter run --flavor stg -t lib/main_stg.dart
-flutter run --flavor prod -t lib/main_prod.dart
+flutter run --flavor stg
+flutter run --flavor prod
 ```
 
 For iOS builds, `flutter run --flavor stg` maps to the shared `stg` Xcode scheme, and `prod` maps to `prod`.

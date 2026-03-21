@@ -33,13 +33,15 @@ PATH="$PATH:$HOME/.pub-cache/bin" ./scripts/configure_firebase.sh stg
 PATH="$PATH:$HOME/.pub-cache/bin" ./scripts/configure_firebase.sh prod
 ```
 
-生成されるファイル:
-- `lib/firebase_options_stg.dart`
-- `lib/firebase_options_prod.dart`
+生成される主な利用ファイル:
 - `android/app/src/stg/google-services.json`
 - `android/app/src/prod/google-services.json`
 - `ios/Firebase/stg/GoogleService-Info.plist`
 - `ios/Firebase/prod/GoogleService-Info.plist`
+
+補足:
+- `flutterfire` の都合で Dart 側の `firebase_options_*.dart` が出力されることがあるが、現在のアプリ runtime はそれらを参照しない
+- `flutter analyze` はローカルの `firebase_options_*.dart` 有無に依存しない
 
 注意:
 - `firebase.json` の `flutter` セクションは iOS build script が参照するため、巻き戻さない
