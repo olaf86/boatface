@@ -3,12 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_route.dart';
 import '../../quiz/application/racer_master_sync_controller.dart';
-import '../../quiz/application/racer_master_sync_state.dart';
 import '../../quiz/domain/quiz_modes.dart';
 import '../../quiz/domain/quiz_models.dart';
 import '../../quiz/presentation/quiz_rule_screen.dart';
 import '../../ranking/presentation/ranking_screen.dart';
-import '../../../shared/format/date_time_formatters.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -33,10 +31,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final RacerMasterSyncState syncState = ref.watch(
-      racerMasterSyncControllerProvider,
-    );
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('BoatFace'),
@@ -73,7 +67,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: <Widget>[
-              _HomeSummaryCard(syncState: syncState),
+              const _HomeSummaryCard(),
               const SizedBox(height: 12),
               ...kQuizModes.map(
                 (QuizModeConfig mode) => Padding(
@@ -111,17 +105,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _HomeSummaryCard extends StatelessWidget {
-  const _HomeSummaryCard({required this.syncState});
-
-  final RacerMasterSyncState syncState;
+  const _HomeSummaryCard();
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final String datasetLabel = syncState.activeManifest == null
-        ? '未取得'
-        : '${syncState.activeManifest!.datasetId} '
-              '${formatDateTimeYmdHm(syncState.activeManifest!.datasetUpdatedAt)}';
 
     return Card(
       child: Padding(
@@ -132,43 +120,10 @@ class _HomeSummaryCard extends StatelessWidget {
             Text('モードを選択', style: theme.textTheme.headlineSmall),
             const SizedBox(height: 8),
             Text('詳細なルールは次の画面で確認できます。', style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: <Widget>[
-                Chip(label: Text(_statusLabel(syncState))),
-                Chip(label: Text('使用中データ: $datasetLabel')),
-              ],
-            ),
-            if (syncState.errorMessage != null) ...<Widget>[
-              const SizedBox(height: 8),
-              Text(
-                syncState.errorMessage!,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ],
           ],
         ),
       ),
     );
-  }
-
-  String _statusLabel(RacerMasterSyncState state) {
-    switch (state.phase) {
-      case RacerMasterSyncPhase.idle:
-        return state.hasUsableData ? '準備完了' : '未同期';
-      case RacerMasterSyncPhase.checking:
-        return state.hasUsableData ? '更新確認中' : '同期確認中';
-      case RacerMasterSyncPhase.downloading:
-        return state.hasUsableData ? '更新中' : '初回同期中';
-      case RacerMasterSyncPhase.ready:
-        return '準備完了';
-      case RacerMasterSyncPhase.error:
-        return state.hasUsableData ? 'ローカルデータで利用中' : '同期失敗';
-    }
   }
 }
 
