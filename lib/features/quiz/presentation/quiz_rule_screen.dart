@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_route.dart';
+import '../../../shared/format/date_time_formatters.dart';
 import '../application/racer_master_sync_controller.dart';
 import '../application/racer_master_sync_state.dart';
 import '../domain/quiz_models.dart';
@@ -296,7 +297,7 @@ class _SyncStatusPanel extends ConsumerWidget {
                 const SizedBox(height: 6),
                 Text(
                   '使用中: ${syncState.activeManifest!.datasetId} '
-                  '(${_formatManifestTime(syncState.activeManifest!.datasetUpdatedAt)})',
+                  '(${formatDateTimeYmdHm(syncState.activeManifest!.datasetUpdatedAt)})',
                   style: theme.textTheme.bodyMedium,
                 ),
               ],
@@ -315,15 +316,6 @@ class _SyncStatusPanel extends ConsumerWidget {
       ),
     );
   }
-}
-
-String _formatManifestTime(DateTime dateTime) {
-  final DateTime local = dateTime.toLocal();
-  return '${local.year.toString().padLeft(4, '0')}-'
-      '${local.month.toString().padLeft(2, '0')}-'
-      '${local.day.toString().padLeft(2, '0')} '
-      '${local.hour.toString().padLeft(2, '0')}:'
-      '${local.minute.toString().padLeft(2, '0')}';
 }
 
 class _SectionCard extends StatelessWidget {

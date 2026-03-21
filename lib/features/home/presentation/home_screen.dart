@@ -9,6 +9,7 @@ import '../../quiz/domain/quiz_modes.dart';
 import '../../quiz/domain/quiz_models.dart';
 import '../../quiz/presentation/quiz_rule_screen.dart';
 import '../../ranking/presentation/ranking_screen.dart';
+import '../../../shared/format/date_time_formatters.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -130,7 +131,7 @@ class _HomeSummaryCard extends StatelessWidget {
     final String datasetLabel = syncState.activeManifest == null
         ? '未取得'
         : '${syncState.activeManifest!.datasetId} '
-              '${_formatDateTime(syncState.activeManifest!.datasetUpdatedAt)}';
+              '${formatDateTimeYmdHm(syncState.activeManifest!.datasetUpdatedAt)}';
 
     return Card(
       child: Padding(
@@ -329,13 +330,4 @@ _DifficultyBadgeStyle? _difficultyBadgeFor(String modeId) {
     default:
       return null;
   }
-}
-
-String _formatDateTime(DateTime dateTime) {
-  final DateTime local = dateTime.toLocal();
-  return '${local.year.toString().padLeft(4, '0')}-'
-      '${local.month.toString().padLeft(2, '0')}-'
-      '${local.day.toString().padLeft(2, '0')} '
-      '${local.hour.toString().padLeft(2, '0')}:'
-      '${local.minute.toString().padLeft(2, '0')}';
 }

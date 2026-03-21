@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../quiz/application/racer_master_sync_controller.dart';
 import '../../quiz/application/racer_master_sync_state.dart';
+import '../../../shared/format/date_time_formatters.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -86,7 +87,7 @@ class SettingsScreen extends ConsumerWidget {
                     label: '使用中 dataset 更新日時',
                     value: syncState.activeManifest == null
                         ? '-'
-                        : _formatDateTime(
+                        : formatDateTimeYmdHm(
                             syncState.activeManifest!.datasetUpdatedAt,
                           ),
                   ),
@@ -98,7 +99,7 @@ class SettingsScreen extends ConsumerWidget {
                     label: '最新確認 更新日時',
                     value: syncState.remoteManifest == null
                         ? '-'
-                        : _formatDateTime(
+                        : formatDateTimeYmdHm(
                             syncState.remoteManifest!.datasetUpdatedAt,
                           ),
                   ),
@@ -106,7 +107,7 @@ class SettingsScreen extends ConsumerWidget {
                     label: '最終同期完了',
                     value: syncState.lastCompletedAt == null
                         ? '-'
-                        : _formatDateTime(syncState.lastCompletedAt!),
+                        : formatDateTimeYmdHm(syncState.lastCompletedAt!),
                   ),
                   if (syncState.errorMessage != null) ...<Widget>[
                     const SizedBox(height: 8),
@@ -172,13 +173,4 @@ class _InfoRow extends StatelessWidget {
       ),
     );
   }
-}
-
-String _formatDateTime(DateTime dateTime) {
-  final DateTime local = dateTime.toLocal();
-  return '${local.year.toString().padLeft(4, '0')}-'
-      '${local.month.toString().padLeft(2, '0')}-'
-      '${local.day.toString().padLeft(2, '0')} '
-      '${local.hour.toString().padLeft(2, '0')}:'
-      '${local.minute.toString().padLeft(2, '0')}';
 }

@@ -8,6 +8,7 @@ import '../features/auth/presentation/login_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/quiz/application/racer_master_sync_controller.dart';
 import '../features/quiz/application/racer_master_sync_state.dart';
+import '../shared/format/date_time_formatters.dart';
 
 class BoatfaceApp extends ConsumerWidget {
   const BoatfaceApp({super.key});
@@ -317,7 +318,7 @@ class _RacerMasterDebugOverlay extends ConsumerWidget {
     final String datasetId = syncState.activeManifest?.datasetId ?? '-';
     final String updatedAt = syncState.activeManifest == null
         ? '-'
-        : _formatDebugTime(syncState.activeManifest!.datasetUpdatedAt);
+        : formatDateTimeMdHm(syncState.activeManifest!.datasetUpdatedAt);
 
     return IgnorePointer(
       child: SafeArea(
@@ -353,12 +354,4 @@ class _RacerMasterDebugOverlay extends ConsumerWidget {
       ),
     );
   }
-}
-
-String _formatDebugTime(DateTime dateTime) {
-  final DateTime local = dateTime.toLocal();
-  return '${local.month.toString().padLeft(2, '0')}/'
-      '${local.day.toString().padLeft(2, '0')} '
-      '${local.hour.toString().padLeft(2, '0')}:'
-      '${local.minute.toString().padLeft(2, '0')}';
 }
