@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'quiz_answer_feedback.dart';
 import '../domain/quiz_models.dart';
 
 class QuizSession {
@@ -16,6 +17,7 @@ class QuizSession {
   bool rankingEligible = true;
   bool continuedByAd = false;
   QuizEndReason? endReason;
+  QuizAnswerFeedback? pendingAnswerFeedback;
 
   QuizQuestion? get currentQuestion =>
       currentIndex >= 0 && currentIndex < questions.length
@@ -26,16 +28,39 @@ class QuizSession {
   bool get canContinueWithAd =>
       gameOver && !continuedByAd && currentIndex < questions.length;
 
-  void submitAnswer({required int selectedIndex, required Duration elapsed}) {
-    if (gameOver || isCompleted) {
-      return;
+  QuizAnswerFeedback? submitAnswer({
+    required int selectedIndex,
+    required Duration elapsed,
+    required Duration? remaining,
+  }) {
+    if (gameOver || isCompleted || pendingAnswerFeedback != null) {
+      return null;
     }
     totalAnswerTime += elapsed;
 
     final QuizQuestion question = questions[currentIndex];
     final bool correct = selectedIndex == question.correctIndex;
+    final QuizAnswerFeedback feedback = QuizAnswerFeedback(
+      question: question,
+      questionIndex: currentIndex,
+      selectedIndex: selectedIndex,
+      correctIndex: question.correctIndex,
+      isCorrect: correct,
+      remainingForQuestion: remaining,
+    );
+    pendingAnswerFeedback = feedback;
 
-    if (!correct) {
+    return feedback;
+  }
+
+  void completePendingAnswerFeedback() {
+    final QuizAnswerFeedback? feedback = pendingAnswerFeedback;
+    if (feedback == null) {
+      return;
+    }
+    pendingAnswerFeedback = null;
+
+    if (!feedback.isCorrect) {
       _endAs(QuizEndReason.wrongAnswer);
       return;
     }
@@ -46,7 +71,7 @@ class QuizSession {
   }
 
   void submitTimeout({required Duration elapsed}) {
-    if (gameOver || isCompleted) {
+    if (gameOver || isCompleted || pendingAnswerFeedback != null) {
       return;
     }
     totalAnswerTime += elapsed;
@@ -54,7 +79,7 @@ class QuizSession {
   }
 
   void continueAfterAd() {
-    if (!canContinueWithAd) {
+    if (!canContinueWithAd || pendingAnswerFeedback != null) {
       return;
     }
     continuedByAd = true;
@@ -67,7 +92,7 @@ class QuizSession {
   }
 
   void abandon() {
-    if (isCompleted || gameOver) {
+    if (isCompleted || gameOver || pendingAnswerFeedback != null) {
       return;
     }
     rankingEligible = false;

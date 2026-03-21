@@ -3,14 +3,19 @@ import 'dart:io';
 
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_route.dart';
+import '../application/quiz_answer_feedback.dart';
 import '../application/quiz_session_controller.dart';
 import '../application/quiz_session_state.dart';
 import '../domain/quiz_models.dart';
 import '../../result/presentation/result_screen.dart';
 import 'quiz_start_countdown.dart';
+
+const Duration _kCorrectFeedbackDuration = Duration(milliseconds: 780);
+const Duration _kIncorrectFeedbackDuration = Duration(milliseconds: 980);
 
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({
@@ -31,6 +36,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   bool _didPop = false;
   bool _dialogVisible = false;
   late bool _isIntroCountdownActive;
+  QuizAnswerFeedback? _activeFeedback;
 
   @override
   void initState() {
@@ -122,18 +128,24 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     });
 
     final QuizSessionState state = ref.watch(provider);
-    final QuizQuestion? question = state.currentQuestion;
+    final QuizAnswerFeedback? activeFeedback = _activeFeedback;
+    final QuizQuestion? question =
+        activeFeedback?.question ?? state.currentQuestion;
 
     if (question == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _goToResult());
       return const Scaffold(body: SizedBox.shrink());
     }
 
-    final int questionNumber = state.currentQuestionIndex + 1;
-    final String timerText = state.remainingForCurrentQuestion == null
+    final int questionNumber =
+        (activeFeedback?.questionIndex ?? state.currentQuestionIndex) + 1;
+    final Duration? remainingForDisplay =
+        activeFeedback?.remainingForQuestion ??
+        state.remainingForCurrentQuestion;
+    final String timerText = remainingForDisplay == null
         ? '--'
-        : (state.remainingForCurrentQuestion!.inMilliseconds / 1000)
-              .toStringAsFixed(1);
+        : (remainingForDisplay.inMilliseconds / 1000).toStringAsFixed(1);
+    final bool inputsEnabled = !state.isProcessing && activeFeedback == null;
 
     return PopScope(
       canPop: false,
@@ -170,33 +182,47 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         ),
         body: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Stack(
             children: <Widget>[
-              Text(
-                widget.mode.timeLimitSeconds == null
-                    ? '制限時間: 無制限'
-                    : '残り時間: $timerText',
-                style: Theme.of(context).textTheme.titleMedium,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Text(
+                    widget.mode.timeLimitSeconds == null
+                        ? '制限時間: 無制限'
+                        : '残り時間: $timerText',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  Card(child: _QuizPromptCard(question: question)),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: question.hasImageOptions
+                        ? _QuizImageOptionGrid(
+                            options: question.options,
+                            enabled: inputsEnabled,
+                            feedback: activeFeedback,
+                            onSelected: _handleAnswerSelected,
+                          )
+                        : _QuizTextOptionList(
+                            options: question.options,
+                            enabled: inputsEnabled,
+                            feedback: activeFeedback,
+                            onSelected: _handleAnswerSelected,
+                          ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              Card(child: _QuizPromptCard(question: question)),
-              const SizedBox(height: 12),
-              Expanded(
-                child: question.hasImageOptions
-                    ? _QuizImageOptionGrid(
-                        options: question.options,
-                        enabled: !state.isProcessing,
-                        onSelected: (int index) =>
-                            ref.read(provider.notifier).submitAnswer(index),
-                      )
-                    : _QuizTextOptionList(
-                        options: question.options,
-                        enabled: !state.isProcessing,
-                        onSelected: (int index) =>
-                            ref.read(provider.notifier).submitAnswer(index),
-                      ),
-              ),
+              if (activeFeedback != null)
+                Positioned.fill(
+                  child: _QuizAnswerFeedbackOverlay(
+                    key: ValueKey<String>(
+                      'answer-feedback-${activeFeedback.questionIndex}-${activeFeedback.selectedIndex}-${activeFeedback.isCorrect}',
+                    ),
+                    feedback: activeFeedback,
+                    onCompleted: _completeAnswerFeedback,
+                  ),
+                ),
             ],
           ),
         ),
@@ -259,6 +285,36 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       ),
     );
   }
+
+  void _handleAnswerSelected(int index) {
+    if (_activeFeedback != null) {
+      return;
+    }
+
+    final QuizAnswerFeedback? feedback = ref
+        .read(quizSessionControllerProvider(widget.mode).notifier)
+        .submitAnswer(index);
+    if (feedback == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _activeFeedback = feedback;
+    });
+  }
+
+  void _completeAnswerFeedback() {
+    if (!mounted || _activeFeedback == null) {
+      return;
+    }
+
+    setState(() {
+      _activeFeedback = null;
+    });
+    ref
+        .read(quizSessionControllerProvider(widget.mode).notifier)
+        .completeAnswerFeedback();
+  }
 }
 
 class _QuizPromptCard extends StatelessWidget {
@@ -284,7 +340,7 @@ class _QuizPromptCard extends StatelessWidget {
             SizedBox(
               height: promptImageHeight,
               child: _QuizImagePanel(
-                imageUrl: question.promptImageUrl!,
+                imageUrl: question.promptImageUrl ?? '',
                 localImagePath: question.promptImageLocalPath,
                 semanticLabel: question.prompt,
                 reveal: question.promptImageReveal,
@@ -304,11 +360,13 @@ class _QuizTextOptionList extends StatelessWidget {
   const _QuizTextOptionList({
     required this.options,
     required this.enabled,
+    required this.feedback,
     required this.onSelected,
   });
 
   final List<QuizOption> options;
   final bool enabled;
+  final QuizAnswerFeedback? feedback;
   final ValueChanged<int> onSelected;
 
   @override
@@ -317,14 +375,16 @@ class _QuizTextOptionList extends StatelessWidget {
       itemCount: options.length,
       separatorBuilder: (BuildContext context, int index) =>
           const SizedBox(height: 6),
-      itemBuilder: (BuildContext context, int i) => FilledButton.tonal(
-        onPressed: enabled ? () => onSelected(i) : null,
-        style: FilledButton.styleFrom(
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ),
-        child: Text(options[i].label),
-      ),
+      itemBuilder: (BuildContext context, int i) {
+        return _QuizOptionButton(
+          buttonKey: ValueKey<String>('quiz-option-$i'),
+          label: options[i].label,
+          indexLabel: '${i + 1}',
+          visualState: _visualStateForOption(index: i, feedback: feedback),
+          enabled: enabled,
+          onPressed: () => onSelected(i),
+        );
+      },
     );
   }
 }
@@ -333,11 +393,13 @@ class _QuizImageOptionGrid extends StatelessWidget {
   const _QuizImageOptionGrid({
     required this.options,
     required this.enabled,
+    required this.feedback,
     required this.onSelected,
   });
 
   final List<QuizOption> options;
   final bool enabled;
+  final QuizAnswerFeedback? feedback;
   final ValueChanged<int> onSelected;
 
   @override
@@ -352,47 +414,51 @@ class _QuizImageOptionGrid extends StatelessWidget {
       ),
       itemBuilder: (BuildContext context, int index) {
         final QuizOption option = options[index];
+        final _QuizOptionVisualState visualState = _visualStateForOption(
+          index: index,
+          feedback: feedback,
+        );
 
         return Semantics(
           button: true,
           label: option.label,
-          child: FilledButton.tonal(
-            onPressed: enabled ? () => onSelected(index) : null,
-            style: FilledButton.styleFrom(
-              padding: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
+          child: _QuizOptionButton(
+            buttonKey: ValueKey<String>('quiz-option-$index'),
+            label: option.label,
+            indexLabel: '${index + 1}',
+            visualState: visualState,
+            enabled: enabled,
+            onPressed: () => onSelected(index),
+            contentPadding: const EdgeInsets.all(10),
             child: Stack(
               fit: StackFit.expand,
               children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: _QuizImagePanel(
-                    imageUrl: option.imageUrl ?? '',
-                    localImagePath: option.localImagePath,
-                    semanticLabel: option.label,
-                  ),
+                _QuizImagePanel(
+                  imageUrl: option.imageUrl ?? '',
+                  localImagePath: option.localImagePath,
+                  semanticLabel: option.label,
                 ),
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.surface.withValues(alpha: 0.88),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Text(
-                        '${index + 1}',
-                        style: Theme.of(context).textTheme.labelLarge,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          option.label,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
                       ),
                     ),
                   ),
@@ -402,6 +468,368 @@ class _QuizImageOptionGrid extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+enum _QuizOptionVisualState {
+  idle,
+  dimmed,
+  selectedCorrect,
+  selectedWrong,
+  correctReveal,
+}
+
+_QuizOptionVisualState _visualStateForOption({
+  required int index,
+  required QuizAnswerFeedback? feedback,
+}) {
+  if (feedback == null) {
+    return _QuizOptionVisualState.idle;
+  }
+  if (feedback.isCorrect) {
+    return index == feedback.selectedIndex
+        ? _QuizOptionVisualState.selectedCorrect
+        : _QuizOptionVisualState.dimmed;
+  }
+  if (index == feedback.selectedIndex) {
+    return _QuizOptionVisualState.selectedWrong;
+  }
+  if (index == feedback.correctIndex) {
+    return _QuizOptionVisualState.correctReveal;
+  }
+  return _QuizOptionVisualState.dimmed;
+}
+
+class _QuizOptionButton extends StatelessWidget {
+  const _QuizOptionButton({
+    required this.buttonKey,
+    required this.label,
+    required this.indexLabel,
+    required this.visualState,
+    required this.enabled,
+    required this.onPressed,
+    this.child,
+    this.contentPadding = const EdgeInsets.symmetric(
+      horizontal: 16,
+      vertical: 14,
+    ),
+  });
+
+  final Key buttonKey;
+  final String label;
+  final String indexLabel;
+  final _QuizOptionVisualState visualState;
+  final bool enabled;
+  final VoidCallback onPressed;
+  final Widget? child;
+  final EdgeInsets contentPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme colorScheme = theme.colorScheme;
+    final bool highlighted =
+        visualState == _QuizOptionVisualState.selectedCorrect ||
+        visualState == _QuizOptionVisualState.selectedWrong ||
+        visualState == _QuizOptionVisualState.correctReveal;
+    final bool isWrong = visualState == _QuizOptionVisualState.selectedWrong;
+    final bool isCorrect =
+        visualState == _QuizOptionVisualState.selectedCorrect ||
+        visualState == _QuizOptionVisualState.correctReveal;
+    final Color accentColor = isWrong
+        ? colorScheme.error
+        : (isCorrect ? const Color(0xFF18A56B) : colorScheme.primary);
+    final double opacity = switch (visualState) {
+      _QuizOptionVisualState.dimmed => 0.42,
+      _ => 1,
+    };
+    final double scale = switch (visualState) {
+      _QuizOptionVisualState.selectedCorrect => 1.02,
+      _QuizOptionVisualState.selectedWrong => 0.985,
+      _QuizOptionVisualState.correctReveal => 1.01,
+      _ => 1,
+    };
+    final Widget contents =
+        child ??
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(label, style: theme.textTheme.titleMedium),
+        );
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 220),
+      opacity: opacity,
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutBack,
+        scale: scale,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          constraints: BoxConstraints(minHeight: child == null ? 76 : 0),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              colors: highlighted
+                  ? <Color>[
+                      accentColor.withValues(alpha: isWrong ? 0.18 : 0.16),
+                      Colors.white,
+                    ]
+                  : <Color>[
+                      colorScheme.surface,
+                      colorScheme.surfaceContainerHighest,
+                    ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(
+              color: highlighted
+                  ? accentColor.withValues(alpha: 0.92)
+                  : colorScheme.outlineVariant,
+              width: highlighted ? 2 : 1.2,
+            ),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: accentColor.withValues(alpha: highlighted ? 0.16 : 0.05),
+                blurRadius: highlighted ? 20 : 10,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              key: buttonKey,
+              borderRadius: BorderRadius.circular(20),
+              onTap: enabled ? onPressed : null,
+              child: Stack(
+                children: <Widget>[
+                  Padding(padding: contentPadding, child: contents),
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: _QuizOptionIndexChip(
+                      label: indexLabel,
+                      accentColor: accentColor,
+                      highlighted: highlighted,
+                    ),
+                  ),
+                  if (highlighted)
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: _QuizOptionResultBadge(
+                        visualState: visualState,
+                        accentColor: accentColor,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuizOptionIndexChip extends StatelessWidget {
+  const _QuizOptionIndexChip({
+    required this.label,
+    required this.accentColor,
+    required this.highlighted,
+  });
+
+  final String label;
+  final Color accentColor;
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: highlighted
+            ? accentColor.withValues(alpha: 0.14)
+            : Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Text(label, style: Theme.of(context).textTheme.labelLarge),
+      ),
+    );
+  }
+}
+
+class _QuizOptionResultBadge extends StatelessWidget {
+  const _QuizOptionResultBadge({
+    required this.visualState,
+    required this.accentColor,
+  });
+
+  final _QuizOptionVisualState visualState;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final _IconAndLabel iconAndLabel = switch (visualState) {
+      _QuizOptionVisualState.selectedCorrect => const _IconAndLabel(
+        icon: Icons.check_rounded,
+        label: 'GOOD',
+      ),
+      _QuizOptionVisualState.selectedWrong => const _IconAndLabel(
+        icon: Icons.close_rounded,
+        label: 'MISS',
+      ),
+      _QuizOptionVisualState.correctReveal => const _IconAndLabel(
+        icon: Icons.lightbulb_rounded,
+        label: 'ANSWER',
+      ),
+      _ => const _IconAndLabel(icon: Icons.circle, label: ''),
+    };
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: accentColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(iconAndLabel.icon, size: 16, color: Colors.white),
+            const SizedBox(width: 4),
+            Text(
+              iconAndLabel.label,
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _IconAndLabel {
+  const _IconAndLabel({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+}
+
+class _QuizAnswerFeedbackOverlay extends StatelessWidget {
+  const _QuizAnswerFeedbackOverlay({
+    required this.feedback,
+    required this.onCompleted,
+    super.key,
+  });
+
+  final QuizAnswerFeedback feedback;
+  final VoidCallback onCompleted;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isCorrect = feedback.isCorrect;
+    final Color accentColor = isCorrect
+        ? const Color(0xFF18A56B)
+        : Theme.of(context).colorScheme.error;
+    final Duration duration = isCorrect
+        ? _kCorrectFeedbackDuration
+        : _kIncorrectFeedbackDuration;
+
+    return IgnorePointer(
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          ColoredBox(
+                color: accentColor.withValues(alpha: isCorrect ? 0.08 : 0.12),
+              )
+              .animate()
+              .fadeIn(duration: 100.ms)
+              .then(delay: 110.ms)
+              .fadeOut(duration: 320.ms),
+          Center(
+            child:
+                _QuizFeedbackBadge(
+                      label: isCorrect ? '正解！' : '不正解',
+                      caption: isCorrect ? 'NEXT WAVE' : 'GAME OVER',
+                      color: accentColor,
+                      icon: isCorrect
+                          ? Icons.waving_hand_rounded
+                          : Icons.warning_rounded,
+                    )
+                    .animate(onComplete: (_) => onCompleted())
+                    .fadeIn(duration: 150.ms)
+                    .scaleXY(begin: 0.72, end: 1.0, duration: 260.ms)
+                    .then(delay: duration - const Duration(milliseconds: 500))
+                    .fadeOut(duration: 220.ms)
+                    .scaleXY(end: 0.92, duration: 220.ms),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuizFeedbackBadge extends StatelessWidget {
+  const _QuizFeedbackBadge({
+    required this.label,
+    required this.caption,
+    required this.color,
+    required this.icon,
+  });
+
+  final String label;
+  final String caption;
+  final Color color;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(32),
+        gradient: LinearGradient(
+          colors: <Color>[color, color.withValues(alpha: 0.78)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: color.withValues(alpha: 0.24),
+            blurRadius: 30,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, size: 30, color: Colors.white),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(color: Colors.white),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              caption,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Colors.white.withValues(alpha: 0.88),
+                letterSpacing: 1.1,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

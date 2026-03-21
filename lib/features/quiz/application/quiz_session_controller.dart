@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/quiz_data_providers.dart';
 import '../domain/quiz_models.dart';
+import 'quiz_answer_feedback.dart';
 import 'quiz_session.dart';
 import 'quiz_session_state.dart';
 
@@ -42,24 +43,41 @@ class QuizSessionController
 
   QuizResultSummary get summary => _session.toSummary();
 
-  void submitAnswer(int selectedIndex) {
-    state = state.copyWith(isProcessing: true);
+  QuizAnswerFeedback? submitAnswer(int selectedIndex) {
+    final Duration elapsed = _stopwatch.elapsed;
+    final Duration? remaining = _buildRemaining(elapsed);
+    _stopwatch.stop();
 
-    _session.submitAnswer(
+    final QuizAnswerFeedback? feedback = _session.submitAnswer(
       selectedIndex: selectedIndex,
-      elapsed: _stopwatch.elapsed,
+      elapsed: elapsed,
+      remaining: remaining,
     );
+    if (feedback == null) {
+      if (!_session.gameOver &&
+          !_session.isCompleted &&
+          _session.pendingAnswerFeedback == null) {
+        _stopwatch.start();
+      }
+      return null;
+    }
 
-    if (_session.gameOver || _session.isCompleted) {
-      _stopwatch.stop();
-      state = _toState(isProcessing: false);
+    state = _toState();
+    return feedback;
+  }
+
+  void completeAnswerFeedback() {
+    if (_session.pendingAnswerFeedback == null) {
       return;
     }
 
-    _stopwatch
-      ..reset()
-      ..start();
-    state = _toState(isProcessing: false);
+    _session.completePendingAnswerFeedback();
+    if (!_session.gameOver && !_session.isCompleted) {
+      _stopwatch
+        ..reset()
+        ..start();
+    }
+    state = _toState();
   }
 
   void continueAfterAd() {
@@ -81,7 +99,9 @@ class QuizSessionController
   }
 
   void handleLifecyclePause() {
-    if (_session.gameOver || _session.isCompleted) {
+    if (_session.gameOver ||
+        _session.isCompleted ||
+        _session.pendingAnswerFeedback != null) {
       return;
     }
     _session.submitTimeout(elapsed: _stopwatch.elapsed);
@@ -90,7 +110,9 @@ class QuizSessionController
   }
 
   void _onTick(Timer timer) {
-    if (_session.gameOver || _session.isCompleted) {
+    if (_session.gameOver ||
+        _session.isCompleted ||
+        _session.pendingAnswerFeedback != null) {
       return;
     }
     final int? timeLimitSeconds = _session.mode.timeLimitSeconds;
@@ -105,16 +127,7 @@ class QuizSessionController
   }
 
   QuizSessionState _toState({bool isProcessing = false}) {
-    final int? limitSeconds = _session.mode.timeLimitSeconds;
     final Duration elapsed = _stopwatch.elapsed;
-    final Duration? remaining = limitSeconds == null
-        ? null
-        : Duration(
-            milliseconds:
-                (Duration(seconds: limitSeconds).inMilliseconds -
-                        elapsed.inMilliseconds)
-                    .clamp(0, 99999999),
-          );
 
     return QuizSessionState(
       mode: _session.mode,
@@ -125,7 +138,7 @@ class QuizSessionController
       correctAnswers: _session.correctAnswers,
       totalAnswerTime: _session.totalAnswerTime,
       elapsedForCurrentQuestion: elapsed,
-      remainingForCurrentQuestion: remaining,
+      remainingForCurrentQuestion: _buildRemaining(elapsed),
       gameOver: _session.gameOver,
       isCompleted: _session.isCompleted,
       canContinueWithAd: _session.canContinueWithAd,
@@ -134,5 +147,17 @@ class QuizSessionController
       endReason: _session.endReason,
       isProcessing: isProcessing,
     );
+  }
+
+  Duration? _buildRemaining(Duration elapsed) {
+    final int? limitSeconds = _session.mode.timeLimitSeconds;
+    return limitSeconds == null
+        ? null
+        : Duration(
+            milliseconds:
+                (Duration(seconds: limitSeconds).inMilliseconds -
+                        elapsed.inMilliseconds)
+                    .clamp(0, 99999999),
+          );
   }
 }
