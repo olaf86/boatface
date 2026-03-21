@@ -3,21 +3,40 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_route.dart';
 import '../../auth/application/auth_controller.dart';
-import '../../quiz/data/quiz_data_providers.dart';
+import '../../quiz/application/racer_master_sync_controller.dart';
+import '../../quiz/application/racer_master_sync_state.dart';
 import '../../quiz/domain/quiz_modes.dart';
 import '../../quiz/domain/quiz_models.dart';
 import '../../quiz/presentation/quiz_rule_screen.dart';
 import '../../ranking/presentation/ranking_screen.dart';
+import 'settings_screen.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   static const double _modeButtonMaxWidth = 320;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(racerMasterSyncControllerProvider.notifier)
+          .startBackgroundSyncIfNeeded();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider).valueOrNull;
-    final racerMasterInit = ref.watch(racerRepositoryInitializationProvider);
+    final RacerMasterSyncState syncState = ref.watch(
+      racerMasterSyncControllerProvider,
+    );
     final String providerLabel = authState?.providerLabel ?? '-';
 
     return Scaffold(
@@ -37,49 +56,49 @@ class HomeScreen extends ConsumerWidget {
             icon: const Icon(Icons.leaderboard_outlined),
           ),
           IconButton(
-            tooltip: 'ログアウト',
-            onPressed: () async {
-              final bool? confirmed = await showDialog<bool>(
-                context: context,
-                builder: (BuildContext context) => AlertDialog(
-                  title: const Text('ログアウト確認'),
-                  content: const Text('ログアウトしますか？'),
-                  actions: <Widget>[
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('キャンセル'),
-                    ),
-                    FilledButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('ログアウト'),
-                    ),
-                  ],
+            tooltip: '設定',
+            onPressed: () {
+              Navigator.of(context).push(
+                buildAppRoute<void>(
+                  page: const SettingsScreen(),
+                  transition: AppRouteTransition.sharedAxisHorizontal,
                 ),
               );
-              if (confirmed == true && context.mounted) {
-                ref.read(authControllerProvider.notifier).signOut();
-              }
             },
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.settings_outlined),
           ),
         ],
       ),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
-          child: racerMasterInit.when(
-            data: (_) => _HomeContent(
-              providerLabel: providerLabel,
-              onStartMode: (QuizModeConfig mode) => _startFlow(context, mode),
-            ),
-            loading: () =>
-                _RacerMasterPreparingView(providerLabel: providerLabel),
-            error: (Object error, StackTrace stackTrace) =>
-                _RacerMasterErrorView(
-                  providerLabel: providerLabel,
-                  onRetry: () =>
-                      ref.invalidate(racerRepositoryInitializationProvider),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: <Widget>[
+              _HomeSummaryCard(
+                providerLabel: providerLabel,
+                syncState: syncState,
+              ),
+              const SizedBox(height: 12),
+              ...kQuizModes.map(
+                (QuizModeConfig mode) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: HomeScreen._modeButtonMaxWidth,
+                      ),
+                      child: _ModeListItem(
+                        mode: mode,
+                        onTap: mode.availableInMvp
+                            ? () => _startFlow(context, mode)
+                            : null,
+                      ),
+                    ),
+                  ),
                 ),
+              ),
+            ],
           ),
         ),
       ),
@@ -96,135 +115,71 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _HomeContent extends StatelessWidget {
-  const _HomeContent({required this.providerLabel, required this.onStartMode});
-
-  final String providerLabel;
-  final ValueChanged<QuizModeConfig> onStartMode;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: <Widget>[
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'モードを選択',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 8),
-                Text('ログイン: $providerLabel'),
-                const SizedBox(height: 4),
-                Text(
-                  '詳細なルールは次の画面で確認できます。',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        ...kQuizModes.map(
-          (QuizModeConfig mode) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: HomeScreen._modeButtonMaxWidth,
-                ),
-                child: _ModeListItem(
-                  mode: mode,
-                  onTap: mode.availableInMvp ? () => onStartMode(mode) : null,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RacerMasterPreparingView extends StatelessWidget {
-  const _RacerMasterPreparingView({required this.providerLabel});
-
-  final String providerLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: <Widget>[
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'クイズデータを準備中',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 8),
-                Text('ログイン: $providerLabel'),
-                const SizedBox(height: 12),
-                const Text(
-                  '初回起動時のみ、選手データを端末に保存します。完了するとオフラインでもクイズを開始しやすくなります。',
-                ),
-                const SizedBox(height: 20),
-                const Center(child: CircularProgressIndicator()),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RacerMasterErrorView extends StatelessWidget {
-  const _RacerMasterErrorView({
+class _HomeSummaryCard extends StatelessWidget {
+  const _HomeSummaryCard({
     required this.providerLabel,
-    required this.onRetry,
+    required this.syncState,
   });
 
   final String providerLabel;
-  final VoidCallback onRetry;
+  final RacerMasterSyncState syncState;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: <Widget>[
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final ThemeData theme = Theme.of(context);
+    final String datasetLabel = syncState.activeManifest == null
+        ? '未取得'
+        : '${syncState.activeManifest!.datasetId} '
+              '${_formatDateTime(syncState.activeManifest!.datasetUpdatedAt)}';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text('モードを選択', style: theme.textTheme.headlineSmall),
+            const SizedBox(height: 8),
+            Text('ログイン: $providerLabel'),
+            const SizedBox(height: 4),
+            Text('詳細なルールは次の画面で確認できます。', style: theme.textTheme.bodyMedium),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: <Widget>[
-                Text(
-                  'クイズデータを取得できませんでした',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 8),
-                Text('ログイン: $providerLabel'),
-                const SizedBox(height: 12),
-                const Text(
-                  '通信状態を確認してから再試行してください。既存のローカルデータがある場合は次回以降この待機は短くなります。',
-                ),
-                const SizedBox(height: 20),
-                FilledButton(onPressed: onRetry, child: const Text('再試行')),
+                Chip(label: Text(_statusLabel(syncState))),
+                Chip(label: Text('使用中データ: $datasetLabel')),
               ],
             ),
-          ),
+            if (syncState.errorMessage != null) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(
+                syncState.errorMessage!,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+            ],
+          ],
         ),
-      ],
+      ),
     );
+  }
+
+  String _statusLabel(RacerMasterSyncState state) {
+    switch (state.phase) {
+      case RacerMasterSyncPhase.idle:
+        return state.hasUsableData ? '準備完了' : '未同期';
+      case RacerMasterSyncPhase.checking:
+        return state.hasUsableData ? '更新確認中' : '同期確認中';
+      case RacerMasterSyncPhase.downloading:
+        return state.hasUsableData ? '更新中' : '初回同期中';
+      case RacerMasterSyncPhase.ready:
+        return '準備完了';
+      case RacerMasterSyncPhase.error:
+        return state.hasUsableData ? 'ローカルデータで利用中' : '同期失敗';
+    }
   }
 }
 
@@ -325,43 +280,6 @@ class _ModeListItem extends StatelessWidget {
       ),
     );
   }
-
-  _DifficultyBadgeStyle? _difficultyBadgeFor(String modeId) {
-    switch (modeId) {
-      case 'quick':
-        return const _DifficultyBadgeStyle(
-          label: 'かんたん',
-          backgroundColor: Color(0xFFDFF7E7),
-          foregroundColor: Color(0xFF217A3C),
-        );
-      case 'careful':
-        return const _DifficultyBadgeStyle(
-          label: 'ふつう',
-          backgroundColor: Color(0xFFFFF0C9),
-          foregroundColor: Color(0xFF8A5A00),
-        );
-      case 'challenge':
-        return const _DifficultyBadgeStyle(
-          label: '難しい',
-          backgroundColor: Color(0xFFFFDFD8),
-          foregroundColor: Color(0xFFB33A2B),
-        );
-      case 'master':
-        return const _DifficultyBadgeStyle(
-          label: '激ムズ',
-          backgroundColor: Color(0xFFE5DDFF),
-          foregroundColor: Color(0xFF5A33B3),
-        );
-      case 'custom':
-        return null;
-      default:
-        return const _DifficultyBadgeStyle(
-          label: 'モード',
-          backgroundColor: Color(0xFFDDF4FF),
-          foregroundColor: Color(0xFF0B4F9C),
-        );
-    }
-  }
 }
 
 class _DifficultyBadgeStyle {
@@ -374,4 +292,50 @@ class _DifficultyBadgeStyle {
   final String label;
   final Color backgroundColor;
   final Color foregroundColor;
+}
+
+_DifficultyBadgeStyle? _difficultyBadgeFor(String modeId) {
+  switch (modeId) {
+    case 'quick':
+      return const _DifficultyBadgeStyle(
+        label: 'EASY',
+        backgroundColor: Color(0xFFD7F7E9),
+        foregroundColor: Color(0xFF0A7A4A),
+      );
+    case 'careful':
+      return const _DifficultyBadgeStyle(
+        label: 'NORMAL',
+        backgroundColor: Color(0xFFE1F0FF),
+        foregroundColor: Color(0xFF145E9C),
+      );
+    case 'challenge':
+      return const _DifficultyBadgeStyle(
+        label: 'HARD',
+        backgroundColor: Color(0xFFFFE7D6),
+        foregroundColor: Color(0xFFB45400),
+      );
+    case 'master':
+      return const _DifficultyBadgeStyle(
+        label: 'MASTER',
+        backgroundColor: Color(0xFFFFE1E6),
+        foregroundColor: Color(0xFFAF2343),
+      );
+    case 'custom':
+      return const _DifficultyBadgeStyle(
+        label: 'CUSTOM',
+        backgroundColor: Color(0xFFF2EAFF),
+        foregroundColor: Color(0xFF6942B4),
+      );
+    default:
+      return null;
+  }
+}
+
+String _formatDateTime(DateTime dateTime) {
+  final DateTime local = dateTime.toLocal();
+  return '${local.year.toString().padLeft(4, '0')}-'
+      '${local.month.toString().padLeft(2, '0')}-'
+      '${local.day.toString().padLeft(2, '0')} '
+      '${local.hour.toString().padLeft(2, '0')}:'
+      '${local.minute.toString().padLeft(2, '0')}';
 }

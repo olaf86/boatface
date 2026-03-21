@@ -1,13 +1,33 @@
 import '../domain/quiz_models.dart';
+import 'racer_master_models.dart';
 import 'racer_repository.dart';
 
 class MockRacerRepository implements RacerRepository {
   List<RacerProfile>? _cache;
 
   @override
-  Future<void> initialize() async {
+  Future<RacerSyncResult> initialize() async {
     fetchAll();
+    return RacerSyncResult(
+      activeManifest: currentManifest,
+      remoteManifest: currentManifest,
+      downloadedSnapshot: false,
+      usedLocalSnapshot: true,
+    );
   }
+
+  @override
+  Future<RacerSyncResult> syncIfNeeded() async => initialize();
+
+  @override
+  RacerDatasetManifest? get currentManifest => RacerDatasetManifest(
+    datasetId: 'mock-dataset',
+    datasetUpdatedAt: DateTime.utc(2026, 3, 21),
+    recordCount: fetchAll().length,
+  );
+
+  @override
+  bool get hasUsableData => fetchAll().length >= 4;
 
   @override
   List<RacerProfile> requireCachedAll() => fetchAll();

@@ -17,22 +17,28 @@ class CachedRacerRepository implements RacerRepository {
   final RacerMasterLocalStore _localStore;
 
   RacerDatasetSnapshot? _memorySnapshot;
-  Future<void>? _initializeFuture;
-  Future<void>? _refreshFuture;
+  Future<RacerSyncResult>? _initializeFuture;
+  Future<RacerSyncResult>? _refreshFuture;
 
   @override
-  Future<void> initialize() {
+  Future<RacerSyncResult> initialize() {
     if (_hasReadySnapshot()) {
-      _scheduleBackgroundRefresh();
-      return Future<void>.value();
+      return Future<RacerSyncResult>.value(
+        RacerSyncResult(
+          activeManifest: currentManifest,
+          remoteManifest: currentManifest,
+          downloadedSnapshot: false,
+          usedLocalSnapshot: true,
+        ),
+      );
     }
 
-    final Future<void>? initializeFuture = _initializeFuture;
+    final Future<RacerSyncResult>? initializeFuture = _initializeFuture;
     if (initializeFuture != null) {
       return initializeFuture;
     }
 
-    final Future<void> nextFuture = _initializeImpl();
+    final Future<RacerSyncResult> nextFuture = _initializeImpl();
     _initializeFuture = nextFuture;
     return nextFuture.whenComplete(() {
       if (identical(_initializeFuture, nextFuture)) {
@@ -56,16 +62,48 @@ class CachedRacerRepository implements RacerRepository {
     return activeRacers;
   }
 
-  Future<void> _initializeImpl() async {
+  @override
+  Future<RacerSyncResult> syncIfNeeded() {
+    final Future<RacerSyncResult>? refreshFuture = _refreshFuture;
+    if (refreshFuture != null) {
+      return refreshFuture;
+    }
+
+    final Future<RacerSyncResult> nextFuture = _syncIfNeededImpl();
+    _refreshFuture = nextFuture;
+    return nextFuture.whenComplete(() {
+      if (identical(_refreshFuture, nextFuture)) {
+        _refreshFuture = null;
+      }
+    });
+  }
+
+  @override
+  RacerDatasetManifest? get currentManifest => _memorySnapshot?.manifest;
+
+  @override
+  bool get hasUsableData => _hasReadySnapshot();
+
+  Future<RacerSyncResult> _initializeImpl() async {
     final RacerDatasetSnapshot? localSnapshot = await _localStore
         .readSnapshot();
     if (_isUsable(localSnapshot)) {
       _memorySnapshot = localSnapshot;
-      _scheduleBackgroundRefresh();
-      return;
+      return RacerSyncResult(
+        activeManifest: currentManifest,
+        remoteManifest: null,
+        downloadedSnapshot: false,
+        usedLocalSnapshot: true,
+      );
     }
 
-    await _downloadLatestSnapshot();
+    final RacerDatasetSnapshot remoteSnapshot = await _downloadLatestSnapshot();
+    return RacerSyncResult(
+      activeManifest: remoteSnapshot.manifest,
+      remoteManifest: remoteSnapshot.manifest,
+      downloadedSnapshot: true,
+      usedLocalSnapshot: false,
+    );
   }
 
   bool _hasReadySnapshot() => _isUsable(_memorySnapshot);
@@ -83,37 +121,39 @@ class CachedRacerRepository implements RacerRepository {
         .toList(growable: false);
   }
 
-  void _scheduleBackgroundRefresh() {
-    _refreshFuture ??= _refreshIfNeeded()
-        .catchError((_) {
-          return;
-        })
-        .whenComplete(() {
-          _refreshFuture = null;
-        });
-  }
-
-  Future<void> _refreshIfNeeded() async {
+  Future<RacerSyncResult> _syncIfNeededImpl() async {
     final RacerDatasetManifest remoteManifest = await _remoteDataSource
         .fetchManifest();
     final RacerDatasetManifest? localManifest = _memorySnapshot?.manifest;
     if (localManifest != null && !remoteManifest.shouldReplace(localManifest)) {
-      return;
+      return RacerSyncResult(
+        activeManifest: localManifest,
+        remoteManifest: remoteManifest,
+        downloadedSnapshot: false,
+        usedLocalSnapshot: true,
+      );
     }
 
     final RacerDatasetSnapshot remoteSnapshot = await _remoteDataSource
         .fetchSnapshot(datasetId: remoteManifest.datasetId);
     _applySnapshot(remoteSnapshot);
     await _localStore.writeSnapshot(remoteSnapshot);
+    return RacerSyncResult(
+      activeManifest: remoteSnapshot.manifest,
+      remoteManifest: remoteSnapshot.manifest,
+      downloadedSnapshot: true,
+      usedLocalSnapshot: false,
+    );
   }
 
-  Future<void> _downloadLatestSnapshot() async {
+  Future<RacerDatasetSnapshot> _downloadLatestSnapshot() async {
     final RacerDatasetManifest remoteManifest = await _remoteDataSource
         .fetchManifest();
     final RacerDatasetSnapshot remoteSnapshot = await _remoteDataSource
         .fetchSnapshot(datasetId: remoteManifest.datasetId);
     _applySnapshot(remoteSnapshot);
     await _localStore.writeSnapshot(remoteSnapshot);
+    return remoteSnapshot;
   }
 
   void _applySnapshot(RacerDatasetSnapshot snapshot) {

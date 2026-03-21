@@ -27,8 +27,3 @@ final Provider<RacerRepository> racerRepositoryProvider =
         localStore: ref.watch(racerMasterLocalStoreProvider),
       );
     });
-
-final FutureProvider<void> racerRepositoryInitializationProvider =
-    FutureProvider<void>((Ref ref) async {
-      await ref.watch(racerRepositoryProvider).initialize();
-    });

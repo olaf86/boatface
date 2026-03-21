@@ -55,3 +55,17 @@ class RacerDatasetSnapshot {
   final RacerDatasetManifest manifest;
   final List<RacerProfile> racers;
 }
+
+class RacerSyncResult {
+  const RacerSyncResult({
+    required this.activeManifest,
+    required this.remoteManifest,
+    required this.downloadedSnapshot,
+    required this.usedLocalSnapshot,
+  });
+
+  final RacerDatasetManifest? activeManifest;
+  final RacerDatasetManifest? remoteManifest;
+  final bool downloadedSnapshot;
+  final bool usedLocalSnapshot;
+}

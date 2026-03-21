@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_route.dart';
-import '../data/quiz_data_providers.dart';
+import '../application/racer_master_sync_controller.dart';
+import '../application/racer_master_sync_state.dart';
 import '../domain/quiz_models.dart';
 import 'quiz_screen.dart';
 
@@ -35,11 +36,21 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
     }
     _unlimitedTime = widget.baseMode.timeLimitSeconds == null;
     _timeLimitSeconds = widget.baseMode.timeLimitSeconds ?? 10;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(racerMasterSyncControllerProvider.notifier)
+          .startBackgroundSyncIfNeeded();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final int totalQuestions = _totalQuestionCount();
+    final RacerMasterSyncState syncState = ref.watch(
+      racerMasterSyncControllerProvider,
+    );
+    final bool canStartQuiz =
+        totalQuestions > 0 && syncState.canStartQuiz && !_isStarting;
     return Scaffold(
       appBar: AppBar(title: Text('${widget.baseMode.label} ルール')),
       body: ListView(
@@ -126,9 +137,7 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
           ),
           const SizedBox(height: 20),
           FilledButton(
-            onPressed: totalQuestions > 0 && !_isStarting
-                ? () => _startQuizFlow(context)
-                : null,
+            onPressed: canStartQuiz ? () => _startQuizFlow(context) : null,
             child: _isStarting
                 ? const SizedBox(
                     width: 20,
@@ -142,6 +151,7 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
               padding: EdgeInsets.only(top: 8),
               child: Text('選手データを読み込んでいます…'),
             ),
+          if (!_isStarting) _SyncStatusPanel(syncState: syncState),
           if (_startErrorMessage != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -178,7 +188,7 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
     });
 
     try {
-      await ref.read(racerRepositoryProvider).initialize();
+      await ref.read(racerMasterSyncControllerProvider.notifier).retry();
     } catch (error) {
       if (!mounted) {
         return;
@@ -190,6 +200,20 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
       setState(() {
         _isStarting = false;
         _startErrorMessage = message;
+      });
+      return;
+    }
+
+    final RacerMasterSyncState syncState = ref.read(
+      racerMasterSyncControllerProvider,
+    );
+    if (!syncState.canStartQuiz) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isStarting = false;
+        _startErrorMessage = syncState.errorMessage ?? '選手データの準備完了後にスタートできます。';
       });
       return;
     }
@@ -228,6 +252,78 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
       segments: segments,
     );
   }
+}
+
+class _SyncStatusPanel extends ConsumerWidget {
+  const _SyncStatusPanel({required this.syncState});
+
+  final RacerMasterSyncState syncState;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ThemeData theme = Theme.of(context);
+    final bool showRetry = !syncState.canStartQuiz && !syncState.isSyncing;
+    final String message = switch (syncState.phase) {
+      RacerMasterSyncPhase.idle =>
+        syncState.canStartQuiz ? '選手データは準備済みです。' : '選手データの同期待ちです。',
+      RacerMasterSyncPhase.checking =>
+        syncState.canStartQuiz
+            ? 'バックグラウンドで最新データを確認しています。'
+            : '選手データの更新状況を確認しています。',
+      RacerMasterSyncPhase.downloading =>
+        syncState.canStartQuiz
+            ? '新しい選手データへ更新しています。'
+            : '選手データをダウンロードしています。完了するとスタートできます。',
+      RacerMasterSyncPhase.ready => '選手データは準備済みです。',
+      RacerMasterSyncPhase.error =>
+        syncState.canStartQuiz
+            ? '最新確認に失敗したため、保存済みデータを利用します。'
+            : (syncState.errorMessage ?? '選手データの同期に失敗しました。'),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('データ状態', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Text(message),
+              if (syncState.activeManifest != null) ...<Widget>[
+                const SizedBox(height: 6),
+                Text(
+                  '使用中: ${syncState.activeManifest!.datasetId} '
+                  '(${_formatManifestTime(syncState.activeManifest!.datasetUpdatedAt)})',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ],
+              if (showRetry) ...<Widget>[
+                const SizedBox(height: 10),
+                FilledButton.tonal(
+                  onPressed: () => ref
+                      .read(racerMasterSyncControllerProvider.notifier)
+                      .retry(),
+                  child: const Text('同期を再試行'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _formatManifestTime(DateTime dateTime) {
+  final DateTime local = dateTime.toLocal();
+  return '${local.year.toString().padLeft(4, '0')}-'
+      '${local.month.toString().padLeft(2, '0')}-'
+      '${local.day.toString().padLeft(2, '0')} '
+      '${local.hour.toString().padLeft(2, '0')}:'
+      '${local.minute.toString().padLeft(2, '0')}';
 }
 
 class _SectionCard extends StatelessWidget {

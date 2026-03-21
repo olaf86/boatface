@@ -1,11 +1,15 @@
 import 'dart:io';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:boatface/features/quiz/application/racer_master_sync_controller.dart';
+import 'package:boatface/features/quiz/application/racer_master_sync_state.dart';
 import 'package:boatface/features/quiz/data/cached_racer_repository.dart';
 import 'package:boatface/features/quiz/data/racer_api_client.dart';
 import 'package:boatface/features/quiz/data/racer_master_local_store.dart';
 import 'package:boatface/features/quiz/data/racer_master_models.dart';
+import 'package:boatface/features/quiz/data/quiz_data_providers.dart';
 import 'package:boatface/features/quiz/domain/quiz_models.dart';
 
 void main() {
@@ -56,16 +60,17 @@ void main() {
         localStore: localStore,
       );
 
-      await repository.initialize();
+      final RacerSyncResult result = await repository.initialize();
 
       expect(remoteDataSource.manifestFetchCount, 1);
       expect(remoteDataSource.snapshotFetchCount, 1);
+      expect(result.downloadedSnapshot, true);
       expect(repository.requireCachedAll().first.id, 'remote-racer-0');
       expect(localStore.snapshot?.manifest.datasetId, '2026-H1');
     });
 
     test(
-      'uses local snapshot immediately and refreshes in background',
+      'uses local snapshot immediately and refreshes after explicit sync',
       () async {
         final _InMemoryLocalStore localStore = _InMemoryLocalStore(
           snapshot: _buildSnapshot(
@@ -90,18 +95,79 @@ void main() {
           localStore: localStore,
         );
 
-        await repository.initialize();
+        final RacerSyncResult initResult = await repository.initialize();
 
+        expect(initResult.usedLocalSnapshot, true);
         expect(repository.requireCachedAll().first.id, 'local-racer-0');
+        expect(remoteDataSource.manifestFetchCount, 0);
+        expect(remoteDataSource.snapshotFetchCount, 0);
 
-        await Future<void>.delayed(Duration.zero);
-        await Future<void>.delayed(Duration.zero);
+        final RacerSyncResult syncResult = await repository.syncIfNeeded();
 
         expect(remoteDataSource.manifestFetchCount, 1);
         expect(remoteDataSource.snapshotFetchCount, 1);
+        expect(syncResult.downloadedSnapshot, true);
         expect(repository.requireCachedAll().first.id, 'remote-racer-0');
         expect(
           localStore.snapshot?.manifest.datasetUpdatedAt,
+          DateTime.utc(2026, 3, 22),
+        );
+      },
+    );
+  });
+
+  group('RacerMasterSyncController', () {
+    test(
+      'starts background sync and promotes local data to ready state',
+      () async {
+        final _FakeRemoteDataSource remoteDataSource = _FakeRemoteDataSource(
+          manifest: _buildManifest(
+            datasetId: '2026-H1',
+            updatedAt: DateTime.utc(2026, 3, 22),
+          ),
+          snapshot: _buildSnapshot(
+            datasetId: '2026-H1',
+            updatedAt: DateTime.utc(2026, 3, 22),
+            prefix: 'remote',
+          ),
+        );
+        final _InMemoryLocalStore localStore = _InMemoryLocalStore(
+          snapshot: _buildSnapshot(
+            datasetId: '2026-H1',
+            updatedAt: DateTime.utc(2026, 3, 21),
+            prefix: 'local',
+          ),
+        );
+        final ProviderContainer container = ProviderContainer(
+          overrides: <Override>[
+            racerMasterRemoteDataSourceProvider.overrideWithValue(
+              remoteDataSource,
+            ),
+            racerMasterLocalStoreProvider.overrideWithValue(localStore),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        expect(
+          container.read(racerMasterSyncControllerProvider).canStartQuiz,
+          false,
+        );
+
+        await container
+            .read(racerMasterSyncControllerProvider.notifier)
+            .startBackgroundSyncIfNeeded();
+
+        final RacerMasterSyncState state = container.read(
+          racerMasterSyncControllerProvider,
+        );
+        expect(state.phase, RacerMasterSyncPhase.ready);
+        expect(state.canStartQuiz, true);
+        expect(
+          state.activeManifest?.datasetUpdatedAt,
+          DateTime.utc(2026, 3, 22),
+        );
+        expect(
+          state.remoteManifest?.datasetUpdatedAt,
           DateTime.utc(2026, 3, 22),
         );
       },

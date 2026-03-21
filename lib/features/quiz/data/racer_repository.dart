@@ -1,7 +1,14 @@
 import '../domain/quiz_models.dart';
+import 'racer_master_models.dart';
 
 abstract class RacerRepository {
-  Future<void> initialize();
+  Future<RacerSyncResult> initialize();
+
+  Future<RacerSyncResult> syncIfNeeded();
+
+  RacerDatasetManifest? get currentManifest;
+
+  bool get hasUsableData;
 
   List<RacerProfile> requireCachedAll();
 }
