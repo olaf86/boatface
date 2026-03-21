@@ -14,7 +14,7 @@ const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[
   QuizModeConfig(
     id: 'quick',
     label: 'さくっと',
-    description: '10問・顔 -> 選手名',
+    description: '10問・A1級限定の顔 -> 選手名',
     timeLimitSeconds: 10,
     segments: <QuizSegment>[
       QuizSegment(promptType: QuizPromptType.faceToName, count: 10),

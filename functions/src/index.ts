@@ -233,6 +233,8 @@ function mapRacerResponse(id: string, data: Record<string, unknown>) {
     id,
     name: data.name ?? null,
     registrationNumber: data.registrationNumber ?? null,
+    class: data.class ?? null,
+    gender: data.gender ?? null,
     imageUrl: data.imageUrl ?? null,
     imageStoragePath: data.imageStoragePath ?? null,
     imageSource: data.imageSource ?? null,

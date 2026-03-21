@@ -134,19 +134,122 @@ void main() {
         true,
       );
     });
+
+    test('limits quick mode questions and options to A1 racers of same gender', () {
+      final List<RacerProfile> racers = _buildRacers();
+      final Map<String, RacerProfile> racerById = <String, RacerProfile>{
+        for (final RacerProfile racer in racers) racer.id: racer,
+      };
+
+      final QuizSession session = QuizSessionFactory.create(
+        mode: const QuizModeConfig(
+          id: 'quick',
+          label: 'さくっと',
+          description: '',
+          timeLimitSeconds: 10,
+          segments: <QuizSegment>[
+            QuizSegment(promptType: QuizPromptType.faceToName, count: 4),
+          ],
+        ),
+        racers: racers,
+      );
+
+      for (final QuizQuestion question in session.questions) {
+        final RacerProfile target = racerById[question.correctRacerId]!;
+        expect(target.racerClass, 'A1');
+        expect(
+          question.options.every(
+            (QuizOption option) =>
+                racerById[option.racerId]!.racerClass == 'A1',
+          ),
+          true,
+        );
+        expect(
+          question.options.every(
+            (QuizOption option) =>
+                racerById[option.racerId]!.gender == target.gender,
+          ),
+          true,
+        );
+      }
+    });
+
+    test('prefers same class and gender for distractors', () {
+      final List<RacerProfile> racers = <RacerProfile>[
+        _buildRacer(0, racerClass: 'A1', gender: 'male'),
+        _buildRacer(1, racerClass: 'A1', gender: 'male'),
+        _buildRacer(2, racerClass: 'A1', gender: 'male'),
+        _buildRacer(3, racerClass: 'A1', gender: 'male'),
+        _buildRacer(4, racerClass: 'B2', gender: 'female'),
+        _buildRacer(5, racerClass: 'B2', gender: 'female'),
+        _buildRacer(6, racerClass: 'B2', gender: 'female'),
+        _buildRacer(7, racerClass: 'B2', gender: 'female'),
+      ];
+      final Map<String, RacerProfile> racerById = <String, RacerProfile>{
+        for (final RacerProfile racer in racers) racer.id: racer,
+      };
+
+      final QuizSession session = QuizSessionFactory.create(
+        mode: QuizModeConfig(
+          id: 'careful',
+          label: 'じっくり',
+          description: '',
+          timeLimitSeconds: null,
+          segments: <QuizSegment>[
+            QuizSegment(promptType: QuizPromptType.faceToName, count: 1),
+          ],
+        ),
+        racers: racers,
+      );
+
+      final QuizQuestion question = session.currentQuestion!;
+      final RacerProfile target = racerById[question.correctRacerId]!;
+      final List<RacerProfile> distractors = question.options
+          .where(
+            (QuizOption option) => option.racerId != question.correctRacerId,
+          )
+          .map((QuizOption option) => racerById[option.racerId]!)
+          .toList(growable: false);
+
+      expect(
+        distractors.every(
+          (RacerProfile racer) =>
+              racer.racerClass == target.racerClass &&
+              racer.gender == target.gender,
+        ),
+        true,
+      );
+    });
   });
 }
 
 List<RacerProfile> _buildRacers() {
-  return List<RacerProfile>.generate(8, (int index) {
-    return RacerProfile(
-      id: 'racer-$index',
-      name: '選手$index',
-      registrationNumber: 4000 + index,
-      imageUrl: 'https://example.com/racer-$index.jpg',
-      imageSource: 'test',
-      updatedAt: DateTime.utc(2026, 3, 21),
-      isActive: true,
-    );
-  });
+  return <RacerProfile>[
+    _buildRacer(0, racerClass: 'A1', gender: 'male'),
+    _buildRacer(1, racerClass: 'A1', gender: 'male'),
+    _buildRacer(2, racerClass: 'A1', gender: 'male'),
+    _buildRacer(3, racerClass: 'A1', gender: 'male'),
+    _buildRacer(4, racerClass: 'A1', gender: 'male'),
+    _buildRacer(5, racerClass: 'A2', gender: 'female'),
+    _buildRacer(6, racerClass: 'B1', gender: 'female'),
+    _buildRacer(7, racerClass: 'B2', gender: 'male'),
+  ];
+}
+
+RacerProfile _buildRacer(
+  int index, {
+  required String racerClass,
+  required String gender,
+}) {
+  return RacerProfile(
+    id: 'racer-$index',
+    name: '選手$index',
+    registrationNumber: 4000 + index,
+    racerClass: racerClass,
+    gender: gender,
+    imageUrl: 'https://example.com/racer-$index.jpg',
+    imageSource: 'test',
+    updatedAt: DateTime.utc(2026, 3, 21),
+    isActive: true,
+  );
 }

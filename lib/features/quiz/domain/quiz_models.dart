@@ -69,6 +69,8 @@ class RacerProfile {
     required this.id,
     required this.name,
     required this.registrationNumber,
+    required this.racerClass,
+    required this.gender,
     required this.imageUrl,
     this.imageStoragePath,
     required this.imageSource,
@@ -80,6 +82,8 @@ class RacerProfile {
   final String id;
   final String name;
   final int registrationNumber;
+  final String racerClass;
+  final String gender;
   final String imageUrl;
   final String? imageStoragePath;
   final String imageSource;
@@ -96,6 +100,8 @@ class RacerProfile {
     String? id,
     String? name,
     int? registrationNumber,
+    String? racerClass,
+    String? gender,
     String? imageUrl,
     String? imageStoragePath,
     bool clearImageStoragePath = false,
@@ -109,6 +115,8 @@ class RacerProfile {
       id: id ?? this.id,
       name: name ?? this.name,
       registrationNumber: registrationNumber ?? this.registrationNumber,
+      racerClass: racerClass ?? this.racerClass,
+      gender: gender ?? this.gender,
       imageUrl: imageUrl ?? this.imageUrl,
       imageStoragePath: clearImageStoragePath
           ? null
@@ -127,6 +135,8 @@ class RacerProfile {
       'id': id,
       'name': name,
       'registrationNumber': registrationNumber,
+      'class': racerClass,
+      'gender': gender,
       'imageUrl': imageUrl,
       'imageStoragePath': imageStoragePath,
       'imageSource': imageSource,
@@ -139,6 +149,8 @@ class RacerProfile {
     final Object? idValue = json['id'];
     final Object? nameValue = json['name'];
     final Object? registrationNumberValue = json['registrationNumber'];
+    final Object? classValue = json['class'];
+    final Object? genderValue = json['gender'];
     final Object? imageUrlValue = json['imageUrl'];
     final Object? imageStoragePathValue = json['imageStoragePath'];
     final Object? imageSourceValue = json['imageSource'];
@@ -150,6 +162,10 @@ class RacerProfile {
         nameValue is! String ||
         nameValue.isEmpty ||
         registrationNumberValue is! int ||
+        classValue is! String ||
+        classValue.isEmpty ||
+        genderValue is! String ||
+        genderValue.isEmpty ||
         imageUrlValue is! String ||
         imageUrlValue.isEmpty ||
         imageSourceValue is! String ||
@@ -168,6 +184,8 @@ class RacerProfile {
       id: idValue,
       name: nameValue,
       registrationNumber: registrationNumberValue,
+      racerClass: classValue,
+      gender: genderValue,
       imageUrl: imageUrlValue,
       imageStoragePath:
           imageStoragePathValue is String && imageStoragePathValue.isNotEmpty
@@ -195,8 +213,14 @@ class QuizImageReveal {
 }
 
 class QuizOption {
-  const QuizOption({required this.label, this.imageUrl, this.localImagePath});
+  const QuizOption({
+    required this.racerId,
+    required this.label,
+    this.imageUrl,
+    this.localImagePath,
+  });
 
+  final String racerId;
   final String label;
   final String? imageUrl;
   final String? localImagePath;
