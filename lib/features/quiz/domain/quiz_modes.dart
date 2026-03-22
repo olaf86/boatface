@@ -32,13 +32,64 @@ const List<QuizQuestionFlowStep> kCarefulFlowSteps = <QuizQuestionFlowStep>[
     ),
   ),
 ];
+const List<QuizQuestionFlowStep> kChallengeFlowSteps = <QuizQuestionFlowStep>[
+  QuizQuestionFlowStep(
+    weight: 20,
+    targetCondition: QuizRacerCondition(racerClasses: <String>['A1']),
+    optionCondition: QuizRacerCondition(
+      racerClasses: <String>['A1'],
+      sameRacerClassAsTarget: true,
+      sameGenderAsTarget: true,
+    ),
+  ),
+  QuizQuestionFlowStep(
+    weight: 30,
+    targetCondition: QuizRacerCondition(racerClasses: <String>['A2']),
+    optionCondition: QuizRacerCondition(
+      racerClasses: <String>['A2'],
+      sameRacerClassAsTarget: true,
+      sameGenderAsTarget: true,
+    ),
+  ),
+  QuizQuestionFlowStep(
+    weight: 50,
+    targetCondition: QuizRacerCondition(
+      racerClasses: <String>['A2', 'B1', 'B2'],
+    ),
+    optionCondition: QuizRacerCondition(
+      racerClasses: <String>['A2', 'B1', 'B2'],
+      sameRacerClassAsTarget: true,
+      sameGenderAsTarget: true,
+    ),
+  ),
+];
 
 const List<QuizSegment> kChallengeSegments = <QuizSegment>[
-  QuizSegment(promptType: QuizPromptType.faceToName, count: 20),
-  QuizSegment(promptType: QuizPromptType.nameToFace, count: 10),
-  QuizSegment(promptType: QuizPromptType.partialFaceToName, count: 10),
-  QuizSegment(promptType: QuizPromptType.registrationToFace, count: 5),
-  QuizSegment(promptType: QuizPromptType.faceToRegistration, count: 5),
+  QuizSegment(
+    promptType: QuizPromptType.faceToName,
+    count: 20,
+    flowSteps: kChallengeFlowSteps,
+  ),
+  QuizSegment(
+    promptType: QuizPromptType.nameToFace,
+    count: 10,
+    flowSteps: kChallengeFlowSteps,
+  ),
+  QuizSegment(
+    promptType: QuizPromptType.partialFaceToName,
+    count: 10,
+    flowSteps: kChallengeFlowSteps,
+  ),
+  QuizSegment(
+    promptType: QuizPromptType.registrationToFace,
+    count: 5,
+    flowSteps: kChallengeFlowSteps,
+  ),
+  QuizSegment(
+    promptType: QuizPromptType.faceToRegistration,
+    count: 5,
+    flowSteps: kChallengeFlowSteps,
+  ),
 ];
 
 const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[

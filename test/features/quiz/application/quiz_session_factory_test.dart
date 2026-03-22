@@ -225,6 +225,113 @@ void main() {
       );
     });
 
+    test('applies challenge mode flow steps per segment', () {
+      final QuizModeConfig challengeMode = kQuizModes.firstWhere(
+        (QuizModeConfig mode) => mode.id == 'challenge',
+      );
+      final List<RacerProfile> racers = _buildFlowRacers();
+      final Map<String, RacerProfile> racerById = <String, RacerProfile>{
+        for (final RacerProfile racer in racers) racer.id: racer,
+      };
+
+      final QuizSession session = QuizSessionFactory.create(
+        mode: challengeMode,
+        racers: racers,
+      );
+
+      expect(session.questions, hasLength(50));
+      _expectQuestionWindow(
+        session.questions.sublist(0, 4),
+        racerById,
+        allowedTargetClasses: <String>['A1'],
+        allowedOptionClasses: <String>['A1'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(4, 10),
+        racerById,
+        allowedTargetClasses: <String>['A2'],
+        allowedOptionClasses: <String>['A2'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(10, 20),
+        racerById,
+        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
+        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(20, 22),
+        racerById,
+        allowedTargetClasses: <String>['A1'],
+        allowedOptionClasses: <String>['A1'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(22, 25),
+        racerById,
+        allowedTargetClasses: <String>['A2'],
+        allowedOptionClasses: <String>['A2'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(25, 30),
+        racerById,
+        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
+        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(30, 32),
+        racerById,
+        allowedTargetClasses: <String>['A1'],
+        allowedOptionClasses: <String>['A1'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(32, 35),
+        racerById,
+        allowedTargetClasses: <String>['A2'],
+        allowedOptionClasses: <String>['A2'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(35, 40),
+        racerById,
+        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
+        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(40, 41),
+        racerById,
+        allowedTargetClasses: <String>['A1'],
+        allowedOptionClasses: <String>['A1'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(41, 43),
+        racerById,
+        allowedTargetClasses: <String>['A2'],
+        allowedOptionClasses: <String>['A2'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(43, 45),
+        racerById,
+        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
+        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(45, 46),
+        racerById,
+        allowedTargetClasses: <String>['A1'],
+        allowedOptionClasses: <String>['A1'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(46, 48),
+        racerById,
+        allowedTargetClasses: <String>['A2'],
+        allowedOptionClasses: <String>['A2'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(48, 50),
+        racerById,
+        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
+        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
+      );
+    });
+
     test('prefers same class and gender for distractors', () {
       final List<RacerProfile> racers = <RacerProfile>[
         _buildRacer(0, racerClass: 'A1', gender: 'male'),
