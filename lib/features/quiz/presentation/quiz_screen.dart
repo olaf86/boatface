@@ -10,6 +10,7 @@ import '../../../app/navigation/app_route.dart';
 import '../application/quiz_answer_feedback.dart';
 import '../application/quiz_session_controller.dart';
 import '../application/quiz_session_state.dart';
+import '../domain/quiz_backend_models.dart';
 import '../domain/quiz_models.dart';
 import '../../result/presentation/result_screen.dart';
 import 'quiz_start_countdown.dart';
@@ -20,11 +21,13 @@ const Duration _kIncorrectFeedbackDuration = Duration(milliseconds: 980);
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({
     required this.mode,
+    required this.sessionLease,
     this.showIntroCountdown = false,
     super.key,
   });
 
   final QuizModeConfig mode;
+  final QuizSessionLease sessionLease;
   final bool showIntroCountdown;
 
   @override
@@ -293,7 +296,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         .summary;
     Navigator.of(context).pushReplacement(
       buildAppRoute<void>(
-        page: ResultScreen(summary: summary),
+        page: ResultScreen(summary: summary, sessionLease: widget.sessionLease),
         transition: AppRouteTransition.fadeThrough,
       ),
     );
