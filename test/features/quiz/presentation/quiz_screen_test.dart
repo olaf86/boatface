@@ -8,6 +8,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('centers text inside text choice buttons', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(_buildApp(mode: _buildMode(timeLimitSeconds: 10)));
+
+    final Finder buttonFinder = find.byKey(
+      const ValueKey<String>('quiz-option-0'),
+    );
+    final Text optionText = tester.widget<Text>(
+      find.descendant(of: buttonFinder, matching: find.byType(Text)).first,
+    );
+
+    expect(optionText.textAlign, TextAlign.center);
+  });
+
   testWidgets('shows hint buttons and freezes time in timed mode', (
     WidgetTester tester,
   ) async {
@@ -59,7 +74,9 @@ Widget _buildApp({required QuizModeConfig mode}) {
     overrides: <Override>[
       racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
     ],
-    child: MaterialApp(home: QuizScreen(mode: mode, sessionId: 'session-1')),
+    child: MaterialApp(
+      home: QuizScreen(mode: mode, sessionId: 'session-1'),
+    ),
   );
 }
 

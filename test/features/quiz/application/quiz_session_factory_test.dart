@@ -126,6 +126,7 @@ void main() {
       final QuizImageReveal reveal = question.promptImageReveal!;
 
       expect(question.hasPromptImage, true);
+      expect(question.prompt, 'この顔の選手名は？');
       expect(reveal.startScale, inInclusiveRange(2.2, 3.0));
       expect(reveal.startAlignmentX, inInclusiveRange(-0.35, 0.35));
       expect(reveal.startAlignmentY, inInclusiveRange(-0.25, 0.2));
