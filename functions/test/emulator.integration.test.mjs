@@ -231,6 +231,37 @@ test("functions endpoints work together in the emulator suite", async () => {
   assert.match(sessionResult.body.sessionId, /^qs_/);
   assert.ok(sessionResult.body.expiresAt);
 
+  const profileBeforeUpdate = await callFunction("getMyProfile", {
+    method: "GET",
+    headers: {Authorization: `Bearer ${idToken}`},
+  });
+  assert.equal(profileBeforeUpdate.response.status, 200);
+  assert.equal(profileBeforeUpdate.body.uid, localId);
+  assert.equal(profileBeforeUpdate.body.displayName, "Integration Tester");
+  assert.equal(profileBeforeUpdate.body.nickname, null);
+  assert.equal(profileBeforeUpdate.body.rankingDisplayName, "Integration Tester");
+  assert.equal(profileBeforeUpdate.body.region, null);
+
+  const profileUpdate = await callFunction("updateMyProfile", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({
+      nickname: "テスト太郎",
+      region: {
+        category: "prefecture",
+        code: "tokyo",
+      },
+    }),
+  });
+  assert.equal(profileUpdate.response.status, 200);
+  assert.equal(profileUpdate.body.nickname, "テスト太郎");
+  assert.equal(profileUpdate.body.rankingDisplayName, "テスト太郎");
+  assert.deepEqual(profileUpdate.body.region, {
+    category: "prefecture",
+    code: "tokyo",
+    label: "東京都",
+  });
+
   const submitResult = await callFunction("submitQuizResult", {
     method: "POST",
     headers: authHeaders,
@@ -263,7 +294,12 @@ test("functions endpoints work together in the emulator suite", async () => {
   assert.deepEqual(rankingsResult.body.entries[0], {
     rank: 1,
     userId: localId,
-    displayName: "Integration Tester",
+    displayName: "テスト太郎",
+    region: {
+      category: "prefecture",
+      code: "tokyo",
+      label: "東京都",
+    },
     score: 7,
     totalAnswerTimeMs: 5432,
   });

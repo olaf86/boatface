@@ -192,6 +192,11 @@ Recommended response shape:
       "rank": 1,
       "userId": "uid_123",
       "displayName": "あなた",
+      "region": {
+        "category": "prefecture",
+        "code": "tokyo",
+        "label": "東京都"
+      },
       "score": 50,
       "totalAnswerTimeMs": 9100
     }
@@ -228,6 +233,8 @@ Recommended top-level collections:
 
 Recommended fields:
 - `displayName`
+- `nickname`
+- `region`
 - `authProviders`
 - `createdAt`
 - `updatedAt`

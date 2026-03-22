@@ -1,6 +1,6 @@
 # BoatFace Backend Contracts v0.1
 
-Last updated: 2026-03-15
+Last updated: 2026-03-22
 
 ## 1. Purpose
 
@@ -43,10 +43,36 @@ Recommended `users/{uid}` shape:
 
 ```json
 {
-  "displayName": "Guest",
+  "displayName": "ゲスト",
+  "nickname": "ボート好き",
+  "region": {
+    "category": "prefecture",
+    "code": "tokyo",
+    "label": "東京都"
+  },
   "authProviders": ["anonymous"],
   "createdAt": "server timestamp",
   "updatedAt": "server timestamp"
+}
+```
+
+Profile read/update endpoints:
+- `GET /getMyProfile`
+- `POST /updateMyProfile`
+
+Recommended profile response:
+
+```json
+{
+  "uid": "uid_123",
+  "displayName": "Auth Display Name",
+  "nickname": "ボート好き",
+  "rankingDisplayName": "ボート好き",
+  "region": {
+    "category": "prefecture",
+    "code": "tokyo",
+    "label": "東京都"
+  }
 }
 ```
 
@@ -186,6 +212,11 @@ Response:
       "rank": 1,
       "userId": "uid_123",
       "displayName": "あなた",
+      "region": {
+        "category": "prefecture",
+        "code": "tokyo",
+        "label": "東京都"
+      },
       "score": 50,
       "totalAnswerTimeMs": 9100
     }
@@ -250,7 +281,8 @@ Recommended `ranking_snapshots/{snapshotId}` shape:
     {
       "rank": 1,
       "userId": "uid_123",
-      "displayName": "Guest",
+      "displayName": "ゲスト",
+      "region": null,
       "score": 50,
       "totalAnswerTimeMs": 9100
     }
