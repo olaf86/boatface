@@ -17,6 +17,7 @@ class QuizSession {
   bool rankingEligible = true;
   bool continuedByAd = false;
   QuizEndReason? endReason;
+  DateTime? clientFinishedAt;
   QuizAnswerFeedback? pendingAnswerFeedback;
 
   QuizQuestion? get currentQuestion =>
@@ -85,9 +86,11 @@ class QuizSession {
     continuedByAd = true;
     gameOver = false;
     endReason = null;
+    clientFinishedAt = null;
     currentIndex += 1;
     if (currentIndex >= questions.length) {
       endReason = QuizEndReason.completed;
+      clientFinishedAt = DateTime.now();
     }
   }
 
@@ -110,6 +113,7 @@ class QuizSession {
       endReason: endReason ?? QuizEndReason.completed,
       rankingEligible: rankingEligible,
       continuedByAd: continuedByAd,
+      clientFinishedAt: clientFinishedAt ?? DateTime.now(),
     );
   }
 
@@ -117,12 +121,14 @@ class QuizSession {
     currentIndex += 1;
     if (currentIndex >= questions.length) {
       endReason = QuizEndReason.completed;
+      clientFinishedAt = DateTime.now();
     }
   }
 
   void _endAs(QuizEndReason reason) {
     gameOver = true;
     endReason = reason;
+    clientFinishedAt = DateTime.now();
   }
 }
 

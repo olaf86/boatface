@@ -20,6 +20,7 @@ initializeApp();
 const db = getFirestore();
 const auth = getAuth();
 const region = "asia-northeast2";
+const appHttpOptions = {region, invoker: "public"} as const;
 const sessionLifetimeMinutes = 30;
 const defaultRankingLimit = 50;
 const maxRankingLimit = 100;
@@ -614,7 +615,7 @@ async function buildRankingEntries(
   }));
 }
 
-export const getMyProfile = onRequest({region}, async (request, response) => {
+export const getMyProfile = onRequest(appHttpOptions, async (request, response) => {
   setCorsHeaders(response);
   if (handleOptions(request.method, response)) {
     return;
@@ -646,7 +647,7 @@ export const getMyProfile = onRequest({region}, async (request, response) => {
   }
 });
 
-export const updateMyProfile = onRequest({region}, async (request, response) => {
+export const updateMyProfile = onRequest(appHttpOptions, async (request, response) => {
   setCorsHeaders(response);
   if (handleOptions(request.method, response)) {
     return;
@@ -792,7 +793,7 @@ async function resolveRacerDatasetSelection(query: {
   };
 }
 
-export const createQuizSession = onRequest({region}, async (request, response) => {
+export const createQuizSession = onRequest(appHttpOptions, async (request, response) => {
   setCorsHeaders(response);
   if (handleOptions(request.method, response)) {
     return;
@@ -846,7 +847,7 @@ export const createQuizSession = onRequest({region}, async (request, response) =
   }
 });
 
-export const submitQuizResult = onRequest({region}, async (request, response) => {
+export const submitQuizResult = onRequest(appHttpOptions, async (request, response) => {
   setCorsHeaders(response);
   if (handleOptions(request.method, response)) {
     return;
@@ -1005,7 +1006,7 @@ export const submitQuizResult = onRequest({region}, async (request, response) =>
   }
 });
 
-export const getRankings = onRequest({region}, async (request, response) => {
+export const getRankings = onRequest(appHttpOptions, async (request, response) => {
   setCorsHeaders(response);
   if (handleOptions(request.method, response)) {
     return;
@@ -1018,8 +1019,6 @@ export const getRankings = onRequest({region}, async (request, response) => {
 
   try {
     const token = await verifyRequestAuth(request);
-    await upsertUserProfile(token);
-
     const modeId = requireModeId(request.query.modeId);
     const period =
       typeof request.query.period === "string" && allowedPeriods.has(request.query.period) ?
@@ -1069,7 +1068,7 @@ export const getRankings = onRequest({region}, async (request, response) => {
   }
 });
 
-export const getRacerDatasetManifest = onRequest({region}, async (request, response) => {
+export const getRacerDatasetManifest = onRequest(appHttpOptions, async (request, response) => {
   setCorsHeaders(response);
   if (handleOptions(request.method, response)) {
     return;
@@ -1131,7 +1130,7 @@ export const getRacerDatasetManifest = onRequest({region}, async (request, respo
   }
 });
 
-export const getRacerDatasetSnapshot = onRequest({region}, async (request, response) => {
+export const getRacerDatasetSnapshot = onRequest(appHttpOptions, async (request, response) => {
   setCorsHeaders(response);
   if (handleOptions(request.method, response)) {
     return;
@@ -1207,7 +1206,7 @@ export const getRacerDatasetSnapshot = onRequest({region}, async (request, respo
   }
 });
 
-export const getRacerDatasetImagePack = onRequest({region}, async (request, response) => {
+export const getRacerDatasetImagePack = onRequest(appHttpOptions, async (request, response) => {
   setCorsHeaders(response);
   if (handleOptions(request.method, response)) {
     return;
@@ -1290,7 +1289,7 @@ export const getRacerDatasetImagePack = onRequest({region}, async (request, resp
   }
 });
 
-export const getRacers = onRequest({region}, async (request, response) => {
+export const getRacers = onRequest(appHttpOptions, async (request, response) => {
   setCorsHeaders(response);
   if (handleOptions(request.method, response)) {
     return;

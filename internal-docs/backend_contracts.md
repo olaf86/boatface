@@ -196,6 +196,9 @@ Backend write behavior:
 Operation:
 - `GET /rankings?modeId=challenge&period=today&limit=50`
 
+Authentication:
+- required
+
 Allowed `period` values:
 - `today`
 - `term`

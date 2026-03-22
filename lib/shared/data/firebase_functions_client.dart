@@ -103,21 +103,11 @@ class FirebaseFunctionsClient {
     Map<String, String>? queryParameters,
     String? body,
   }) async {
-    final User? user = _auth.currentUser;
-    if (user == null) {
-      throw const FirebaseFunctionsClientException('ログイン状態を確認できません。');
-    }
-
     final String projectId = Firebase.app().options.projectId;
     if (projectId.isEmpty) {
       throw const FirebaseFunctionsClientException(
         'Firebase projectId を取得できません。',
       );
-    }
-
-    final String? token = await user.getIdToken();
-    if (token == null || token.isEmpty) {
-      throw const FirebaseFunctionsClientException('認証トークンを取得できません。');
     }
 
     final Uri uri = Uri.https(
@@ -126,12 +116,56 @@ class FirebaseFunctionsClient {
       queryParameters,
     );
 
+    String authorizationHeader = await _getAuthorizationHeader();
+    http.Response response = await _dispatchRequest(
+      method: method,
+      uri: uri,
+      acceptHeader: acceptHeader,
+      authorizationHeader: authorizationHeader,
+      body: body,
+    );
+
+    if (response.statusCode == 401) {
+      authorizationHeader = await _getAuthorizationHeader(forceRefresh: true);
+      response = await _dispatchRequest(
+        method: method,
+        uri: uri,
+        acceptHeader: acceptHeader,
+        authorizationHeader: authorizationHeader,
+        body: body,
+      );
+    }
+
+    return response;
+  }
+
+  Future<String> _getAuthorizationHeader({bool forceRefresh = false}) async {
+    final User? user = _auth.currentUser;
+    if (user == null) {
+      throw const FirebaseFunctionsClientException('ログイン状態を確認できません。');
+    }
+
+    final String? token = await user.getIdToken(forceRefresh);
+    if (token == null || token.isEmpty) {
+      throw const FirebaseFunctionsClientException('認証トークンを取得できません。');
+    }
+
+    return 'Bearer $token';
+  }
+
+  Future<http.Response> _dispatchRequest({
+    required String method,
+    required Uri uri,
+    required String acceptHeader,
+    required String authorizationHeader,
+    String? body,
+  }) {
     return _httpClient
         .send(
           http.Request(method, uri)
             ..headers.addAll(<String, String>{
-              'Authorization': 'Bearer $token',
               'Accept': acceptHeader,
+              'Authorization': authorizationHeader,
               if (body != null) 'Content-Type': 'application/json',
             })
             ..body = body ?? '',

@@ -5,6 +5,7 @@ import '../../../app/navigation/app_route.dart';
 import '../../../shared/format/date_time_formatters.dart';
 import '../application/racer_master_sync_controller.dart';
 import '../application/racer_master_sync_state.dart';
+import '../data/quiz_backend_repository.dart';
 import '../domain/quiz_models.dart';
 import 'quiz_screen.dart';
 
@@ -183,6 +184,7 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
 
   Future<void> _startQuizFlow(BuildContext context) async {
     final QuizModeConfig resolvedMode = _resolveMode();
+    String? sessionId;
     setState(() {
       _isStarting = true;
       _startErrorMessage = null;
@@ -219,6 +221,25 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
       return;
     }
 
+    try {
+      sessionId = await ref
+          .read(quizBackendRepositoryProvider)
+          .createQuizSession(modeId: resolvedMode.id);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      final String message = switch (error) {
+        final Exception exception => exception.toString(),
+        _ => 'クイズセッションの作成に失敗しました。時間を置いて再試行してください。',
+      };
+      setState(() {
+        _isStarting = false;
+        _startErrorMessage = message;
+      });
+      return;
+    }
+
     if (!context.mounted) {
       return;
     }
@@ -227,7 +248,11 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
     });
     await Navigator.of(context).push<void>(
       buildAppRoute(
-        page: QuizScreen(mode: resolvedMode, showIntroCountdown: true),
+        page: QuizScreen(
+          mode: resolvedMode,
+          sessionId: sessionId,
+          showIntroCountdown: true,
+        ),
         transition: AppRouteTransition.sharedAxisHorizontal,
       ),
     );

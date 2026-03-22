@@ -393,6 +393,7 @@ class QuizResultSummary {
     required this.endReason,
     required this.rankingEligible,
     required this.continuedByAd,
+    required this.clientFinishedAt,
   });
 
   final String modeId;
@@ -404,6 +405,7 @@ class QuizResultSummary {
   final QuizEndReason endReason;
   final bool rankingEligible;
   final bool continuedByAd;
+  final DateTime clientFinishedAt;
 }
 
 String promptTypeLabel(QuizPromptType type) {

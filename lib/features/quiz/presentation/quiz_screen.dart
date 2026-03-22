@@ -20,11 +20,13 @@ const Duration _kIncorrectFeedbackDuration = Duration(milliseconds: 980);
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({
     required this.mode,
+    required this.sessionId,
     this.showIntroCountdown = false,
     super.key,
   });
 
   final QuizModeConfig mode;
+  final String sessionId;
   final bool showIntroCountdown;
 
   @override
@@ -293,7 +295,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         .summary;
     Navigator.of(context).pushReplacement(
       buildAppRoute<void>(
-        page: ResultScreen(summary: summary),
+        page: ResultScreen(summary: summary, sessionId: widget.sessionId),
         transition: AppRouteTransition.fadeThrough,
       ),
     );
