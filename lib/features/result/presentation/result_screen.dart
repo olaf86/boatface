@@ -8,12 +8,12 @@ import '../../quiz/domain/quiz_models.dart';
 class ResultScreen extends ConsumerStatefulWidget {
   const ResultScreen({
     required this.summary,
-    required this.sessionLease,
+    required this.sessionId,
     super.key,
   });
 
   final QuizResultSummary summary;
-  final QuizSessionLease sessionLease;
+  final String sessionId;
 
   @override
   ConsumerState<ResultScreen> createState() => _ResultScreenState();
@@ -112,7 +112,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       final QuizResultSubmissionReceipt receipt = await ref
           .read(quizBackendRepositoryProvider)
           .submitQuizResult(
-            sessionId: widget.sessionLease.sessionId,
+            sessionId: widget.sessionId,
             summary: widget.summary,
           );
       if (!mounted) {

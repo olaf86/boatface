@@ -6,7 +6,6 @@ import '../../../shared/format/date_time_formatters.dart';
 import '../application/racer_master_sync_controller.dart';
 import '../application/racer_master_sync_state.dart';
 import '../data/quiz_backend_repository.dart';
-import '../domain/quiz_backend_models.dart';
 import '../domain/quiz_models.dart';
 import 'quiz_screen.dart';
 
@@ -185,7 +184,7 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
 
   Future<void> _startQuizFlow(BuildContext context) async {
     final QuizModeConfig resolvedMode = _resolveMode();
-    QuizSessionLease? sessionLease;
+    String? sessionId;
     setState(() {
       _isStarting = true;
       _startErrorMessage = null;
@@ -223,7 +222,7 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
     }
 
     try {
-      sessionLease = await ref
+      sessionId = await ref
           .read(quizBackendRepositoryProvider)
           .createQuizSession(modeId: resolvedMode.id);
     } catch (error) {
@@ -251,7 +250,7 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
       buildAppRoute(
         page: QuizScreen(
           mode: resolvedMode,
-          sessionLease: sessionLease,
+          sessionId: sessionId,
           showIntroCountdown: true,
         ),
         transition: AppRouteTransition.sharedAxisHorizontal,

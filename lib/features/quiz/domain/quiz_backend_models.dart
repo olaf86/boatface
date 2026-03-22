@@ -1,10 +1,3 @@
-class QuizSessionLease {
-  const QuizSessionLease({required this.sessionId, required this.expiresAt});
-
-  final String sessionId;
-  final DateTime expiresAt;
-}
-
 class QuizResultSubmissionReceipt {
   const QuizResultSubmissionReceipt({
     required this.resultId,

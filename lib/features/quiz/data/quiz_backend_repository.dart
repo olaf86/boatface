@@ -6,7 +6,7 @@ import '../domain/quiz_backend_models.dart';
 import '../domain/quiz_models.dart';
 
 abstract class QuizBackendRepository {
-  Future<QuizSessionLease> createQuizSession({required String modeId});
+  Future<String> createQuizSession({required String modeId});
 
   Future<QuizResultSubmissionReceipt> submitQuizResult({
     required String sessionId,
@@ -29,7 +29,7 @@ class FirebaseQuizBackendRepository implements QuizBackendRepository {
   final FirebaseFunctionsClient _functionsClient;
 
   @override
-  Future<QuizSessionLease> createQuizSession({required String modeId}) async {
+  Future<String> createQuizSession({required String modeId}) async {
     final Map<String, Object?> json = await _functionsClient.postJsonObject(
       '/createQuizSession',
       body: <String, Object?>{'modeId': modeId},
@@ -38,14 +38,11 @@ class FirebaseQuizBackendRepository implements QuizBackendRepository {
 
     final String? sessionId = json['sessionId'] as String?;
     final String? expiresAtText = json['expiresAt'] as String?;
-    final DateTime? expiresAt = expiresAtText == null
-        ? null
-        : DateTime.tryParse(expiresAtText)?.toLocal();
-    if (sessionId == null || expiresAt == null) {
+    if (sessionId == null || expiresAtText == null || expiresAtText.isEmpty) {
       throw const QuizBackendRepositoryException('クイズセッションの形式が不正です。');
     }
 
-    return QuizSessionLease(sessionId: sessionId, expiresAt: expiresAt);
+    return sessionId;
   }
 
   @override
