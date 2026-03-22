@@ -265,7 +265,7 @@ class QuizSessionFactory {
       case QuizPromptType.faceToName:
         return 'この顔の選手名は？';
       case QuizPromptType.nameToFace:
-        return 'この選手の顔はどれ？';
+        return '「${target.name}」の顔はどれ？';
       case QuizPromptType.partialFaceToName:
         return 'この顔の選手名は？';
       case QuizPromptType.registrationToFace:

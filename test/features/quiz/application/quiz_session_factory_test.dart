@@ -137,29 +137,26 @@ void main() {
       );
     });
 
-    test(
-      'uses generic prompt text for name-to-face and keeps kana on target',
-      () {
-        final QuizSession session = QuizSessionFactory.create(
-          mode: const QuizModeConfig(
-            id: 'name-face',
-            label: '名前->顔',
-            description: '',
-            timeLimitSeconds: 10,
-            segments: <QuizSegment>[
-              QuizSegment(promptType: QuizPromptType.nameToFace, count: 1),
-            ],
-          ),
-          racers: _buildRacers(),
-        );
+    test('keeps kana on target for name-to-face questions', () {
+      final QuizSession session = QuizSessionFactory.create(
+        mode: const QuizModeConfig(
+          id: 'name-face',
+          label: '名前->顔',
+          description: '',
+          timeLimitSeconds: 10,
+          segments: <QuizSegment>[
+            QuizSegment(promptType: QuizPromptType.nameToFace, count: 1),
+          ],
+        ),
+        racers: _buildRacers(),
+      );
 
-        final QuizQuestion question = session.currentQuestion!;
-        final QuizOption target = question.options[question.correctIndex];
+      final QuizQuestion question = session.currentQuestion!;
+      final QuizOption target = question.options[question.correctIndex];
 
-        expect(question.prompt, 'この選手の顔はどれ？');
-        expect(target.labelReading, isNotNull);
-      },
-    );
+      expect(question.prompt, contains(target.label));
+      expect(target.labelReading, isNotNull);
+    });
 
     test(
       'limits quick mode questions and options to A1 racers of same gender',
