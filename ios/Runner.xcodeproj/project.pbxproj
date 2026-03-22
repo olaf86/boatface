@@ -239,7 +239,7 @@
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				5495149CB7BAA6A79A5DFAAE /* [CP] Embed Pods Frameworks */,
 				7D90BDB9A013C3AE1E31F866 /* [CP] Copy Pods Resources */,
-				0D8345105420B76F7C811757 /* FlutterFire: "flutterfire bundle-service-file" */,
+				0E0F9EAD18CEA33BA9A8D2E2 /* FlutterFire: "flutterfire bundle-service-file" */,
 			);
 			buildRules = (
 			);
@@ -311,7 +311,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		0D8345105420B76F7C811757 /* FlutterFire: "flutterfire bundle-service-file" */ = {
+		0E0F9EAD18CEA33BA9A8D2E2 /* FlutterFire: "flutterfire bundle-service-file" */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (

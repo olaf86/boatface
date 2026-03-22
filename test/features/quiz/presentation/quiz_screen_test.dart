@@ -1,8 +1,10 @@
 import 'package:boatface/features/quiz/data/quiz_data_providers.dart';
 import 'package:boatface/features/quiz/data/racer_master_models.dart';
 import 'package:boatface/features/quiz/data/racer_repository.dart';
+import 'package:boatface/features/quiz/application/quiz_session_controller.dart';
 import 'package:boatface/features/quiz/domain/quiz_models.dart';
 import 'package:boatface/features/quiz/presentation/quiz_screen.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -67,6 +69,75 @@ void main() {
     expect(find.byTooltip('時間を停止する'), findsNothing);
     expect(find.text('制限時間: 無制限'), findsOneWidget);
   });
+
+  testWidgets('temporarily hides game-over dialog while holding peek button', (
+    WidgetTester tester,
+  ) async {
+    final SemanticsHandle semantics = tester.ensureSemantics();
+    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(mode: mode, sessionId: 'session-1'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final state = container.read(quizSessionControllerProvider(mode));
+      final int wrongIndex = (state.currentQuestion!.correctIndex + 1) % 4;
+
+      final FilledButton wrongOption = tester.widget<FilledButton>(
+        find.byKey(ValueKey<String>('quiz-option-$wrongIndex')),
+      );
+      wrongOption.onPressed!.call();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1200));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('game-over-peek-button')),
+        findsOneWidget,
+      );
+
+      AnimatedOpacity visibility = tester.widget<AnimatedOpacity>(
+        find.byKey(const ValueKey<String>('game-over-dialog-visibility')),
+      );
+      expect(visibility.opacity, 1);
+
+      final TestGesture gesture = await tester.startGesture(
+        tester.getCenter(
+          find.byKey(const ValueKey<String>('game-over-peek-button')),
+        ),
+      );
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 80));
+      await tester.pump(const Duration(milliseconds: 160));
+
+      visibility = tester.widget<AnimatedOpacity>(
+        find.byKey(const ValueKey<String>('game-over-dialog-visibility')),
+      );
+      expect(visibility.opacity, 0);
+
+      await gesture.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 160));
+
+      visibility = tester.widget<AnimatedOpacity>(
+        find.byKey(const ValueKey<String>('game-over-dialog-visibility')),
+      );
+      expect(visibility.opacity, 1);
+    } finally {
+      container.dispose();
+      semantics.dispose();
+    }
+  });
 }
 
 Widget _buildApp({required QuizModeConfig mode}) {
@@ -80,15 +151,16 @@ Widget _buildApp({required QuizModeConfig mode}) {
   );
 }
 
-QuizModeConfig _buildMode({required int? timeLimitSeconds}) {
+QuizModeConfig _buildMode({
+  QuizPromptType promptType = QuizPromptType.faceToName,
+  required int? timeLimitSeconds,
+}) {
   return QuizModeConfig(
     id: 'test',
     label: 'テスト',
     description: 'screen test mode',
     timeLimitSeconds: timeLimitSeconds,
-    segments: const <QuizSegment>[
-      QuizSegment(promptType: QuizPromptType.faceToName, count: 1),
-    ],
+    segments: <QuizSegment>[QuizSegment(promptType: promptType, count: 1)],
   );
 }
 

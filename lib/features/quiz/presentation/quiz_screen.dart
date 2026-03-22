@@ -285,34 +285,105 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   Future<void> _showGameOverDialog({required bool canContinue}) async {
     _dialogVisible = true;
-    await showDialog<void>(
+    await showGeneralDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('ゲームオーバー'),
-        content: Text(canContinue ? '広告を見て1回だけ続行できます。' : 'セッションを終了します。'),
-        actions: <Widget>[
-          if (canContinue)
-            TextButton(
-              onPressed: () {
-                if (mounted) {
-                  setState(() {
-                    _activeFeedback = null;
-                  });
-                }
-                ref
-                    .read(quizSessionControllerProvider(widget.mode).notifier)
-                    .continueAfterAd();
-                Navigator.of(context).pop();
-              },
-              child: const Text('広告を見て続行'),
-            ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('結果へ'),
-          ),
-        ],
-      ),
+      barrierColor: Colors.transparent,
+      pageBuilder: (BuildContext context, _, __) {
+        bool isDialogHidden = false;
+
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            void setDialogHidden(bool hidden) {
+              if (isDialogHidden == hidden) {
+                return;
+              }
+              setDialogState(() {
+                isDialogHidden = hidden;
+              });
+            }
+
+            return Material(
+              type: MaterialType.transparency,
+              child: Stack(
+                children: <Widget>[
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        color: isDialogHidden
+                            ? Colors.black.withValues(alpha: 0.08)
+                            : Colors.black.withValues(alpha: 0.42),
+                      ),
+                    ),
+                  ),
+                  SafeArea(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            AnimatedOpacity(
+                              key: const ValueKey<String>(
+                                'game-over-dialog-visibility',
+                              ),
+                              duration: const Duration(milliseconds: 140),
+                              opacity: isDialogHidden ? 0 : 1,
+                              child: IgnorePointer(
+                                ignoring: isDialogHidden,
+                                child: AlertDialog(
+                                  key: const ValueKey<String>(
+                                    'game-over-dialog',
+                                  ),
+                                  title: const Text('ゲームオーバー'),
+                                  content: Text(
+                                    canContinue
+                                        ? '広告を見て1回だけ続行できます。'
+                                        : 'セッションを終了します。',
+                                  ),
+                                  actions: <Widget>[
+                                    if (canContinue)
+                                      TextButton(
+                                        onPressed: () {
+                                          if (mounted) {
+                                            setState(() {
+                                              _activeFeedback = null;
+                                            });
+                                          }
+                                          ref
+                                              .read(
+                                                quizSessionControllerProvider(
+                                                  widget.mode,
+                                                ).notifier,
+                                              )
+                                              .continueAfterAd();
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: const Text('広告を見て続行'),
+                                      ),
+                                    FilledButton(
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(),
+                                      child: const Text('結果へ'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            _GameOverPeekButton(onHoldChanged: setDialogHidden),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
     _dialogVisible = false;
 
@@ -402,6 +473,65 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     ref
         .read(quizSessionControllerProvider(widget.mode).notifier)
         .completeAnswerFeedback();
+  }
+}
+
+class _GameOverPeekButton extends StatelessWidget {
+  const _GameOverPeekButton({required this.onHoldChanged});
+
+  final ValueChanged<bool> onHoldChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
+    return Semantics(
+      button: true,
+      label: '長押しでダイアログを隠す',
+      child: GestureDetector(
+        key: const ValueKey<String>('game-over-peek-button'),
+        onLongPressStart: (_) => onHoldChanged(true),
+        onLongPressEnd: (_) => onHoldChanged(false),
+        onLongPressCancel: () => onHoldChanged(false),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: colorScheme.surface.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.75),
+            ),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  Icons.visibility_off_outlined,
+                  size: 18,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '長押しで問題を確認',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
