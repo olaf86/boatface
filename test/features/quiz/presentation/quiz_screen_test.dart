@@ -59,7 +59,7 @@ Widget _buildApp({required QuizModeConfig mode}) {
     overrides: <Override>[
       racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
     ],
-    child: MaterialApp(home: QuizScreen(mode: mode)),
+    child: MaterialApp(home: QuizScreen(mode: mode, sessionId: 'session-1')),
   );
 }
 
