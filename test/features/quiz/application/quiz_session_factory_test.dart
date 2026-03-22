@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:boatface/features/quiz/application/quiz_session.dart';
 import 'package:boatface/features/quiz/domain/quiz_models.dart';
+import 'package:boatface/features/quiz/domain/quiz_modes.dart';
 
 void main() {
   group('QuizSessionFactory', () {
@@ -135,43 +136,93 @@ void main() {
       );
     });
 
-    test('limits quick mode questions and options to A1 racers of same gender', () {
-      final List<RacerProfile> racers = _buildRacers();
+    test(
+      'limits quick mode questions and options to A1 racers of same gender',
+      () {
+        final List<RacerProfile> racers = _buildRacers();
+        final Map<String, RacerProfile> racerById = <String, RacerProfile>{
+          for (final RacerProfile racer in racers) racer.id: racer,
+        };
+
+        final QuizSession session = QuizSessionFactory.create(
+          mode: kQuizModes.firstWhere(
+            (QuizModeConfig mode) => mode.id == 'quick',
+          ),
+          racers: racers,
+        );
+
+        for (final QuizQuestion question in session.questions) {
+          final RacerProfile target = racerById[question.correctRacerId]!;
+          expect(target.racerClass, 'A1');
+          expect(
+            question.options.every(
+              (QuizOption option) =>
+                  racerById[option.racerId]!.racerClass == 'A1',
+            ),
+            true,
+          );
+          expect(
+            question.options.every(
+              (QuizOption option) =>
+                  racerById[option.racerId]!.gender == target.gender,
+            ),
+            true,
+          );
+        }
+      },
+    );
+
+    test('applies careful mode flow steps per segment', () {
+      final QuizModeConfig carefulMode = kQuizModes.firstWhere(
+        (QuizModeConfig mode) => mode.id == 'careful',
+      );
+      final List<RacerProfile> racers = _buildFlowRacers();
       final Map<String, RacerProfile> racerById = <String, RacerProfile>{
         for (final RacerProfile racer in racers) racer.id: racer,
       };
 
       final QuizSession session = QuizSessionFactory.create(
-        mode: const QuizModeConfig(
-          id: 'quick',
-          label: 'さくっと',
-          description: '',
-          timeLimitSeconds: 10,
-          segments: <QuizSegment>[
-            QuizSegment(promptType: QuizPromptType.faceToName, count: 4),
-          ],
-        ),
+        mode: carefulMode,
         racers: racers,
       );
 
-      for (final QuizQuestion question in session.questions) {
-        final RacerProfile target = racerById[question.correctRacerId]!;
-        expect(target.racerClass, 'A1');
-        expect(
-          question.options.every(
-            (QuizOption option) =>
-                racerById[option.racerId]!.racerClass == 'A1',
-          ),
-          true,
-        );
-        expect(
-          question.options.every(
-            (QuizOption option) =>
-                racerById[option.racerId]!.gender == target.gender,
-          ),
-          true,
-        );
-      }
+      expect(session.questions, hasLength(30));
+      _expectQuestionWindow(
+        session.questions.sublist(0, 10),
+        racerById,
+        allowedTargetClasses: <String>['A1'],
+        allowedOptionClasses: <String>['A1'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(10, 16),
+        racerById,
+        allowedTargetClasses: <String>['A2'],
+        allowedOptionClasses: <String>['A2'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(16, 20),
+        racerById,
+        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
+        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(20, 25),
+        racerById,
+        allowedTargetClasses: <String>['A1'],
+        allowedOptionClasses: <String>['A1'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(25, 28),
+        racerById,
+        allowedTargetClasses: <String>['A2'],
+        allowedOptionClasses: <String>['A2'],
+      );
+      _expectQuestionWindow(
+        session.questions.sublist(28, 30),
+        racerById,
+        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
+        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
+      );
     });
 
     test('prefers same class and gender for distractors', () {
@@ -234,6 +285,39 @@ List<RacerProfile> _buildRacers() {
     _buildRacer(6, racerClass: 'B1', gender: 'female'),
     _buildRacer(7, racerClass: 'B2', gender: 'male'),
   ];
+}
+
+List<RacerProfile> _buildFlowRacers() {
+  return <RacerProfile>[
+    for (int index = 0; index < 4; index += 1)
+      _buildRacer(index, racerClass: 'A1', gender: 'male'),
+    for (int index = 4; index < 8; index += 1)
+      _buildRacer(index, racerClass: 'A2', gender: 'female'),
+    for (int index = 8; index < 12; index += 1)
+      _buildRacer(index, racerClass: 'B1', gender: 'male'),
+    for (int index = 12; index < 16; index += 1)
+      _buildRacer(index, racerClass: 'B2', gender: 'female'),
+  ];
+}
+
+void _expectQuestionWindow(
+  List<QuizQuestion> questions,
+  Map<String, RacerProfile> racerById, {
+  required List<String> allowedTargetClasses,
+  required List<String> allowedOptionClasses,
+}) {
+  for (final QuizQuestion question in questions) {
+    final RacerProfile target = racerById[question.correctRacerId]!;
+    expect(allowedTargetClasses, contains(target.racerClass));
+    expect(
+      question.options.every(
+        (QuizOption option) => allowedOptionClasses.contains(
+          racerById[option.racerId]!.racerClass,
+        ),
+      ),
+      true,
+    );
+  }
 }
 
 RacerProfile _buildRacer(

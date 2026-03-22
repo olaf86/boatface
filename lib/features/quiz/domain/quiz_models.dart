@@ -9,17 +9,94 @@ enum QuizPromptType {
 enum QuizEndReason { completed, wrongAnswer, timeout, abandoned }
 
 class QuizSegment {
-  const QuizSegment({required this.promptType, required this.count});
+  const QuizSegment({
+    required this.promptType,
+    required this.count,
+    this.flowSteps,
+  });
 
   final QuizPromptType promptType;
   final int count;
+  final List<QuizQuestionFlowStep>? flowSteps;
 
-  QuizSegment copyWith({QuizPromptType? promptType, int? count}) {
+  QuizSegment copyWith({
+    QuizPromptType? promptType,
+    int? count,
+    List<QuizQuestionFlowStep>? flowSteps,
+  }) {
     return QuizSegment(
       promptType: promptType ?? this.promptType,
       count: count ?? this.count,
+      flowSteps: flowSteps ?? this.flowSteps,
     );
   }
+}
+
+class QuizQuestionFlowStep {
+  const QuizQuestionFlowStep({
+    required this.weight,
+    this.targetCondition = const QuizRacerCondition(),
+    this.optionCondition,
+  });
+
+  final int weight;
+  final QuizRacerCondition targetCondition;
+  final QuizRacerCondition? optionCondition;
+
+  QuizRacerCondition get resolvedOptionCondition =>
+      optionCondition ?? targetCondition;
+}
+
+class QuizRacerCondition {
+  const QuizRacerCondition({
+    this.racerClasses,
+    this.genders,
+    this.ageRange,
+    this.birthPlaces,
+    this.homeBranches,
+    this.affiliationBranches,
+    this.sameRacerClassAsTarget = false,
+    this.sameGenderAsTarget = false,
+  });
+
+  final List<String>? racerClasses;
+  final List<String>? genders;
+  final QuizAgeRange? ageRange;
+  final List<String>? birthPlaces;
+  final List<String>? homeBranches;
+  final List<String>? affiliationBranches;
+  final bool sameRacerClassAsTarget;
+  final bool sameGenderAsTarget;
+
+  QuizRacerCondition copyWith({
+    List<String>? racerClasses,
+    List<String>? genders,
+    QuizAgeRange? ageRange,
+    List<String>? birthPlaces,
+    List<String>? homeBranches,
+    List<String>? affiliationBranches,
+    bool? sameRacerClassAsTarget,
+    bool? sameGenderAsTarget,
+  }) {
+    return QuizRacerCondition(
+      racerClasses: racerClasses ?? this.racerClasses,
+      genders: genders ?? this.genders,
+      ageRange: ageRange ?? this.ageRange,
+      birthPlaces: birthPlaces ?? this.birthPlaces,
+      homeBranches: homeBranches ?? this.homeBranches,
+      affiliationBranches: affiliationBranches ?? this.affiliationBranches,
+      sameRacerClassAsTarget:
+          sameRacerClassAsTarget ?? this.sameRacerClassAsTarget,
+      sameGenderAsTarget: sameGenderAsTarget ?? this.sameGenderAsTarget,
+    );
+  }
+}
+
+class QuizAgeRange {
+  const QuizAgeRange({this.min, this.max});
+
+  final int? min;
+  final int? max;
 }
 
 class QuizModeConfig {
@@ -76,6 +153,10 @@ class RacerProfile {
     required this.imageSource,
     required this.updatedAt,
     required this.isActive,
+    this.birthDate,
+    this.birthPlace,
+    this.homeBranch,
+    this.affiliationBranch,
     this.localImagePath,
   });
 
@@ -89,6 +170,10 @@ class RacerProfile {
   final String imageSource;
   final DateTime updatedAt;
   final bool isActive;
+  final DateTime? birthDate;
+  final String? birthPlace;
+  final String? homeBranch;
+  final String? affiliationBranch;
   final String? localImagePath;
 
   String get faceLabel => '顔画像 ${registrationNumber.toString()}';
@@ -108,6 +193,14 @@ class RacerProfile {
     String? imageSource,
     DateTime? updatedAt,
     bool? isActive,
+    DateTime? birthDate,
+    bool clearBirthDate = false,
+    String? birthPlace,
+    bool clearBirthPlace = false,
+    String? homeBranch,
+    bool clearHomeBranch = false,
+    String? affiliationBranch,
+    bool clearAffiliationBranch = false,
     String? localImagePath,
     bool clearLocalImagePath = false,
   }) {
@@ -124,6 +217,12 @@ class RacerProfile {
       imageSource: imageSource ?? this.imageSource,
       updatedAt: updatedAt ?? this.updatedAt,
       isActive: isActive ?? this.isActive,
+      birthDate: clearBirthDate ? null : (birthDate ?? this.birthDate),
+      birthPlace: clearBirthPlace ? null : (birthPlace ?? this.birthPlace),
+      homeBranch: clearHomeBranch ? null : (homeBranch ?? this.homeBranch),
+      affiliationBranch: clearAffiliationBranch
+          ? null
+          : (affiliationBranch ?? this.affiliationBranch),
       localImagePath: clearLocalImagePath
           ? null
           : (localImagePath ?? this.localImagePath),
@@ -142,6 +241,10 @@ class RacerProfile {
       'imageSource': imageSource,
       'updatedAt': updatedAt.toUtc().toIso8601String(),
       'isActive': isActive,
+      'birthDate': birthDate?.toUtc().toIso8601String(),
+      'birthPlace': birthPlace,
+      'homeBranch': homeBranch,
+      'affiliationBranch': affiliationBranch,
     };
   }
 
@@ -156,6 +259,10 @@ class RacerProfile {
     final Object? imageSourceValue = json['imageSource'];
     final Object? updatedAtValue = json['updatedAt'];
     final Object? isActiveValue = json['isActive'];
+    final Object? birthDateValue = json['birthDate'];
+    final Object? birthPlaceValue = json['birthPlace'];
+    final Object? homeBranchValue = json['homeBranch'];
+    final Object? affiliationBranchValue = json['affiliationBranch'];
 
     if (idValue is! String ||
         idValue.isEmpty ||
@@ -180,6 +287,11 @@ class RacerProfile {
       return null;
     }
 
+    final DateTime? birthDate =
+        birthDateValue is String && birthDateValue.isNotEmpty
+        ? DateTime.tryParse(birthDateValue)?.toUtc()
+        : null;
+
     return RacerProfile(
       id: idValue,
       name: nameValue,
@@ -194,6 +306,17 @@ class RacerProfile {
       imageSource: imageSourceValue,
       updatedAt: updatedAt.toUtc(),
       isActive: isActiveValue,
+      birthDate: birthDate,
+      birthPlace: birthPlaceValue is String && birthPlaceValue.isNotEmpty
+          ? birthPlaceValue
+          : null,
+      homeBranch: homeBranchValue is String && homeBranchValue.isNotEmpty
+          ? homeBranchValue
+          : null,
+      affiliationBranch:
+          affiliationBranchValue is String && affiliationBranchValue.isNotEmpty
+          ? affiliationBranchValue
+          : null,
     );
   }
 }

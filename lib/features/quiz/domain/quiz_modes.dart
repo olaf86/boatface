@@ -1,6 +1,37 @@
 import 'quiz_models.dart';
 
 const int kMasterQuestionCount = 4096;
+const List<QuizQuestionFlowStep> kCarefulFlowSteps = <QuizQuestionFlowStep>[
+  QuizQuestionFlowStep(
+    weight: 50,
+    targetCondition: QuizRacerCondition(racerClasses: <String>['A1']),
+    optionCondition: QuizRacerCondition(
+      racerClasses: <String>['A1'],
+      sameRacerClassAsTarget: true,
+      sameGenderAsTarget: true,
+    ),
+  ),
+  QuizQuestionFlowStep(
+    weight: 30,
+    targetCondition: QuizRacerCondition(racerClasses: <String>['A2']),
+    optionCondition: QuizRacerCondition(
+      racerClasses: <String>['A2'],
+      sameRacerClassAsTarget: true,
+      sameGenderAsTarget: true,
+    ),
+  ),
+  QuizQuestionFlowStep(
+    weight: 20,
+    targetCondition: QuizRacerCondition(
+      racerClasses: <String>['A2', 'B1', 'B2'],
+    ),
+    optionCondition: QuizRacerCondition(
+      racerClasses: <String>['A2', 'B1', 'B2'],
+      sameRacerClassAsTarget: true,
+      sameGenderAsTarget: true,
+    ),
+  ),
+];
 
 const List<QuizSegment> kChallengeSegments = <QuizSegment>[
   QuizSegment(promptType: QuizPromptType.faceToName, count: 20),
@@ -17,7 +48,21 @@ const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[
     description: '10問・A1級限定の顔 -> 選手名',
     timeLimitSeconds: 10,
     segments: <QuizSegment>[
-      QuizSegment(promptType: QuizPromptType.faceToName, count: 10),
+      QuizSegment(
+        promptType: QuizPromptType.faceToName,
+        count: 10,
+        flowSteps: <QuizQuestionFlowStep>[
+          QuizQuestionFlowStep(
+            weight: 100,
+            targetCondition: QuizRacerCondition(racerClasses: <String>['A1']),
+            optionCondition: QuizRacerCondition(
+              racerClasses: <String>['A1'],
+              sameRacerClassAsTarget: true,
+              sameGenderAsTarget: true,
+            ),
+          ),
+        ],
+      ),
     ],
   ),
   QuizModeConfig(
@@ -26,8 +71,16 @@ const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[
     description: '30問・前半20問は顔 -> 選手名、後半10問は選手名 -> 顔',
     timeLimitSeconds: null,
     segments: <QuizSegment>[
-      QuizSegment(promptType: QuizPromptType.faceToName, count: 20),
-      QuizSegment(promptType: QuizPromptType.nameToFace, count: 10),
+      QuizSegment(
+        promptType: QuizPromptType.faceToName,
+        count: 20,
+        flowSteps: kCarefulFlowSteps,
+      ),
+      QuizSegment(
+        promptType: QuizPromptType.nameToFace,
+        count: 10,
+        flowSteps: kCarefulFlowSteps,
+      ),
     ],
   ),
   QuizModeConfig(

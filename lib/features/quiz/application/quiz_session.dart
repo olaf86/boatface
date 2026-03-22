@@ -132,30 +132,27 @@ class QuizSessionFactory {
     required List<RacerProfile> racers,
   }) {
     final Random random = Random();
-    final int count = mode.questionCount;
-    final List<RacerProfile> targetPool = _targetPoolForMode(mode, racers);
-    final List<RacerProfile> base = List<RacerProfile>.from(targetPool)
-      ..shuffle(random);
-    final List<RacerProfile> picked = <RacerProfile>[
-      for (int i = 0; i < count; i++) base[i % base.length],
-    ];
-
     final List<QuizQuestion> questions = <QuizQuestion>[];
-    int cursor = 0;
     for (final QuizSegment segment in mode.segments) {
-      for (int i = 0; i < segment.count; i++) {
-        final RacerProfile target = picked[cursor];
-        questions.add(
-          _buildQuestion(
-            promptType: segment.promptType,
-            target: target,
-            racers: racers,
-            mode: mode,
-            random: random,
-            timeLimitSeconds: mode.timeLimitSeconds,
-          ),
+      for (final _SegmentFlowPlan plan in _buildSegmentFlowPlans(segment)) {
+        final List<RacerProfile> targets = _pickTargetsForCondition(
+          racers: racers,
+          condition: plan.step.targetCondition,
+          count: plan.questionCount,
+          random: random,
         );
-        cursor += 1;
+        for (final RacerProfile target in targets) {
+          questions.add(
+            _buildQuestion(
+              promptType: segment.promptType,
+              target: target,
+              racers: racers,
+              optionCondition: plan.step.resolvedOptionCondition,
+              random: random,
+              timeLimitSeconds: mode.timeLimitSeconds,
+            ),
+          );
+        }
       }
     }
 
@@ -166,20 +163,15 @@ class QuizSessionFactory {
     required QuizPromptType promptType,
     required RacerProfile target,
     required List<RacerProfile> racers,
-    required QuizModeConfig mode,
+    required QuizRacerCondition optionCondition,
     required Random random,
     required int? timeLimitSeconds,
   }) {
-    final _CandidateFilter filter = _candidateFilterForQuestion(
-      mode: mode,
-      target: target,
-    );
     final List<RacerProfile> candidatePool = _candidatePoolForQuestion(
       target: target,
       racers: racers,
       random: random,
-      racerClass: filter.racerClass,
-      gender: filter.gender,
+      condition: optionCondition,
     );
     final List<RacerProfile> candidates = <RacerProfile>[
       target,
@@ -296,40 +288,18 @@ class QuizSessionFactory {
     }
   }
 
-  static List<RacerProfile> _targetPoolForMode(
-    QuizModeConfig mode,
-    List<RacerProfile> racers,
-  ) {
-    final String? requiredRacerClass = _requiredRacerClassForMode(mode);
-    if (requiredRacerClass == null) {
-      return racers;
-    }
-
-    final List<RacerProfile>? filteredPool = _filterRacersByAttributes(
-      racers: racers,
-      racerClass: requiredRacerClass,
-      minimumCount: _minimumCandidatePoolSize,
-    );
-    if (filteredPool != null) {
-      return filteredPool;
-    }
-
-    return racers;
-  }
-
   static List<RacerProfile> _candidatePoolForQuestion({
     required RacerProfile target,
     required List<RacerProfile> racers,
     required Random random,
-    String? racerClass,
-    String? gender,
+    required QuizRacerCondition condition,
   }) {
     final List<RacerProfile> basePool = List<RacerProfile>.from(racers)
       ..removeWhere((RacerProfile racer) => racer.id == target.id);
-    final List<RacerProfile>? filteredPool = _filterRacersByAttributes(
+    final List<RacerProfile>? filteredPool = _filterRacersByCondition(
       racers: basePool,
-      racerClass: racerClass,
-      gender: gender,
+      condition: condition,
+      target: target,
       minimumCount: _requiredDistractorCount,
     );
 
@@ -340,45 +310,99 @@ class QuizSessionFactory {
     );
   }
 
-  static String? _requiredRacerClassForMode(QuizModeConfig mode) {
-    switch (mode.id) {
-      case 'quick':
-        return 'A1';
-      default:
-        return null;
+  static List<_SegmentFlowPlan> _buildSegmentFlowPlans(QuizSegment segment) {
+    final List<QuizQuestionFlowStep> flowSteps =
+        segment.flowSteps == null || segment.flowSteps!.isEmpty
+        ? const <QuizQuestionFlowStep>[
+            QuizQuestionFlowStep(
+              weight: 100,
+              optionCondition: QuizRacerCondition(
+                sameRacerClassAsTarget: true,
+                sameGenderAsTarget: true,
+              ),
+            ),
+          ]
+        : segment.flowSteps!;
+
+    final int totalWeight = flowSteps.fold<int>(
+      0,
+      (int sum, QuizQuestionFlowStep step) => sum + step.weight,
+    );
+    final List<_SegmentFlowPlan> plans = <_SegmentFlowPlan>[];
+    final List<_SegmentFlowRemainder> remainders = <_SegmentFlowRemainder>[];
+    int assigned = 0;
+
+    for (int index = 0; index < flowSteps.length; index += 1) {
+      final QuizQuestionFlowStep step = flowSteps[index];
+      final double exactCount = segment.count * step.weight / totalWeight;
+      final int questionCount = exactCount.floor();
+      assigned += questionCount;
+      plans.add(_SegmentFlowPlan(step: step, questionCount: questionCount));
+      remainders.add(
+        _SegmentFlowRemainder(index: index, value: exactCount - questionCount),
+      );
     }
+
+    final int remaining = segment.count - assigned;
+    remainders.sort(
+      (_SegmentFlowRemainder left, _SegmentFlowRemainder right) =>
+          right.value.compareTo(left.value) == 0
+          ? left.index.compareTo(right.index)
+          : right.value.compareTo(left.value),
+    );
+    for (int i = 0; i < remaining; i += 1) {
+      final int planIndex = remainders[i].index;
+      plans[planIndex] = plans[planIndex].copyWith(
+        questionCount: plans[planIndex].questionCount + 1,
+      );
+    }
+
+    return plans
+        .where(((_SegmentFlowPlan plan) => plan.questionCount > 0))
+        .toList(growable: false);
   }
 
-  static _CandidateFilter _candidateFilterForQuestion({
-    required QuizModeConfig mode,
-    required RacerProfile target,
-  }) {
-    switch (mode.id) {
-      case 'quick':
-        return _CandidateFilter(racerClass: 'A1', gender: target.gender);
-      default:
-        return _CandidateFilter(
-          racerClass: target.racerClass,
-          gender: target.gender,
-        );
-    }
-  }
-
-  static List<RacerProfile>? _filterRacersByAttributes({
+  static List<RacerProfile> _pickTargetsForCondition({
     required List<RacerProfile> racers,
-    String? racerClass,
-    String? gender,
+    required QuizRacerCondition condition,
+    required int count,
+    required Random random,
+  }) {
+    if (count == 0) {
+      return const <RacerProfile>[];
+    }
+    final List<RacerProfile>? filteredPool = _filterRacersByCondition(
+      racers: racers,
+      condition: condition,
+      minimumCount: 1,
+    );
+    final List<RacerProfile> base = List<RacerProfile>.from(
+      filteredPool ?? racers,
+    )..shuffle(random);
+
+    return <RacerProfile>[
+      for (int i = 0; i < count; i += 1) base[i % base.length],
+    ];
+  }
+
+  static List<RacerProfile>? _filterRacersByCondition({
+    required List<RacerProfile> racers,
+    required QuizRacerCondition condition,
+    RacerProfile? target,
     required int minimumCount,
   }) {
-    final List<RacerProfile> filtered = racers.where((RacerProfile racer) {
-      if (racerClass != null && racer.racerClass != racerClass) {
-        return false;
-      }
-      if (gender != null && racer.gender != gender) {
-        return false;
-      }
-      return true;
-    }).toList(growable: false);
+    final List<RacerProfile> filtered = racers
+        .where((RacerProfile racer) {
+          if (!_matchesCondition(
+            racer: racer,
+            condition: condition,
+            target: target,
+          )) {
+            return false;
+          }
+          return true;
+        })
+        .toList(growable: false);
     if (filtered.length < minimumCount) {
       return null;
     }
@@ -423,13 +447,99 @@ class QuizSessionFactory {
     ];
   }
 
+  static bool _matchesCondition({
+    required RacerProfile racer,
+    required QuizRacerCondition condition,
+    RacerProfile? target,
+  }) {
+    if (!_matchesStringList(condition.racerClasses, racer.racerClass)) {
+      return false;
+    }
+    if (!_matchesStringList(condition.genders, racer.gender)) {
+      return false;
+    }
+    if (!_matchesStringList(condition.birthPlaces, racer.birthPlace)) {
+      return false;
+    }
+    if (!_matchesStringList(condition.homeBranches, racer.homeBranch)) {
+      return false;
+    }
+    if (!_matchesStringList(
+      condition.affiliationBranches,
+      racer.affiliationBranch,
+    )) {
+      return false;
+    }
+    if (!_matchesAgeRange(condition.ageRange, racer.birthDate)) {
+      return false;
+    }
+    if (condition.sameRacerClassAsTarget &&
+        target != null &&
+        racer.racerClass != target.racerClass) {
+      return false;
+    }
+    if (condition.sameGenderAsTarget &&
+        target != null &&
+        racer.gender != target.gender) {
+      return false;
+    }
+    return true;
+  }
+
+  static bool _matchesStringList(List<String>? allowed, String? value) {
+    if (allowed == null || allowed.isEmpty) {
+      return true;
+    }
+    if (value == null || value.isEmpty) {
+      return false;
+    }
+    return allowed.contains(value);
+  }
+
+  static bool _matchesAgeRange(QuizAgeRange? range, DateTime? birthDate) {
+    if (range == null) {
+      return true;
+    }
+    if (birthDate == null) {
+      return false;
+    }
+    final DateTime now = DateTime.now().toUtc();
+    int age = now.year - birthDate.year;
+    final bool birthdayNotPassed =
+        now.month < birthDate.month ||
+        (now.month == birthDate.month && now.day < birthDate.day);
+    if (birthdayNotPassed) {
+      age -= 1;
+    }
+    if (range.min != null && age < range.min!) {
+      return false;
+    }
+    if (range.max != null && age > range.max!) {
+      return false;
+    }
+    return true;
+  }
+
   static const int _requiredDistractorCount = 3;
-  static const int _minimumCandidatePoolSize = _requiredDistractorCount + 1;
 }
 
-class _CandidateFilter {
-  const _CandidateFilter({this.racerClass, this.gender});
+class _SegmentFlowPlan {
+  const _SegmentFlowPlan({required this.step, required this.questionCount});
 
-  final String? racerClass;
-  final String? gender;
+  final QuizQuestionFlowStep step;
+  final int questionCount;
+
+  _SegmentFlowPlan copyWith({int? questionCount}) {
+    return _SegmentFlowPlan(
+      step: step,
+      questionCount: questionCount ?? this.questionCount,
+    );
+  }
+}
+
+class _SegmentFlowRemainder {
+  const _SegmentFlowRemainder({required this.index, required this.value});
+
+  final int index;
+  final double value;
 }
