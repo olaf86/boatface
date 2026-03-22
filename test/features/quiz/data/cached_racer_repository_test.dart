@@ -205,6 +205,47 @@ void main() {
         );
       },
     );
+
+    test(
+      're-downloads snapshot when local snapshot is unusable even if manifest matches',
+      () async {
+        final RacerDatasetSnapshot localSnapshot = RacerDatasetSnapshot(
+          manifest: _buildManifest(
+            datasetId: '2026-H1',
+            updatedAt: DateTime.utc(2026, 3, 22),
+          ),
+          racers: const <RacerProfile>[],
+        );
+        final _InMemoryLocalStore localStore = _InMemoryLocalStore(
+          snapshot: localSnapshot,
+        );
+        final _FakeRemoteDataSource remoteDataSource = _FakeRemoteDataSource(
+          manifest: _buildManifest(
+            datasetId: '2026-H1',
+            updatedAt: DateTime.utc(2026, 3, 22),
+          ),
+          snapshot: _buildSnapshot(
+            datasetId: '2026-H1',
+            updatedAt: DateTime.utc(2026, 3, 22),
+            prefix: 'remote',
+          ),
+        );
+        final CachedRacerRepository repository = CachedRacerRepository(
+          remoteDataSource: remoteDataSource,
+          localStore: localStore,
+        );
+
+        final RacerSyncResult result = await repository.initialize();
+
+        expect(result.downloadedSnapshot, true);
+        expect(result.downloadedImagePack, true);
+        expect(remoteDataSource.manifestFetchCount, 1);
+        expect(remoteDataSource.snapshotFetchCount, 1);
+        expect(remoteDataSource.imagePackFetchCount, 1);
+        expect(localStore.snapshot?.racers, isNotEmpty);
+        expect(repository.requireCachedAll().first.id, 'remote-racer-0');
+      },
+    );
   });
 
   group('RacerMasterSyncController', () {
@@ -387,6 +428,7 @@ RacerDatasetSnapshot _buildSnapshot({
       return RacerProfile(
         id: '$prefix-racer-$index',
         name: '選手$index',
+        nameKana: 'センシュ$index',
         registrationNumber: 1000 + index,
         racerClass: index < 4 ? 'A1' : 'B1',
         gender: index.isEven ? 'male' : 'female',
