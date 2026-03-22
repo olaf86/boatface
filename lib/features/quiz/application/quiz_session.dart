@@ -131,11 +131,8 @@ class QuizSession {
     continuedByAd = true;
     gameOver = false;
     endReason = null;
-<<<<<<< HEAD
     clientFinishedAt = null;
-=======
     _resetQuestionScopedHints();
->>>>>>> codex/quiz-hints
     currentIndex += 1;
     if (currentIndex >= questions.length) {
       endReason = QuizEndReason.completed;
