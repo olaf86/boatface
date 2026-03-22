@@ -138,6 +138,30 @@ void main() {
     });
 
     test(
+      'uses generic prompt text for name-to-face and keeps kana on target',
+      () {
+        final QuizSession session = QuizSessionFactory.create(
+          mode: const QuizModeConfig(
+            id: 'name-face',
+            label: '名前->顔',
+            description: '',
+            timeLimitSeconds: 10,
+            segments: <QuizSegment>[
+              QuizSegment(promptType: QuizPromptType.nameToFace, count: 1),
+            ],
+          ),
+          racers: _buildRacers(),
+        );
+
+        final QuizQuestion question = session.currentQuestion!;
+        final QuizOption target = question.options[question.correctIndex];
+
+        expect(question.prompt, 'この選手の顔はどれ？');
+        expect(target.labelReading, isNotNull);
+      },
+    );
+
+    test(
       'limits quick mode questions and options to A1 racers of same gender',
       () {
         final List<RacerProfile> racers = _buildRacers();
@@ -436,6 +460,7 @@ RacerProfile _buildRacer(
   return RacerProfile(
     id: 'racer-$index',
     name: '選手$index',
+    nameKana: 'センシュ$index',
     registrationNumber: 4000 + index,
     racerClass: racerClass,
     gender: gender,

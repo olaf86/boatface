@@ -67,6 +67,15 @@ void main() {
     expect(find.byTooltip('時間を停止する'), findsNothing);
     expect(find.text('制限時間: 無制限'), findsOneWidget);
   });
+
+  testWidgets('shows furigana for racer names when available', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(_buildApp(mode: _buildMode(timeLimitSeconds: 10)));
+
+    expect(find.textContaining('センシュ'), findsWidgets);
+    expect(find.textContaining('選手'), findsWidgets);
+  });
 }
 
 Widget _buildApp({required QuizModeConfig mode}) {
@@ -119,6 +128,7 @@ class _FakeRacerRepository implements RacerRepository {
       return RacerProfile(
         id: 'racer-$index',
         name: '選手$index',
+        nameKana: 'センシュ$index',
         registrationNumber: 5000 + index,
         racerClass: index.isEven ? 'A1' : 'A2',
         gender: index.isEven ? 'male' : 'female',

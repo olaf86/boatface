@@ -265,7 +265,7 @@ class QuizSessionFactory {
       case QuizPromptType.faceToName:
         return 'この顔の選手名は？';
       case QuizPromptType.nameToFace:
-        return '「${target.name}」の顔はどれ？';
+        return 'この選手の顔はどれ？';
       case QuizPromptType.partialFaceToName:
         return 'この顔の選手名は？';
       case QuizPromptType.registrationToFace:
@@ -330,12 +330,17 @@ class QuizSessionFactory {
     switch (type) {
       case QuizPromptType.faceToName:
       case QuizPromptType.partialFaceToName:
-        return QuizOption(racerId: racer.id, label: racer.name);
+        return QuizOption(
+          racerId: racer.id,
+          label: racer.name,
+          labelReading: racer.nameKana,
+        );
       case QuizPromptType.nameToFace:
       case QuizPromptType.registrationToFace:
         return QuizOption(
           racerId: racer.id,
           label: racer.name,
+          labelReading: racer.nameKana,
           imageUrl: racer.imageUrl,
           localImagePath: racer.localImagePath,
         );

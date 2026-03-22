@@ -12,6 +12,7 @@ import '../application/quiz_session_controller.dart';
 import '../application/quiz_session_state.dart';
 import '../domain/quiz_models.dart';
 import '../../result/presentation/result_screen.dart';
+import 'racer_name_text.dart';
 import 'quiz_start_countdown.dart';
 
 const Duration _kCorrectFeedbackDuration = Duration(milliseconds: 780);
@@ -422,7 +423,10 @@ class _QuizPromptCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Text(question.prompt, style: textTheme.headlineSmall),
+          if (question.promptType == QuizPromptType.nameToFace)
+            _NameToFacePrompt(question: question)
+          else
+            Text(question.prompt, style: textTheme.headlineSmall),
           if (question.hasPromptImage) ...<Widget>[
             const SizedBox(height: 12),
             SizedBox(
@@ -470,6 +474,7 @@ class _QuizTextOptionList extends StatelessWidget {
         return _QuizTextOptionButton(
           buttonKey: ValueKey<String>('quiz-option-$i'),
           label: options[i].label,
+          labelReading: options[i].labelReading,
           visualState: _visualStateForOption(
             index: i,
             feedback: feedback,
@@ -555,6 +560,34 @@ class _QuizImageOptionGrid extends StatelessWidget {
   }
 }
 
+class _NameToFacePrompt extends StatelessWidget {
+  const _NameToFacePrompt({required this.question});
+
+  final QuizQuestion question;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final QuizOption target = question.options[question.correctIndex];
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        RacerNameText(
+          name: target.label,
+          nameKana: target.labelReading,
+          style: textTheme.headlineSmall,
+          kanaStyle: textTheme.titleSmall?.copyWith(
+            color: textTheme.headlineSmall?.color?.withValues(alpha: 0.78),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(question.prompt, style: textTheme.titleMedium),
+      ],
+    );
+  }
+}
+
 enum _QuizOptionVisualState {
   idle,
   dimmed,
@@ -592,6 +625,7 @@ class _QuizTextOptionButton extends StatelessWidget {
   const _QuizTextOptionButton({
     required this.buttonKey,
     required this.label,
+    this.labelReading,
     required this.visualState,
     required this.enabled,
     required this.onPressed,
@@ -599,6 +633,7 @@ class _QuizTextOptionButton extends StatelessWidget {
 
   final Key buttonKey;
   final String label;
+  final String? labelReading;
   final _QuizOptionVisualState visualState;
   final bool enabled;
   final VoidCallback onPressed;
@@ -638,7 +673,11 @@ class _QuizTextOptionButton extends StatelessWidget {
                   padding: EdgeInsets.symmetric(
                     horizontal: highlighted ? 44 : 0,
                   ),
-                  child: Text(label, textAlign: TextAlign.center),
+                  child: RacerNameText(
+                    name: label,
+                    nameKana: labelReading,
+                    textAlign: TextAlign.center,
+                  ),
                 ),
                 if (highlighted)
                   Positioned(

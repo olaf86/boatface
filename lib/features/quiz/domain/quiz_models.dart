@@ -145,6 +145,7 @@ class RacerProfile {
   const RacerProfile({
     required this.id,
     required this.name,
+    required this.nameKana,
     required this.registrationNumber,
     required this.racerClass,
     required this.gender,
@@ -162,6 +163,7 @@ class RacerProfile {
 
   final String id;
   final String name;
+  final String nameKana;
   final int registrationNumber;
   final String racerClass;
   final String gender;
@@ -184,6 +186,7 @@ class RacerProfile {
   RacerProfile copyWith({
     String? id,
     String? name,
+    String? nameKana,
     int? registrationNumber,
     String? racerClass,
     String? gender,
@@ -207,6 +210,7 @@ class RacerProfile {
     return RacerProfile(
       id: id ?? this.id,
       name: name ?? this.name,
+      nameKana: nameKana ?? this.nameKana,
       registrationNumber: registrationNumber ?? this.registrationNumber,
       racerClass: racerClass ?? this.racerClass,
       gender: gender ?? this.gender,
@@ -233,6 +237,7 @@ class RacerProfile {
     return <String, Object?>{
       'id': id,
       'name': name,
+      'nameKana': nameKana,
       'registrationNumber': registrationNumber,
       'class': racerClass,
       'gender': gender,
@@ -251,6 +256,7 @@ class RacerProfile {
   static RacerProfile? tryParseJson(Map<String, Object?> json) {
     final Object? idValue = json['id'];
     final Object? nameValue = json['name'];
+    final Object? nameKanaValue = json['nameKana'];
     final Object? registrationNumberValue = json['registrationNumber'];
     final Object? classValue = json['class'];
     final Object? genderValue = json['gender'];
@@ -268,6 +274,8 @@ class RacerProfile {
         idValue.isEmpty ||
         nameValue is! String ||
         nameValue.isEmpty ||
+        nameKanaValue is! String ||
+        nameKanaValue.isEmpty ||
         registrationNumberValue is! int ||
         classValue is! String ||
         classValue.isEmpty ||
@@ -295,6 +303,7 @@ class RacerProfile {
     return RacerProfile(
       id: idValue,
       name: nameValue,
+      nameKana: nameKanaValue,
       registrationNumber: registrationNumberValue,
       racerClass: classValue,
       gender: genderValue,
@@ -339,12 +348,14 @@ class QuizOption {
   const QuizOption({
     required this.racerId,
     required this.label,
+    this.labelReading,
     this.imageUrl,
     this.localImagePath,
   });
 
   final String racerId;
   final String label;
+  final String? labelReading;
   final String? imageUrl;
   final String? localImagePath;
 
