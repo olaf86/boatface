@@ -104,6 +104,81 @@ void main() {
         expect(completedState.endReason, QuizEndReason.completed);
       },
     );
+
+    test('uses fifty-fifty hint only once per session', () {
+      final QuizModeConfig mode = _buildMode(questionCount: 2);
+      final ProviderContainer container = _createContainer();
+      addTearDown(container.dispose);
+
+      final QuizSessionController controller = container.read(
+        quizSessionControllerProvider(mode).notifier,
+      );
+
+      expect(controller.useFiftyFiftyHint(), true);
+
+      final QuizSessionState hintedState = container.read(
+        quizSessionControllerProvider(mode),
+      );
+      expect(hintedState.fiftyFiftyHintUsed, true);
+      expect(hintedState.canUseFiftyFiftyHint, false);
+      expect(hintedState.removedOptionIndexes, hasLength(2));
+
+      controller.completeAnswerFeedback();
+      expect(controller.useFiftyFiftyHint(), false);
+    });
+
+    test('resets time freeze after advancing and allows it only once', () {
+      final QuizModeConfig mode = _buildMode(questionCount: 2);
+      final ProviderContainer container = _createContainer();
+      addTearDown(container.dispose);
+
+      final QuizSessionController controller = container.read(
+        quizSessionControllerProvider(mode).notifier,
+      );
+      final QuizQuestion firstQuestion = container
+          .read(quizSessionControllerProvider(mode))
+          .currentQuestion!;
+
+      expect(controller.useTimeFreezeHint(), true);
+
+      final QuizSessionState frozenState = container.read(
+        quizSessionControllerProvider(mode),
+      );
+      expect(frozenState.timeFreezeHintUsed, true);
+      expect(frozenState.timeFreezeActive, true);
+      expect(frozenState.canUseTimeFreezeHint, false);
+
+      controller.submitAnswer(firstQuestion.correctIndex);
+      controller.completeAnswerFeedback();
+
+      final QuizSessionState advancedState = container.read(
+        quizSessionControllerProvider(mode),
+      );
+      expect(advancedState.currentQuestionIndex, 1);
+      expect(advancedState.timeFreezeActive, false);
+      expect(advancedState.timeFreezeHintUsed, true);
+      expect(advancedState.canUseTimeFreezeHint, false);
+      expect(controller.useTimeFreezeHint(), false);
+    });
+
+    test('disables time freeze hint in unlimited mode', () {
+      final QuizModeConfig mode = _buildMode(
+        questionCount: 1,
+        timeLimitSeconds: null,
+      );
+      final ProviderContainer container = _createContainer();
+      addTearDown(container.dispose);
+
+      final QuizSessionController controller = container.read(
+        quizSessionControllerProvider(mode).notifier,
+      );
+      final QuizSessionState state = container.read(
+        quizSessionControllerProvider(mode),
+      );
+
+      expect(state.canUseTimeFreezeHint, false);
+      expect(controller.useTimeFreezeHint(), false);
+    });
   });
 }
 
@@ -115,12 +190,15 @@ ProviderContainer _createContainer() {
   );
 }
 
-QuizModeConfig _buildMode({required int questionCount}) {
+QuizModeConfig _buildMode({
+  required int questionCount,
+  int? timeLimitSeconds = 10,
+}) {
   return QuizModeConfig(
     id: 'test',
     label: 'テスト',
     description: 'controller test mode',
-    timeLimitSeconds: 10,
+    timeLimitSeconds: timeLimitSeconds,
     segments: <QuizSegment>[
       QuizSegment(promptType: QuizPromptType.faceToName, count: questionCount),
     ],

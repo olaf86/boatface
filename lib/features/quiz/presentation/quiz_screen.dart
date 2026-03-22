@@ -147,6 +147,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         ? '--'
         : (remainingForDisplay.inMilliseconds / 1000).toStringAsFixed(1);
     final bool inputsEnabled = !state.isProcessing && activeFeedback == null;
+    final bool isTimedMode = widget.mode.timeLimitSeconds != null;
 
     return PopScope(
       canPop: false,
@@ -188,11 +189,40 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  Text(
-                    widget.mode.timeLimitSeconds == null
-                        ? '制限時間: 無制限'
-                        : '残り時間: $timerText',
-                    style: Theme.of(context).textTheme.titleMedium,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    alignment: WrapAlignment.spaceBetween,
+                    children: <Widget>[
+                      _QuizStatusChip(
+                        icon: isTimedMode
+                            ? (state.timeFreezeActive
+                                  ? Icons.pause_circle_filled_rounded
+                                  : Icons.timer_outlined)
+                            : Icons.all_inclusive_rounded,
+                        label: !isTimedMode
+                            ? '制限時間: 無制限'
+                            : state.timeFreezeActive
+                            ? '時間停止中'
+                            : '残り時間: $timerText',
+                      ),
+                      _QuizHintButton(
+                        icon: Icons.filter_2_rounded,
+                        label: '2択',
+                        isUsed: state.fiftyFiftyHintUsed,
+                        enabled: inputsEnabled && state.canUseFiftyFiftyHint,
+                        onPressed: _handleUseFiftyFiftyHint,
+                      ),
+                      if (isTimedMode)
+                        _QuizHintButton(
+                          icon: Icons.pause_rounded,
+                          label: '時間停止',
+                          isUsed: state.timeFreezeHintUsed,
+                          enabled: inputsEnabled && state.canUseTimeFreezeHint,
+                          onPressed: _handleUseTimeFreezeHint,
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Card(child: _QuizPromptCard(question: question)),
@@ -203,12 +233,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                             options: question.options,
                             enabled: inputsEnabled,
                             feedback: activeFeedback,
+                            removedOptionIndexes: state.removedOptionIndexes,
                             onSelected: _handleAnswerSelected,
                           )
                         : _QuizTextOptionList(
                             options: question.options,
                             enabled: inputsEnabled,
                             feedback: activeFeedback,
+                            removedOptionIndexes: state.removedOptionIndexes,
                             onSelected: _handleAnswerSelected,
                           ),
                   ),
@@ -317,6 +349,24 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     });
   }
 
+  void _handleUseFiftyFiftyHint() {
+    if (_activeFeedback != null) {
+      return;
+    }
+    ref
+        .read(quizSessionControllerProvider(widget.mode).notifier)
+        .useFiftyFiftyHint();
+  }
+
+  void _handleUseTimeFreezeHint() {
+    if (_activeFeedback != null) {
+      return;
+    }
+    ref
+        .read(quizSessionControllerProvider(widget.mode).notifier)
+        .useTimeFreezeHint();
+  }
+
   void _completeAnswerFeedback() {
     if (!mounted || _activeFeedback == null) {
       return;
@@ -379,12 +429,14 @@ class _QuizTextOptionList extends StatelessWidget {
     required this.options,
     required this.enabled,
     required this.feedback,
+    required this.removedOptionIndexes,
     required this.onSelected,
   });
 
   final List<QuizOption> options;
   final bool enabled;
   final QuizAnswerFeedback? feedback;
+  final Set<int> removedOptionIndexes;
   final ValueChanged<int> onSelected;
 
   @override
@@ -394,11 +446,16 @@ class _QuizTextOptionList extends StatelessWidget {
       separatorBuilder: (BuildContext context, int index) =>
           const SizedBox(height: 6),
       itemBuilder: (BuildContext context, int i) {
+        final bool isRemoved = removedOptionIndexes.contains(i);
         return _QuizTextOptionButton(
           buttonKey: ValueKey<String>('quiz-option-$i'),
           label: options[i].label,
-          visualState: _visualStateForOption(index: i, feedback: feedback),
-          enabled: enabled,
+          visualState: _visualStateForOption(
+            index: i,
+            feedback: feedback,
+            eliminated: isRemoved,
+          ),
+          enabled: enabled && !isRemoved,
           onPressed: () => onSelected(i),
         );
       },
@@ -411,12 +468,14 @@ class _QuizImageOptionGrid extends StatelessWidget {
     required this.options,
     required this.enabled,
     required this.feedback,
+    required this.removedOptionIndexes,
     required this.onSelected,
   });
 
   final List<QuizOption> options;
   final bool enabled;
   final QuizAnswerFeedback? feedback;
+  final Set<int> removedOptionIndexes;
   final ValueChanged<int> onSelected;
 
   @override
@@ -431,9 +490,11 @@ class _QuizImageOptionGrid extends StatelessWidget {
       ),
       itemBuilder: (BuildContext context, int index) {
         final QuizOption option = options[index];
+        final bool isRemoved = removedOptionIndexes.contains(index);
         final _QuizOptionVisualState visualState = _visualStateForOption(
           index: index,
           feedback: feedback,
+          eliminated: isRemoved,
         );
 
         return Semantics(
@@ -443,7 +504,7 @@ class _QuizImageOptionGrid extends StatelessWidget {
             buttonKey: ValueKey<String>('quiz-option-$index'),
             indexLabel: '${index + 1}',
             visualState: visualState,
-            enabled: enabled,
+            enabled: enabled && !isRemoved,
             onPressed: () => onSelected(index),
             child: Stack(
               fit: StackFit.expand,
@@ -477,6 +538,7 @@ class _QuizImageOptionGrid extends StatelessWidget {
 enum _QuizOptionVisualState {
   idle,
   dimmed,
+  eliminated,
   selectedCorrect,
   selectedWrong,
   correctReveal,
@@ -485,9 +547,12 @@ enum _QuizOptionVisualState {
 _QuizOptionVisualState _visualStateForOption({
   required int index,
   required QuizAnswerFeedback? feedback,
+  required bool eliminated,
 }) {
   if (feedback == null) {
-    return _QuizOptionVisualState.idle;
+    return eliminated
+        ? _QuizOptionVisualState.eliminated
+        : _QuizOptionVisualState.idle;
   }
   if (feedback.isCorrect) {
     return index == feedback.selectedIndex
@@ -735,6 +800,7 @@ bool _isHighlighted(_QuizOptionVisualState visualState) {
 double _opacityFor(_QuizOptionVisualState visualState) {
   return switch (visualState) {
     _QuizOptionVisualState.dimmed => 0.42,
+    _QuizOptionVisualState.eliminated => 0.2,
     _ => 1,
   };
 }
@@ -768,8 +834,69 @@ Color? _backgroundColorFor(
     ),
     _QuizOptionVisualState.selectedWrong => accentColor.withValues(alpha: 0.16),
     _QuizOptionVisualState.correctReveal => accentColor.withValues(alpha: 0.16),
+    _QuizOptionVisualState.eliminated => Theme.of(
+      context,
+    ).colorScheme.surfaceContainerHighest,
     _ => null,
   };
+}
+
+class _QuizStatusChip extends StatelessWidget {
+  const _QuizStatusChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, size: 18),
+            const SizedBox(width: 8),
+            Text(label, style: Theme.of(context).textTheme.titleSmall),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuizHintButton extends StatelessWidget {
+  const _QuizHintButton({
+    required this.icon,
+    required this.label,
+    required this.isUsed,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isUsed;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.tonalIcon(
+      onPressed: enabled ? onPressed : null,
+      icon: Icon(isUsed ? Icons.check_rounded : icon),
+      label: Text(isUsed ? '$label 済み' : label),
+      style: FilledButton.styleFrom(
+        backgroundColor: isUsed
+            ? const Color(0xFF18A56B).withValues(alpha: 0.14)
+            : null,
+      ),
+    );
+  }
 }
 
 class _QuizAnswerFeedbackOverlay extends StatelessWidget {
