@@ -189,49 +189,57 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    alignment: WrapAlignment.spaceBetween,
+                  Row(
                     children: <Widget>[
-                      _QuizStatusChip(
-                        icon: isTimedMode
-                            ? (state.timeFreezeActive
-                                  ? Icons.pause_circle_filled_rounded
-                                  : Icons.timer_outlined)
-                            : Icons.all_inclusive_rounded,
-                        label: !isTimedMode
-                            ? '制限時間: 無制限'
-                            : state.timeFreezeActive
-                            ? '時間停止中'
-                            : '残り時間: $timerText',
-                      ),
-                      _QuizHintButton(
-                        buttonKey: const ValueKey<String>(
-                          'quiz-hint-fifty-fifty',
+                      Expanded(
+                        child: _QuizStatusChip(
+                          icon: isTimedMode
+                              ? (state.timeFreezeActive
+                                    ? Icons.pause_circle_filled_rounded
+                                    : Icons.timer_outlined)
+                              : Icons.all_inclusive_rounded,
+                          label: !isTimedMode
+                              ? '制限時間: 無制限'
+                              : state.timeFreezeActive
+                              ? '時間停止中'
+                              : '残り時間: $timerText',
                         ),
-                        icon: Icons.filter_2_rounded,
-                        tooltip: state.fiftyFiftyHintUsed
-                            ? '2択ヒントは使用済み'
-                            : '2択に絞る',
-                        isUsed: state.fiftyFiftyHintUsed,
-                        enabled: inputsEnabled && state.canUseFiftyFiftyHint,
-                        onPressed: _handleUseFiftyFiftyHint,
                       ),
-                      if (isTimedMode)
-                        _QuizHintButton(
-                          buttonKey: const ValueKey<String>(
-                            'quiz-hint-time-freeze',
+                      const SizedBox(width: 8),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          _QuizHintButton(
+                            buttonKey: const ValueKey<String>(
+                              'quiz-hint-fifty-fifty',
+                            ),
+                            icon: Icons.filter_2_rounded,
+                            tooltip: state.fiftyFiftyHintUsed
+                                ? '2択ヒントは使用済み'
+                                : '2択に絞る',
+                            isUsed: state.fiftyFiftyHintUsed,
+                            enabled:
+                                inputsEnabled && state.canUseFiftyFiftyHint,
+                            onPressed: _handleUseFiftyFiftyHint,
                           ),
-                          icon: Icons.pause_rounded,
-                          tooltip: state.timeFreezeHintUsed
-                              ? '時間停止ヒントは使用済み'
-                              : '時間を停止する',
-                          isUsed: state.timeFreezeHintUsed,
-                          enabled: inputsEnabled && state.canUseTimeFreezeHint,
-                          onPressed: _handleUseTimeFreezeHint,
-                        ),
+                          if (isTimedMode) ...<Widget>[
+                            const SizedBox(width: 8),
+                            _QuizHintButton(
+                              buttonKey: const ValueKey<String>(
+                                'quiz-hint-time-freeze',
+                              ),
+                              icon: Icons.pause_rounded,
+                              tooltip: state.timeFreezeHintUsed
+                                  ? '時間停止ヒントは使用済み'
+                                  : '時間を停止する',
+                              isUsed: state.timeFreezeHintUsed,
+                              enabled:
+                                  inputsEnabled && state.canUseTimeFreezeHint,
+                              onPressed: _handleUseTimeFreezeHint,
+                            ),
+                          ],
+                        ],
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
