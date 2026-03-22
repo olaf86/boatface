@@ -1,6 +1,4 @@
-import 'dart:math' as math;
-import 'dart:ui' show lerpDouble;
-
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 
 import '../../quiz/domain/quiz_models.dart';
@@ -14,9 +12,8 @@ class ResultScreen extends StatefulWidget {
   State<ResultScreen> createState() => _ResultScreenState();
 }
 
-class _ResultScreenState extends State<ResultScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _confettiController;
+class _ResultScreenState extends State<ResultScreen> {
+  late final ConfettiController _confettiController;
 
   bool get _showCelebration =>
       widget.summary.endReason == QuizEndReason.completed;
@@ -24,12 +21,11 @@ class _ResultScreenState extends State<ResultScreen>
   @override
   void initState() {
     super.initState();
-    _confettiController = AnimationController(
-      vsync: this,
+    _confettiController = ConfettiController(
       duration: const Duration(milliseconds: 2400),
     );
     if (_showCelebration) {
-      _confettiController.forward();
+      _confettiController.play();
     }
   }
 
@@ -146,16 +142,53 @@ class _ResultScreenState extends State<ResultScreen>
           if (_showCelebration)
             Positioned.fill(
               child: IgnorePointer(
-                child: AnimatedBuilder(
-                  animation: _confettiController,
-                  builder: (BuildContext context, Widget? child) {
-                    return CustomPaint(
-                      key: const ValueKey<String>('mode-clear-confetti'),
-                      painter: _ConfettiPainter(
-                        progress: _confettiController.value,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child: ConfettiWidget(
+                        key: const ValueKey<String>('mode-clear-confetti'),
+                        confettiController: _confettiController,
+                        blastDirection: 0.9,
+                        blastDirectionality: BlastDirectionality.directional,
+                        emissionFrequency: 0.055,
+                        numberOfParticles: 14,
+                        maxBlastForce: 22,
+                        minBlastForce: 10,
+                        gravity: 0.22,
+                        shouldLoop: false,
+                        colors: const <Color>[
+                          Color(0xFFFF6B6B),
+                          Color(0xFFFFD166),
+                          Color(0xFF06D6A0),
+                          Color(0xFF118AB2),
+                          Color(0xFFEF476F),
+                        ],
                       ),
-                    );
-                  },
+                    ),
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: ConfettiWidget(
+                        confettiController: _confettiController,
+                        blastDirection: 2.24,
+                        blastDirectionality: BlastDirectionality.directional,
+                        emissionFrequency: 0.055,
+                        numberOfParticles: 14,
+                        maxBlastForce: 22,
+                        minBlastForce: 10,
+                        gravity: 0.22,
+                        shouldLoop: false,
+                        colors: const <Color>[
+                          Color(0xFFFF6B6B),
+                          Color(0xFFFFD166),
+                          Color(0xFF06D6A0),
+                          Color(0xFF118AB2),
+                          Color(0xFFEF476F),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -182,78 +215,5 @@ class _MetricRow extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _ConfettiPainter extends CustomPainter {
-  const _ConfettiPainter({required this.progress});
-
-  final double progress;
-
-  static const List<Color> _colors = <Color>[
-    Color(0xFFFF6B6B),
-    Color(0xFFFFD166),
-    Color(0xFF06D6A0),
-    Color(0xFF118AB2),
-    Color(0xFFEF476F),
-  ];
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (progress <= 0) {
-      return;
-    }
-
-    final Paint paint = Paint()..style = PaintingStyle.fill;
-    final double opacity = (1 - Curves.easeIn.transform(progress)).clamp(
-      0.0,
-      1.0,
-    );
-
-    for (int i = 0; i < 42; i++) {
-      final double seed = i + 1;
-      final double lane = _noise(seed * 1.37);
-      final double burst = _noise(seed * 2.41);
-      final double swing = math.sin(
-        progress * math.pi * (2.2 + burst * 1.8) + seed,
-      );
-      final double x =
-          lerpDouble(
-            size.width * (burst < 0.5 ? 0.1 : 0.9),
-            size.width * (0.08 + lane * 0.84),
-            Curves.easeOutCubic.transform(progress),
-          )! +
-          swing * (12 + burst * 18);
-      final double y =
-          (-28 - burst * 120) +
-          (size.height + 180) * Curves.easeIn.transform(progress);
-      final double width = 7 + _noise(seed * 3.73) * 8;
-      final double height = 10 + _noise(seed * 4.91) * 10;
-      final double rotation =
-          progress * math.pi * (3 + burst * 4) + _noise(seed * 5.17) * math.pi;
-
-      paint.color = _colors[i % _colors.length].withValues(alpha: opacity);
-      canvas.save();
-      canvas.translate(x, y);
-      canvas.rotate(rotation);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset.zero, width: width, height: height),
-          const Radius.circular(2),
-        ),
-        paint,
-      );
-      canvas.restore();
-    }
-  }
-
-  double _noise(double value) {
-    final double sine = math.sin(value * 12.9898) * 43758.5453;
-    return sine - sine.floorToDouble();
-  }
-
-  @override
-  bool shouldRepaint(covariant _ConfettiPainter oldDelegate) {
-    return oldDelegate.progress != progress;
   }
 }
