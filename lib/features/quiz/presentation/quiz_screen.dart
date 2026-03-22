@@ -619,7 +619,7 @@ class _QuizTextOptionButton extends StatelessWidget {
           key: buttonKey,
           onPressed: enabled ? onPressed : null,
           style: FilledButton.styleFrom(
-            alignment: Alignment.centerLeft,
+            alignment: Alignment.center,
             backgroundColor: _backgroundColorFor(context, visualState),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             side: highlighted
@@ -632,10 +632,13 @@ class _QuizTextOptionButton extends StatelessWidget {
           child: SizedBox(
             width: double.infinity,
             child: Stack(
+              alignment: Alignment.center,
               children: <Widget>[
                 Padding(
-                  padding: EdgeInsets.only(right: highlighted ? 76 : 0),
-                  child: Text(label),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: highlighted ? 44 : 0,
+                  ),
+                  child: Text(label, textAlign: TextAlign.center),
                 ),
                 if (highlighted)
                   Positioned(
