@@ -16,6 +16,10 @@ class QuizSession {
   bool gameOver = false;
   bool rankingEligible = true;
   bool continuedByAd = false;
+  bool fiftyFiftyHintUsed = false;
+  bool timeFreezeHintUsed = false;
+  bool timeFreezeActive = false;
+  Set<int> removedOptionIndexes = <int>{};
   QuizEndReason? endReason;
   DateTime? clientFinishedAt;
   QuizAnswerFeedback? pendingAnswerFeedback;
@@ -28,6 +32,20 @@ class QuizSession {
   bool get isCompleted => endReason == QuizEndReason.completed;
   bool get canContinueWithAd =>
       gameOver && !continuedByAd && currentIndex < questions.length;
+  bool get canUseFiftyFiftyHint =>
+      !fiftyFiftyHintUsed &&
+      !gameOver &&
+      !isCompleted &&
+      pendingAnswerFeedback == null &&
+      currentQuestion != null &&
+      removedOptionIndexes.isEmpty;
+  bool get canUseTimeFreezeHint =>
+      mode.timeLimitSeconds != null &&
+      !timeFreezeHintUsed &&
+      !timeFreezeActive &&
+      !gameOver &&
+      !isCompleted &&
+      pendingAnswerFeedback == null;
 
   QuizAnswerFeedback? submitAnswer({
     required int selectedIndex,
@@ -71,6 +89,33 @@ class QuizSession {
     _advance();
   }
 
+  bool useFiftyFiftyHint() {
+    if (!canUseFiftyFiftyHint) {
+      return false;
+    }
+    final QuizQuestion question = currentQuestion!;
+    final List<int> wrongIndexes = <int>[
+      for (int index = 0; index < question.options.length; index += 1)
+        if (index != question.correctIndex) index,
+    ];
+    if (wrongIndexes.length <= 1) {
+      return false;
+    }
+
+    removedOptionIndexes = wrongIndexes.skip(1).toSet();
+    fiftyFiftyHintUsed = true;
+    return true;
+  }
+
+  bool useTimeFreezeHint() {
+    if (!canUseTimeFreezeHint) {
+      return false;
+    }
+    timeFreezeHintUsed = true;
+    timeFreezeActive = true;
+    return true;
+  }
+
   void submitTimeout({required Duration elapsed}) {
     if (gameOver || isCompleted || pendingAnswerFeedback != null) {
       return;
@@ -86,7 +131,11 @@ class QuizSession {
     continuedByAd = true;
     gameOver = false;
     endReason = null;
+<<<<<<< HEAD
     clientFinishedAt = null;
+=======
+    _resetQuestionScopedHints();
+>>>>>>> codex/quiz-hints
     currentIndex += 1;
     if (currentIndex >= questions.length) {
       endReason = QuizEndReason.completed;
@@ -118,6 +167,7 @@ class QuizSession {
   }
 
   void _advance() {
+    _resetQuestionScopedHints();
     currentIndex += 1;
     if (currentIndex >= questions.length) {
       endReason = QuizEndReason.completed;
@@ -126,9 +176,15 @@ class QuizSession {
   }
 
   void _endAs(QuizEndReason reason) {
+    timeFreezeActive = false;
     gameOver = true;
     endReason = reason;
     clientFinishedAt = DateTime.now();
+  }
+
+  void _resetQuestionScopedHints() {
+    removedOptionIndexes = <int>{};
+    timeFreezeActive = false;
   }
 }
 

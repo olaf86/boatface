@@ -66,6 +66,24 @@ class QuizSessionController
     return feedback;
   }
 
+  bool useFiftyFiftyHint() {
+    final bool used = _session.useFiftyFiftyHint();
+    if (used) {
+      state = _toState();
+    }
+    return used;
+  }
+
+  bool useTimeFreezeHint() {
+    final bool used = _session.useTimeFreezeHint();
+    if (!used) {
+      return false;
+    }
+    _stopwatch.stop();
+    state = _toState();
+    return true;
+  }
+
   void completeAnswerFeedback() {
     if (_session.pendingAnswerFeedback == null) {
       return;
@@ -101,7 +119,8 @@ class QuizSessionController
   void handleLifecyclePause() {
     if (_session.gameOver ||
         _session.isCompleted ||
-        _session.pendingAnswerFeedback != null) {
+        _session.pendingAnswerFeedback != null ||
+        _session.timeFreezeActive) {
       return;
     }
     _session.submitTimeout(elapsed: _stopwatch.elapsed);
@@ -112,7 +131,8 @@ class QuizSessionController
   void _onTick(Timer timer) {
     if (_session.gameOver ||
         _session.isCompleted ||
-        _session.pendingAnswerFeedback != null) {
+        _session.pendingAnswerFeedback != null ||
+        _session.timeFreezeActive) {
       return;
     }
     final int? timeLimitSeconds = _session.mode.timeLimitSeconds;
@@ -145,6 +165,14 @@ class QuizSessionController
       continuedByAd: _session.continuedByAd,
       rankingEligible: _session.rankingEligible,
       endReason: _session.endReason,
+      fiftyFiftyHintUsed: _session.fiftyFiftyHintUsed,
+      canUseFiftyFiftyHint: _session.canUseFiftyFiftyHint,
+      removedOptionIndexes: Set<int>.unmodifiable(
+        _session.removedOptionIndexes,
+      ),
+      timeFreezeHintUsed: _session.timeFreezeHintUsed,
+      canUseTimeFreezeHint: _session.canUseTimeFreezeHint,
+      timeFreezeActive: _session.timeFreezeActive,
       isProcessing: isProcessing,
     );
   }

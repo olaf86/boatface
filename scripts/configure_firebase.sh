@@ -78,6 +78,12 @@ for build_config in "${ios_build_configs[@]}"; do
     --ios-out="$ios_out"
 done
 
+ruby -rjson -e '
+  path = ARGV.fetch(0)
+  data = JSON.parse(File.read(path))
+  File.write(path, JSON.pretty_generate(data) + "\n")
+' "$root_dir/firebase.json"
+
 echo "Generated Firebase config for $environment:"
 echo "  Dart:    $dart_out"
 echo "  Android: $android_out"
