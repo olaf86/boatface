@@ -239,9 +239,6 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
     if (!context.mounted) {
       return;
     }
-    setState(() {
-      _isStarting = false;
-    });
     await Navigator.of(context).push<void>(
       buildAppRoute(
         page: QuizScreen(
@@ -252,6 +249,12 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
         transition: AppRouteTransition.sharedAxisHorizontal,
       ),
     );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _isStarting = false;
+    });
   }
 
   QuizModeConfig _resolveMode() {
