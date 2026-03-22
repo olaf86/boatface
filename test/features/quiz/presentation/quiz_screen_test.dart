@@ -11,27 +11,51 @@ void main() {
   testWidgets('shows hint buttons and freezes time in timed mode', (
     WidgetTester tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(_buildApp(mode: _buildMode(timeLimitSeconds: 10)));
 
-    expect(find.text('2択'), findsOneWidget);
-    expect(find.text('時間停止'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('quiz-hint-fifty-fifty')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('quiz-hint-time-freeze')),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('2択に絞る'), findsOneWidget);
+    expect(find.byTooltip('時間を停止する'), findsOneWidget);
 
-    await tester.tap(find.text('時間停止'));
+    await tester.tap(
+      find.byKey(const ValueKey<String>('quiz-hint-time-freeze')),
+    );
     await tester.pump();
 
     expect(find.text('時間停止中'), findsOneWidget);
-    expect(find.text('時間停止 済み'), findsOneWidget);
+    expect(find.byTooltip('時間停止ヒントは使用済み'), findsOneWidget);
   });
 
   testWidgets('hides time-freeze hint in unlimited mode', (
     WidgetTester tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(
       _buildApp(mode: _buildMode(timeLimitSeconds: null)),
     );
 
-    expect(find.text('2択'), findsOneWidget);
-    expect(find.text('時間停止'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('quiz-hint-fifty-fifty')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('quiz-hint-time-freeze')),
+      findsNothing,
+    );
+    expect(find.byTooltip('2択に絞る'), findsOneWidget);
+    expect(find.byTooltip('時間を停止する'), findsNothing);
     expect(find.text('制限時間: 無制限'), findsOneWidget);
   });
 }

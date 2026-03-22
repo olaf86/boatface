@@ -189,60 +189,68 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    alignment: WrapAlignment.spaceBetween,
+                  Row(
                     children: <Widget>[
-                      _QuizStatusChip(
-                        icon: isTimedMode
-                            ? (state.timeFreezeActive
-                                  ? Icons.pause_circle_filled_rounded
-                                  : Icons.timer_outlined)
-                            : Icons.all_inclusive_rounded,
-                        label: !isTimedMode
-                            ? '制限時間: 無制限'
-                            : state.timeFreezeActive
-                            ? '時間停止中'
-                            : '残り時間: $timerText',
-                      ),
-                      _QuizHintButton(
-                        icon: Icons.filter_2_rounded,
-                        label: '2択',
-                        isUsed: state.fiftyFiftyHintUsed,
-                        enabled: inputsEnabled && state.canUseFiftyFiftyHint,
-                        onPressed: _handleUseFiftyFiftyHint,
-                      ),
-                      if (isTimedMode)
-                        _QuizHintButton(
-                          icon: Icons.pause_rounded,
-                          label: '時間停止',
-                          isUsed: state.timeFreezeHintUsed,
-                          enabled: inputsEnabled && state.canUseTimeFreezeHint,
-                          onPressed: _handleUseTimeFreezeHint,
+                      Expanded(
+                        child: _QuizStatusChip(
+                          icon: isTimedMode
+                              ? (state.timeFreezeActive
+                                    ? Icons.pause_circle_filled_rounded
+                                    : Icons.timer_outlined)
+                              : Icons.all_inclusive_rounded,
+                          label: !isTimedMode
+                              ? '制限時間: 無制限'
+                              : state.timeFreezeActive
+                              ? '時間停止中'
+                              : '残り時間: $timerText',
                         ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Card(child: _QuizPromptCard(question: question)),
                   const SizedBox(height: 12),
                   Expanded(
-                    child: question.hasImageOptions
-                        ? _QuizImageOptionGrid(
-                            options: question.options,
-                            enabled: inputsEnabled,
-                            feedback: activeFeedback,
-                            removedOptionIndexes: state.removedOptionIndexes,
-                            onSelected: _handleAnswerSelected,
-                          )
-                        : _QuizTextOptionList(
-                            options: question.options,
-                            enabled: inputsEnabled,
-                            feedback: activeFeedback,
-                            removedOptionIndexes: state.removedOptionIndexes,
-                            onSelected: _handleAnswerSelected,
+                    child: Stack(
+                      children: <Widget>[
+                        Positioned.fill(
+                          child: question.hasImageOptions
+                              ? _QuizImageOptionGrid(
+                                  options: question.options,
+                                  enabled: inputsEnabled,
+                                  feedback: activeFeedback,
+                                  removedOptionIndexes:
+                                      state.removedOptionIndexes,
+                                  onSelected: _handleAnswerSelected,
+                                )
+                              : _QuizTextOptionList(
+                                  options: question.options,
+                                  enabled: inputsEnabled,
+                                  feedback: activeFeedback,
+                                  removedOptionIndexes:
+                                      state.removedOptionIndexes,
+                                  onSelected: _handleAnswerSelected,
+                                ),
+                        ),
+                        if (activeFeedback == null)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: _QuizHintCluster(
+                              showTimeFreeze: isTimedMode,
+                              canUseFiftyFiftyHint:
+                                  inputsEnabled && state.canUseFiftyFiftyHint,
+                              fiftyFiftyHintUsed: state.fiftyFiftyHintUsed,
+                              canUseTimeFreezeHint:
+                                  inputsEnabled && state.canUseTimeFreezeHint,
+                              timeFreezeHintUsed: state.timeFreezeHintUsed,
+                              timeFreezeActive: state.timeFreezeActive,
+                              onUseFiftyFiftyHint: _handleUseFiftyFiftyHint,
+                              onUseTimeFreezeHint: _handleUseTimeFreezeHint,
+                            ),
                           ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -869,31 +877,133 @@ class _QuizStatusChip extends StatelessWidget {
   }
 }
 
-class _QuizHintButton extends StatelessWidget {
-  const _QuizHintButton({
+class _QuizHintCluster extends StatelessWidget {
+  const _QuizHintCluster({
+    required this.showTimeFreeze,
+    required this.canUseFiftyFiftyHint,
+    required this.fiftyFiftyHintUsed,
+    required this.canUseTimeFreezeHint,
+    required this.timeFreezeHintUsed,
+    required this.timeFreezeActive,
+    required this.onUseFiftyFiftyHint,
+    required this.onUseTimeFreezeHint,
+  });
+
+  final bool showTimeFreeze;
+  final bool canUseFiftyFiftyHint;
+  final bool fiftyFiftyHintUsed;
+  final bool canUseTimeFreezeHint;
+  final bool timeFreezeHintUsed;
+  final bool timeFreezeActive;
+  final VoidCallback onUseFiftyFiftyHint;
+  final VoidCallback onUseTimeFreezeHint;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.82),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            _QuizHintIconButton(
+              buttonKey: const ValueKey<String>('quiz-hint-fifty-fifty'),
+              icon: Icons.filter_2_rounded,
+              tooltip: fiftyFiftyHintUsed ? '2択ヒントは使用済み' : '2択に絞る',
+              isUsed: fiftyFiftyHintUsed,
+              enabled: canUseFiftyFiftyHint,
+              onPressed: onUseFiftyFiftyHint,
+            ),
+            if (showTimeFreeze) ...<Widget>[
+              const SizedBox(height: 6),
+              _QuizHintIconButton(
+                buttonKey: const ValueKey<String>('quiz-hint-time-freeze'),
+                icon: timeFreezeActive
+                    ? Icons.pause_circle_filled_rounded
+                    : Icons.pause_rounded,
+                tooltip: timeFreezeHintUsed ? '時間停止ヒントは使用済み' : '時間を停止する',
+                isUsed: timeFreezeHintUsed,
+                enabled: canUseTimeFreezeHint,
+                onPressed: onUseTimeFreezeHint,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuizHintIconButton extends StatelessWidget {
+  const _QuizHintIconButton({
+    required this.buttonKey,
     required this.icon,
-    required this.label,
+    required this.tooltip,
     required this.isUsed,
     required this.enabled,
     required this.onPressed,
   });
 
+  final Key buttonKey;
   final IconData icon;
-  final String label;
+  final String tooltip;
   final bool isUsed;
   final bool enabled;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton.tonalIcon(
-      onPressed: enabled ? onPressed : null,
-      icon: Icon(isUsed ? Icons.check_rounded : icon),
-      label: Text(isUsed ? '$label 済み' : label),
-      style: FilledButton.styleFrom(
-        backgroundColor: isUsed
-            ? const Color(0xFF18A56B).withValues(alpha: 0.14)
-            : null,
+    final Color successColor = const Color(0xFF18A56B);
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: enabled ? onPressed : null,
+            customBorder: const CircleBorder(),
+            child: Ink(
+              key: buttonKey,
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isUsed
+                    ? successColor.withValues(alpha: 0.16)
+                    : colorScheme.surfaceContainerHighest.withValues(
+                        alpha: enabled ? 0.94 : 0.72,
+                      ),
+                border: Border.all(
+                  color: isUsed
+                      ? successColor.withValues(alpha: 0.5)
+                      : colorScheme.outlineVariant.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Icon(
+                isUsed ? Icons.check_rounded : icon,
+                size: 22,
+                color: enabled || isUsed
+                    ? colorScheme.onSurface
+                    : colorScheme.onSurface.withValues(alpha: 0.38),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
