@@ -39,6 +39,7 @@ class FirebaseRankingRepository implements RankingRepository {
         'limit': '$limit',
       },
       defaultErrorMessage: 'ランキングの取得に失敗しました。',
+      requiresAuth: false,
     );
     final RankingSnapshot? snapshot = RankingSnapshot.tryParseJson(json);
     if (snapshot == null) {

@@ -38,6 +38,7 @@ Backend assumptions:
 - every protected backend entry point requires a verified Firebase Auth user
 - backend uses `uid` as the canonical user identifier
 - user profile metadata is stored in Firestore under `users/{uid}`
+- ranking reads are public and do not require a Firebase ID token
 
 Recommended `users/{uid}` shape:
 
@@ -195,6 +196,9 @@ Backend write behavior:
 
 Operation:
 - `GET /rankings?modeId=challenge&period=today&limit=50`
+
+Authentication:
+- not required
 
 Allowed `period` values:
 - `today`
