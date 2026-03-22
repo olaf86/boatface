@@ -20,7 +20,7 @@ void main() {
     );
 
     final ProviderSubscription<AsyncValue<RankingSnapshot>> firstSubscription =
-        container.listen(rankingSnapshotProvider(request), (_, __) {});
+        container.listen(rankingSnapshotProvider(request), (_, _) {});
     addTearDown(firstSubscription.close);
 
     await container.read(rankingSnapshotProvider(request).future);
@@ -30,7 +30,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     final ProviderSubscription<AsyncValue<RankingSnapshot>> secondSubscription =
-        container.listen(rankingSnapshotProvider(request), (_, __) {});
+        container.listen(rankingSnapshotProvider(request), (_, _) {});
     addTearDown(secondSubscription.close);
 
     await container.read(rankingSnapshotProvider(request).future);
