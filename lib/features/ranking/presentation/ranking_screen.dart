@@ -93,8 +93,6 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
                           });
                         },
                       ),
-                      const SizedBox(height: 12),
-                      Text(mode.description),
                     ],
                   ),
                 ),
@@ -128,13 +126,14 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
           );
 
           final Widget leaderboard = Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
             child: Card(
+              clipBehavior: Clip.hardEdge,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
                     child: Row(
                       children: <Widget>[
                         Expanded(
@@ -165,71 +164,71 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
                     ),
                   ),
                   const Divider(height: 1),
+                  _LeaderboardTableHeader(theme: theme),
+                  const Divider(height: 1),
                   Expanded(
-                    child: rankingAsync.when(
-                      data: (RankingSnapshot snapshot) {
-                        if (snapshot.entries.isEmpty) {
-                          return const Center(
+                    child: ClipRect(
+                      child: rankingAsync.when(
+                        data: (RankingSnapshot snapshot) {
+                          if (snapshot.entries.isEmpty) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Text('まだランキングデータがありません。'),
+                              ),
+                            );
+                          }
+
+                          return ListView.separated(
+                            padding: EdgeInsets.zero,
+                            itemCount: snapshot.entries.length,
+                            separatorBuilder:
+                                (BuildContext context, int index) => Divider(
+                                  height: 1,
+                                  color: theme.colorScheme.outlineVariant,
+                                ),
+                            itemBuilder: (BuildContext context, int index) {
+                              final RankingEntry entry =
+                                  snapshot.entries[index];
+                              final bool isCurrentUser =
+                                  currentUserId != null &&
+                                  currentUserId == entry.userId;
+                              return _RankingListRow(
+                                entry: entry,
+                                isCurrentUser: isCurrentUser,
+                                formattedTime: _formatSeconds(
+                                  entry.totalAnswerTimeMs,
+                                ),
+                              );
+                            },
+                          );
+                        },
+                        loading: () =>
+                            const Center(child: CircularProgressIndicator()),
+                        error: (Object error, StackTrace stackTrace) {
+                          return Center(
                             child: Padding(
-                              padding: EdgeInsets.all(24),
-                              child: Text('まだランキングデータがありません。'),
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Text(
+                                    _messageForError(error),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  OutlinedButton(
+                                    onPressed: () => ref.invalidate(
+                                      rankingSnapshotProvider(request),
+                                    ),
+                                    child: const Text('再試行'),
+                                  ),
+                                ],
+                              ),
                             ),
                           );
-                        }
-
-                        return ListView.separated(
-                          itemCount: snapshot.entries.length,
-                          separatorBuilder: (BuildContext context, int index) =>
-                              const Divider(height: 1),
-                          itemBuilder: (BuildContext context, int index) {
-                            final RankingEntry entry = snapshot.entries[index];
-                            final bool isCurrentUser =
-                                currentUserId != null &&
-                                currentUserId == entry.userId;
-                            return ListTile(
-                              tileColor: isCurrentUser
-                                  ? theme.colorScheme.primaryContainer
-                                  : null,
-                              leading: CircleAvatar(
-                                child: Text('${entry.rank}'),
-                              ),
-                              title: Text(entry.displayName),
-                              subtitle: Text(
-                                [
-                                  if (entry.region != null) entry.region!.label,
-                                  '総回答時間: ${_formatSeconds(entry.totalAnswerTimeMs)}',
-                                ].join(' ・ '),
-                              ),
-                              trailing: Text('Score ${entry.score}'),
-                            );
-                          },
-                        );
-                      },
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (Object error, StackTrace stackTrace) {
-                        return Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                Text(
-                                  _messageForError(error),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 12),
-                                OutlinedButton(
-                                  onPressed: () => ref.invalidate(
-                                    rankingSnapshotProvider(request),
-                                  ),
-                                  child: const Text('再試行'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+                        },
+                      ),
                     ),
                   ),
                 ],
@@ -240,7 +239,7 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
           if (!twoColumn) {
             return Column(
               children: <Widget>[
-                SizedBox(height: 320, child: filters),
+                SizedBox(height: 272, child: filters),
                 Expanded(child: leaderboard),
               ],
             );
@@ -248,7 +247,7 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
 
           return Row(
             children: <Widget>[
-              SizedBox(width: 320, child: filters),
+              SizedBox(width: 300, child: filters),
               VerticalDivider(
                 width: 1,
                 color: theme.colorScheme.outlineVariant,
@@ -269,6 +268,172 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
     return switch (error) {
       final Exception exception => exception.toString(),
       _ => 'ランキングの取得に失敗しました。',
+    };
+  }
+}
+
+class _LeaderboardTableHeader extends StatelessWidget {
+  const _LeaderboardTableHeader({required this.theme});
+
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: theme.colorScheme.surfaceContainerHigh,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: DefaultTextStyle(
+          style: theme.textTheme.labelMedium!.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.4,
+          ),
+          child: const Row(
+            children: <Widget>[
+              SizedBox(width: 68, child: Text('順位')),
+              Expanded(child: Text('プレイヤー')),
+              SizedBox(width: 72, child: Text('タイム', textAlign: TextAlign.end)),
+              SizedBox(
+                width: 92,
+                child: Text('SCORE', textAlign: TextAlign.end),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RankingListRow extends StatelessWidget {
+  const _RankingListRow({
+    required this.entry,
+    required this.isCurrentUser,
+    required this.formattedTime,
+  });
+
+  final RankingEntry entry;
+  final bool isCurrentUser;
+  final String formattedTime;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final Color? crownColor = _crownColorForRank(entry.rank);
+    final Color scoreColor = isCurrentUser
+        ? theme.colorScheme.onPrimaryContainer
+        : theme.colorScheme.primary;
+
+    return ColoredBox(
+      color: isCurrentUser
+          ? theme.colorScheme.primaryContainer
+          : Colors.transparent,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: <Widget>[
+            SizedBox(
+              width: 68,
+              child: Row(
+                children: <Widget>[
+                  SizedBox(
+                    width: 22,
+                    child: crownColor == null
+                        ? null
+                        : Icon(
+                            Icons.workspace_premium_rounded,
+                            size: 18,
+                            color: crownColor,
+                          ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${entry.rank}',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    entry.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    entry.region?.label ?? '地域未設定',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 72,
+              child: Text(
+                formattedTime,
+                textAlign: TextAlign.end,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 80,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: scoreColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    child: Text(
+                      '${entry.score}',
+                      textAlign: TextAlign.end,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: scoreColor,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color? _crownColorForRank(int rank) {
+    return switch (rank) {
+      1 => const Color(0xFFD4AF37),
+      2 => const Color(0xFFC0C0C0),
+      3 => const Color(0xFFCD7F32),
+      _ => null,
     };
   }
 }
