@@ -11,9 +11,6 @@ void main() {
   testWidgets('shows hint buttons and freezes time in timed mode', (
     WidgetTester tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(430, 932));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
     await tester.pumpWidget(_buildApp(mode: _buildMode(timeLimitSeconds: 10)));
 
     expect(
@@ -39,9 +36,6 @@ void main() {
   testWidgets('hides time-freeze hint in unlimited mode', (
     WidgetTester tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(430, 932));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
     await tester.pumpWidget(
       _buildApp(mode: _buildMode(timeLimitSeconds: null)),
     );
