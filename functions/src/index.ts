@@ -1017,6 +1017,7 @@ export const getRankings = onRequest({region}, async (request, response) => {
   }
 
   try {
+    const token = await verifyRequestAuth(request);
     const modeId = requireModeId(request.query.modeId);
     const period =
       typeof request.query.period === "string" && allowedPeriods.has(request.query.period) ?
@@ -1045,7 +1046,7 @@ export const getRankings = onRequest({region}, async (request, response) => {
       (snapshot.get("entries") as RankingEntry[]).slice(0, limit) :
       [];
 
-    logger.info("getRankings succeeded", {modeId, period, limit});
+    logger.info("getRankings succeeded", {uid: token.uid, modeId, period, limit});
     response.status(200).json({
       modeId,
       period,
@@ -1057,6 +1058,11 @@ export const getRankings = onRequest({region}, async (request, response) => {
     });
   } catch (error) {
     logger.error("getRankings failed", error);
+    if (isAuthError(error)) {
+      sendError(response, 401, "unauthenticated", "A valid Firebase ID token is required.");
+      return;
+    }
+
     sendError(response, 500, "internal", "Failed to fetch rankings.");
   }
 });

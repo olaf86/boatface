@@ -307,20 +307,6 @@ test("functions endpoints work together in the emulator suite", async () => {
   const publicRankingsResult = await callFunction("getRankings?modeId=quick&period=today&limit=10", {
     method: "GET",
   });
-  assert.equal(publicRankingsResult.response.status, 200);
-  assert.equal(publicRankingsResult.body.modeId, "quick");
-  assert.equal(publicRankingsResult.body.period, "today");
-  assert.equal(publicRankingsResult.body.entries.length, 1);
-  assert.deepEqual(publicRankingsResult.body.entries[0], {
-    rank: 1,
-    userId: localId,
-    displayName: "テスト太郎",
-    region: {
-      category: "prefecture",
-      code: "tokyo",
-      label: "東京都",
-    },
-    score: 7,
-    totalAnswerTimeMs: 5432,
-  });
+  assert.equal(publicRankingsResult.response.status, 401);
+  assert.equal(publicRankingsResult.body.error, "unauthenticated");
 });

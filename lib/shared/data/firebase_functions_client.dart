@@ -21,13 +21,11 @@ class FirebaseFunctionsClient {
     String path, {
     Map<String, String>? queryParameters,
     required String defaultErrorMessage,
-    bool requiresAuth = true,
   }) async {
     final http.Response response = await get(
       path,
       queryParameters: queryParameters,
       acceptHeader: 'application/json',
-      requiresAuth: requiresAuth,
     );
     return _decodeJsonObject(
       response,
@@ -40,13 +38,11 @@ class FirebaseFunctionsClient {
     String path, {
     Map<String, Object?>? body,
     required String defaultErrorMessage,
-    bool requiresAuth = true,
   }) async {
     final http.Response response = await post(
       path,
       body: body,
       acceptHeader: 'application/json',
-      requiresAuth: requiresAuth,
     );
     return _decodeJsonObject(
       response,
@@ -59,13 +55,11 @@ class FirebaseFunctionsClient {
     String path, {
     Map<String, String>? queryParameters,
     required String defaultErrorMessage,
-    bool requiresAuth = true,
   }) async {
     final http.Response response = await get(
       path,
       queryParameters: queryParameters,
       acceptHeader: 'application/zip',
-      requiresAuth: requiresAuth,
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw FirebaseFunctionsClientException(
@@ -80,14 +74,12 @@ class FirebaseFunctionsClient {
     String path, {
     Map<String, String>? queryParameters,
     required String acceptHeader,
-    bool requiresAuth = true,
   }) async {
     return _send(
       method: 'GET',
       path: path,
       queryParameters: queryParameters,
       acceptHeader: acceptHeader,
-      requiresAuth: requiresAuth,
     );
   }
 
@@ -95,14 +87,12 @@ class FirebaseFunctionsClient {
     String path, {
     Map<String, Object?>? body,
     required String acceptHeader,
-    bool requiresAuth = true,
   }) async {
     return _send(
       method: 'POST',
       path: path,
       acceptHeader: acceptHeader,
       body: body == null ? null : jsonEncode(body),
-      requiresAuth: requiresAuth,
     );
   }
 
@@ -110,25 +100,9 @@ class FirebaseFunctionsClient {
     required String method,
     required String path,
     required String acceptHeader,
-    required bool requiresAuth,
     Map<String, String>? queryParameters,
     String? body,
   }) async {
-    String? authorizationHeader;
-    if (requiresAuth) {
-      final User? user = _auth.currentUser;
-      if (user == null) {
-        throw const FirebaseFunctionsClientException('ログイン状態を確認できません。');
-      }
-
-      final String? token = await user.getIdToken();
-      if (token == null || token.isEmpty) {
-        throw const FirebaseFunctionsClientException('認証トークンを取得できません。');
-      }
-
-      authorizationHeader = 'Bearer $token';
-    }
-
     final String projectId = Firebase.app().options.projectId;
     if (projectId.isEmpty) {
       throw const FirebaseFunctionsClientException(
@@ -142,13 +116,56 @@ class FirebaseFunctionsClient {
       queryParameters,
     );
 
+    String authorizationHeader = await _getAuthorizationHeader();
+    http.Response response = await _dispatchRequest(
+      method: method,
+      uri: uri,
+      acceptHeader: acceptHeader,
+      authorizationHeader: authorizationHeader,
+      body: body,
+    );
+
+    if (response.statusCode == 401) {
+      authorizationHeader = await _getAuthorizationHeader(forceRefresh: true);
+      response = await _dispatchRequest(
+        method: method,
+        uri: uri,
+        acceptHeader: acceptHeader,
+        authorizationHeader: authorizationHeader,
+        body: body,
+      );
+    }
+
+    return response;
+  }
+
+  Future<String> _getAuthorizationHeader({bool forceRefresh = false}) async {
+    final User? user = _auth.currentUser;
+    if (user == null) {
+      throw const FirebaseFunctionsClientException('ログイン状態を確認できません。');
+    }
+
+    final String? token = await user.getIdToken(forceRefresh);
+    if (token == null || token.isEmpty) {
+      throw const FirebaseFunctionsClientException('認証トークンを取得できません。');
+    }
+
+    return 'Bearer $token';
+  }
+
+  Future<http.Response> _dispatchRequest({
+    required String method,
+    required Uri uri,
+    required String acceptHeader,
+    required String authorizationHeader,
+    String? body,
+  }) {
     return _httpClient
         .send(
           http.Request(method, uri)
             ..headers.addAll(<String, String>{
               'Accept': acceptHeader,
-              if (authorizationHeader != null)
-                'Authorization': authorizationHeader,
+              'Authorization': authorizationHeader,
               if (body != null) 'Content-Type': 'application/json',
             })
             ..body = body ?? '',
