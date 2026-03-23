@@ -468,7 +468,7 @@ class _QuizTextOptionList extends StatelessWidget {
     return ListView.separated(
       itemCount: options.length,
       separatorBuilder: (BuildContext context, int index) =>
-          const SizedBox(height: 6),
+          const SizedBox(height: 2),
       itemBuilder: (BuildContext context, int i) {
         final bool isRemoved = removedOptionIndexes.contains(i);
         return _QuizTextOptionButton(
@@ -642,6 +642,18 @@ class _QuizTextOptionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color accentColor = _accentColorFor(context, visualState);
     final bool highlighted = _isHighlighted(visualState);
+    const TextStyle optionNameStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 16,
+      fontWeight: FontWeight.w700,
+      height: 0.92,
+    );
+    const TextStyle optionKanaStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 5.5,
+      fontWeight: FontWeight.w700,
+      height: 1,
+    );
 
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 220),
@@ -656,7 +668,7 @@ class _QuizTextOptionButton extends StatelessWidget {
           style: FilledButton.styleFrom(
             alignment: Alignment.center,
             backgroundColor: _backgroundColorFor(context, visualState),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             side: highlighted
                 ? BorderSide(
                     color: accentColor.withValues(alpha: 0.9),
@@ -676,6 +688,8 @@ class _QuizTextOptionButton extends StatelessWidget {
                   child: RacerNameText(
                     name: label,
                     nameKana: labelReading,
+                    style: optionNameStyle,
+                    kanaStyle: optionKanaStyle,
                     textAlign: TextAlign.center,
                   ),
                 ),
