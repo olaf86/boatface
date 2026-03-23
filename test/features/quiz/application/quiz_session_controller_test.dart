@@ -74,6 +74,34 @@ void main() {
       expect(completedState.endReason, QuizEndReason.wrongAnswer);
     });
 
+    test('restarts the same question after continuing from an ad', () {
+      final QuizModeConfig mode = _buildMode(questionCount: 2);
+      final ProviderContainer container = _createContainer();
+      addTearDown(container.dispose);
+
+      final QuizSessionController controller = container.read(
+        quizSessionControllerProvider(mode).notifier,
+      );
+      final QuizSessionState initialState = container.read(
+        quizSessionControllerProvider(mode),
+      );
+      final QuizQuestion firstQuestion = initialState.currentQuestion!;
+      final int wrongIndex =
+          (firstQuestion.correctIndex + 1) % firstQuestion.options.length;
+
+      controller.submitAnswer(wrongIndex);
+      controller.completeAnswerFeedback();
+      controller.continueAfterAd();
+
+      final QuizSessionState continuedState = container.read(
+        quizSessionControllerProvider(mode),
+      );
+      expect(continuedState.gameOver, false);
+      expect(continuedState.continuedByAd, true);
+      expect(continuedState.currentQuestionIndex, 0);
+      expect(continuedState.currentQuestion, same(firstQuestion));
+    });
+
     test(
       'delays completion on final correct answer until feedback completes',
       () {
@@ -232,6 +260,7 @@ class _FakeRacerRepository implements RacerRepository {
       return RacerProfile(
         id: 'racer-$index',
         name: '選手$index',
+        nameKana: 'センシュ$index',
         registrationNumber: 5000 + index,
         racerClass: index.isEven ? 'A1' : 'A2',
         gender: index.isEven ? 'male' : 'female',

@@ -133,11 +133,6 @@ class QuizSession {
     endReason = null;
     clientFinishedAt = null;
     _resetQuestionScopedHints();
-    currentIndex += 1;
-    if (currentIndex >= questions.length) {
-      endReason = QuizEndReason.completed;
-      clientFinishedAt = DateTime.now();
-    }
   }
 
   void abandon() {
