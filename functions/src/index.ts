@@ -384,6 +384,7 @@ function mapRacerResponse(id: string, data: Record<string, unknown>) {
   return {
     id,
     name: data.name ?? null,
+    nameKana: data.nameKana ?? null,
     registrationNumber: data.registrationNumber ?? null,
     class: data.class ?? null,
     gender: data.gender ?? null,

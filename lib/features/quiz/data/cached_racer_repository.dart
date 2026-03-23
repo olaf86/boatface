@@ -176,6 +176,7 @@ class CachedRacerRepository implements RacerRepository {
     required RacerDatasetManifest remoteManifest,
   }) async {
     if (localSnapshot == null ||
+        !_hasUsableSnapshot(localSnapshot) ||
         remoteManifest.shouldReplaceSnapshot(localSnapshot.manifest)) {
       final RacerDatasetSnapshot remoteSnapshot = await _remoteDataSource
           .fetchSnapshot(datasetId: remoteManifest.datasetId);

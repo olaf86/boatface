@@ -330,12 +330,17 @@ class QuizSessionFactory {
     switch (type) {
       case QuizPromptType.faceToName:
       case QuizPromptType.partialFaceToName:
-        return QuizOption(racerId: racer.id, label: racer.name);
+        return QuizOption(
+          racerId: racer.id,
+          label: racer.name,
+          labelReading: racer.nameKana,
+        );
       case QuizPromptType.nameToFace:
       case QuizPromptType.registrationToFace:
         return QuizOption(
           racerId: racer.id,
           label: racer.name,
+          labelReading: racer.nameKana,
           imageUrl: racer.imageUrl,
           localImagePath: racer.localImagePath,
         );

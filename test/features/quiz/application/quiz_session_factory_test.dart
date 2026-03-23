@@ -137,6 +137,27 @@ void main() {
       );
     });
 
+    test('keeps kana on target for name-to-face questions', () {
+      final QuizSession session = QuizSessionFactory.create(
+        mode: const QuizModeConfig(
+          id: 'name-face',
+          label: '名前->顔',
+          description: '',
+          timeLimitSeconds: 10,
+          segments: <QuizSegment>[
+            QuizSegment(promptType: QuizPromptType.nameToFace, count: 1),
+          ],
+        ),
+        racers: _buildRacers(),
+      );
+
+      final QuizQuestion question = session.currentQuestion!;
+      final QuizOption target = question.options[question.correctIndex];
+
+      expect(question.prompt, contains(target.label));
+      expect(target.labelReading, isNotNull);
+    });
+
     test(
       'limits quick mode questions and options to A1 racers of same gender',
       () {
@@ -436,6 +457,7 @@ RacerProfile _buildRacer(
   return RacerProfile(
     id: 'racer-$index',
     name: '選手$index',
+    nameKana: 'センシュ$index',
     registrationNumber: 4000 + index,
     racerClass: racerClass,
     gender: gender,

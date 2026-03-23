@@ -3,6 +3,7 @@ import 'package:boatface/features/quiz/data/racer_master_models.dart';
 import 'package:boatface/features/quiz/data/racer_repository.dart';
 import 'package:boatface/features/quiz/application/quiz_session_controller.dart';
 import 'package:boatface/features/quiz/domain/quiz_models.dart';
+import 'package:boatface/features/quiz/presentation/racer_name_text.dart';
 import 'package:boatface/features/quiz/presentation/quiz_screen.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -138,6 +139,34 @@ void main() {
       semantics.dispose();
     }
   });
+
+  testWidgets('shows furigana for racer names when available', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(_buildApp(mode: _buildMode(timeLimitSeconds: 10)));
+
+    expect(find.textContaining('センシュ'), findsWidgets);
+    expect(find.textContaining('選手'), findsWidgets);
+  });
+
+  testWidgets('splits family and given names with separate ruby labels', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: RacerNameText(name: '高橋 二朗', nameKana: 'タカハシ ジロウ'),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('高橋'), findsOneWidget);
+    expect(find.text('二朗'), findsOneWidget);
+    expect(find.text('タカハシ'), findsOneWidget);
+    expect(find.text('ジロウ'), findsOneWidget);
+  });
 }
 
 Widget _buildApp({required QuizModeConfig mode}) {
@@ -191,6 +220,7 @@ class _FakeRacerRepository implements RacerRepository {
       return RacerProfile(
         id: 'racer-$index',
         name: '選手$index',
+        nameKana: 'センシュ$index',
         registrationNumber: 5000 + index,
         racerClass: index.isEven ? 'A1' : 'A2',
         gender: index.isEven ? 'male' : 'female',
