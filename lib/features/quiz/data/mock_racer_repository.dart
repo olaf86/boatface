@@ -50,6 +50,7 @@ class MockRacerRepository implements RacerRepository {
       return RacerProfile(
         id: 'racer-${registration.toString()}',
         name: '選手${registration.toString()}',
+        nameKana: 'センシュ${registration.toString()}',
         registrationNumber: registration,
         racerClass: switch (i % 4) {
           0 => 'A1',

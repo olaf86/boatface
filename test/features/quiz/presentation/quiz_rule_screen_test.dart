@@ -94,6 +94,7 @@ class _FakeRacerRepository implements RacerRepository {
       return RacerProfile(
         id: 'racer-$index',
         name: '選手$index',
+        nameKana: 'センシュ$index',
         registrationNumber: 5000 + index,
         racerClass: index.isEven ? 'A1' : 'A2',
         gender: index.isEven ? 'male' : 'female',
