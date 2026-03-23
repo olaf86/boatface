@@ -35,23 +35,32 @@ class QuizScreen extends ConsumerStatefulWidget {
 }
 
 class _QuizScreenState extends ConsumerState<QuizScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   bool _didPop = false;
   bool _dialogVisible = false;
   late bool _isIntroCountdownActive;
+  late final AnimationController _backgroundFlowController;
   QuizAnswerFeedback? _activeFeedback;
   bool _isFeedbackOverlayVisible = false;
+  int _hintConsumptionTick = 0;
+  String? _lastConsumedHintLabel;
+  String? _lastConsumedHintId;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _isIntroCountdownActive = widget.showIntroCountdown;
+    _backgroundFlowController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 18),
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _backgroundFlowController.dispose();
     super.dispose();
   }
 
@@ -151,6 +160,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         : (remainingForDisplay.inMilliseconds / 1000).toStringAsFixed(1);
     final bool inputsEnabled = !state.isProcessing && activeFeedback == null;
     final bool isTimedMode = widget.mode.timeLimitSeconds != null;
+    final double? remainingRatio = _buildRemainingRatio(
+      remaining: remainingForDisplay,
+      totalSeconds: widget.mode.timeLimitSeconds,
+    );
+    final List<Color> backgroundColors = _quizBackgroundGradient(
+      modeId: widget.mode.id,
+      remainingRatio: remainingRatio,
+      isTimeFrozen: state.timeFreezeActive,
+    );
+    final Color headerForegroundColor = Theme.of(context).colorScheme.primary;
 
     return PopScope(
       canPop: false,
@@ -179,105 +198,101 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
           ref.read(provider.notifier).abandon();
         }
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            '${widget.mode.label}  $questionNumber/${state.totalQuestions}',
+      child: AnimatedBuilder(
+        animation: _backgroundFlowController,
+        builder: (BuildContext context, Widget? child) {
+          return _AnimatedQuizBackdrop(
+            progress: _backgroundFlowController.value,
+            colors: backgroundColors,
+            emphasizeMotion: !isTimedMode,
+            child: child!,
+          );
+        },
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            surfaceTintColor: Colors.transparent,
+            foregroundColor: headerForegroundColor,
+            title: Text(
+              '${widget.mode.label}  $questionNumber/${state.totalQuestions}',
+            ),
           ),
-        ),
-        body: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Stack(
-            children: <Widget>[
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: _QuizStatusChip(
-                          icon: isTimedMode
-                              ? (state.timeFreezeActive
-                                    ? Icons.pause_circle_filled_rounded
-                                    : Icons.timer_outlined)
-                              : Icons.all_inclusive_rounded,
-                          label: !isTimedMode
-                              ? '制限時間: 無制限'
-                              : state.timeFreezeActive
-                              ? '時間停止中'
-                              : '残り時間: $timerText',
+          body: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                child: Stack(
+                  children: <Widget>[
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        _QuizSessionHudBar(
+                          timerText: timerText,
+                          remainingRatio: remainingRatio,
+                          isTimeFrozen: state.timeFreezeActive,
+                          totalSeconds: widget.mode.timeLimitSeconds,
+                        ),
+                        const SizedBox(height: 10),
+                        Card(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          child: _QuizPromptCard(
+                            question: question,
+                            availableHeight: constraints.maxHeight,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        _QuizHintPanel(
+                          showTimeFreeze: isTimedMode,
+                          inputsEnabled: inputsEnabled,
+                          fiftyFiftyHintUsed: state.fiftyFiftyHintUsed,
+                          canUseFiftyFiftyHint: state.canUseFiftyFiftyHint,
+                          timeFreezeHintUsed: state.timeFreezeHintUsed,
+                          canUseTimeFreezeHint: state.canUseTimeFreezeHint,
+                          hintConsumptionTick: _hintConsumptionTick,
+                          consumedHintLabel: _lastConsumedHintLabel,
+                          consumedHintId: _lastConsumedHintId,
+                          onUseFiftyFiftyHint: _handleUseFiftyFiftyHint,
+                          onUseTimeFreezeHint: _handleUseTimeFreezeHint,
+                        ),
+                        const SizedBox(height: 10),
+                        Expanded(
+                          child: question.hasImageOptions
+                              ? _QuizImageOptionGrid(
+                                  options: question.options,
+                                  enabled: inputsEnabled,
+                                  feedback: activeFeedback,
+                                  removedOptionIndexes:
+                                      state.removedOptionIndexes,
+                                  onSelected: _handleAnswerSelected,
+                                )
+                              : _QuizTextOptionList(
+                                  options: question.options,
+                                  enabled: inputsEnabled,
+                                  feedback: activeFeedback,
+                                  removedOptionIndexes:
+                                      state.removedOptionIndexes,
+                                  onSelected: _handleAnswerSelected,
+                                ),
+                        ),
+                      ],
+                    ),
+                    if (activeFeedback != null && _isFeedbackOverlayVisible)
+                      Positioned.fill(
+                        child: _QuizAnswerFeedbackOverlay(
+                          key: ValueKey<String>(
+                            'answer-feedback-${activeFeedback.questionIndex}-${activeFeedback.selectedIndex}-${activeFeedback.isCorrect}',
+                          ),
+                          feedback: activeFeedback,
+                          onCompleted: _completeAnswerFeedback,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          _QuizHintButton(
-                            buttonKey: const ValueKey<String>(
-                              'quiz-hint-fifty-fifty',
-                            ),
-                            icon: Icons.filter_2_rounded,
-                            tooltip: state.fiftyFiftyHintUsed
-                                ? '2択ヒントは使用済み'
-                                : '2択に絞る',
-                            isUsed: state.fiftyFiftyHintUsed,
-                            enabled:
-                                inputsEnabled && state.canUseFiftyFiftyHint,
-                            onPressed: _handleUseFiftyFiftyHint,
-                          ),
-                          if (isTimedMode) ...<Widget>[
-                            const SizedBox(width: 8),
-                            _QuizHintButton(
-                              buttonKey: const ValueKey<String>(
-                                'quiz-hint-time-freeze',
-                              ),
-                              icon: Icons.pause_rounded,
-                              tooltip: state.timeFreezeHintUsed
-                                  ? '時間停止ヒントは使用済み'
-                                  : '時間を停止する',
-                              isUsed: state.timeFreezeHintUsed,
-                              enabled:
-                                  inputsEnabled && state.canUseTimeFreezeHint,
-                              onPressed: _handleUseTimeFreezeHint,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Card(child: _QuizPromptCard(question: question)),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: question.hasImageOptions
-                        ? _QuizImageOptionGrid(
-                            options: question.options,
-                            enabled: inputsEnabled,
-                            feedback: activeFeedback,
-                            removedOptionIndexes: state.removedOptionIndexes,
-                            onSelected: _handleAnswerSelected,
-                          )
-                        : _QuizTextOptionList(
-                            options: question.options,
-                            enabled: inputsEnabled,
-                            feedback: activeFeedback,
-                            removedOptionIndexes: state.removedOptionIndexes,
-                            onSelected: _handleAnswerSelected,
-                          ),
-                  ),
-                ],
-              ),
-              if (activeFeedback != null && _isFeedbackOverlayVisible)
-                Positioned.fill(
-                  child: _QuizAnswerFeedbackOverlay(
-                    key: ValueKey<String>(
-                      'answer-feedback-${activeFeedback.questionIndex}-${activeFeedback.selectedIndex}-${activeFeedback.isCorrect}',
-                    ),
-                    feedback: activeFeedback,
-                    onCompleted: _completeAnswerFeedback,
-                  ),
+                  ],
                 ),
-            ],
+              );
+            },
           ),
         ),
       ),
@@ -286,105 +301,35 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   Future<void> _showGameOverDialog({required bool canContinue}) async {
     _dialogVisible = true;
-    await showGeneralDialog<void>(
+    await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.transparent,
-      pageBuilder: (BuildContext context, _, __) {
-        bool isDialogHidden = false;
-
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setDialogState) {
-            void setDialogHidden(bool hidden) {
-              if (isDialogHidden == hidden) {
-                return;
-              }
-              setDialogState(() {
-                isDialogHidden = hidden;
-              });
-            }
-
-            return Material(
-              type: MaterialType.transparency,
-              child: Stack(
-                children: <Widget>[
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 160),
-                        color: isDialogHidden
-                            ? Colors.black.withValues(alpha: 0.08)
-                            : Colors.black.withValues(alpha: 0.42),
-                      ),
-                    ),
-                  ),
-                  SafeArea(
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            AnimatedOpacity(
-                              key: const ValueKey<String>(
-                                'game-over-dialog-visibility',
-                              ),
-                              duration: const Duration(milliseconds: 140),
-                              opacity: isDialogHidden ? 0 : 1,
-                              child: IgnorePointer(
-                                ignoring: isDialogHidden,
-                                child: AlertDialog(
-                                  key: const ValueKey<String>(
-                                    'game-over-dialog',
-                                  ),
-                                  title: const Text('ゲームオーバー'),
-                                  content: Text(
-                                    canContinue
-                                        ? '広告を見て1回だけ続行できます。'
-                                        : 'セッションを終了します。',
-                                  ),
-                                  actions: <Widget>[
-                                    if (canContinue)
-                                      TextButton(
-                                        onPressed: () {
-                                          if (mounted) {
-                                            setState(() {
-                                              _activeFeedback = null;
-                                            });
-                                          }
-                                          ref
-                                              .read(
-                                                quizSessionControllerProvider(
-                                                  widget.mode,
-                                                ).notifier,
-                                              )
-                                              .continueAfterAd();
-                                          Navigator.of(context).pop();
-                                        },
-                                        child: const Text('広告を見て続行'),
-                                      ),
-                                    FilledButton(
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(),
-                                      child: const Text('結果へ'),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            _GameOverPeekButton(onHoldChanged: setDialogHidden),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+      builder: (BuildContext context) => AlertDialog(
+        key: const ValueKey<String>('game-over-dialog'),
+        title: const Text('ゲームオーバー'),
+        content: Text(canContinue ? '広告を見て1回だけ続行できます。' : 'セッションを終了します。'),
+        actions: <Widget>[
+          if (canContinue)
+            TextButton(
+              onPressed: () {
+                if (mounted) {
+                  setState(() {
+                    _activeFeedback = null;
+                  });
+                }
+                ref
+                    .read(quizSessionControllerProvider(widget.mode).notifier)
+                    .continueAfterAd();
+                Navigator.of(context).pop();
+              },
+              child: const Text('広告を見て続行'),
+            ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('結果へ'),
+          ),
+        ],
+      ),
     );
     _dialogVisible = false;
 
@@ -445,18 +390,46 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (_activeFeedback != null) {
       return;
     }
-    ref
+    final bool used = ref
         .read(quizSessionControllerProvider(widget.mode).notifier)
         .useFiftyFiftyHint();
+    if (used && mounted) {
+      setState(() {
+        _hintConsumptionTick += 1;
+        _lastConsumedHintLabel = '2択ヒント';
+        _lastConsumedHintId = 'fifty-fifty';
+      });
+      _clearHintConsumptionEffectAfterDelay(_hintConsumptionTick);
+    }
   }
 
   void _handleUseTimeFreezeHint() {
     if (_activeFeedback != null) {
       return;
     }
-    ref
+    final bool used = ref
         .read(quizSessionControllerProvider(widget.mode).notifier)
         .useTimeFreezeHint();
+    if (used && mounted) {
+      setState(() {
+        _hintConsumptionTick += 1;
+        _lastConsumedHintLabel = '時間停止';
+        _lastConsumedHintId = 'time-freeze';
+      });
+      _clearHintConsumptionEffectAfterDelay(_hintConsumptionTick);
+    }
+  }
+
+  void _clearHintConsumptionEffectAfterDelay(int tick) {
+    Future<void>.delayed(const Duration(milliseconds: 900), () {
+      if (!mounted || _hintConsumptionTick != tick) {
+        return;
+      }
+      setState(() {
+        _lastConsumedHintLabel = null;
+        _lastConsumedHintId = null;
+      });
+    });
   }
 
   void _completeAnswerFeedback() {
@@ -477,78 +450,28 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 }
 
-class _GameOverPeekButton extends StatelessWidget {
-  const _GameOverPeekButton({required this.onHoldChanged});
-
-  final ValueChanged<bool> onHoldChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-
-    return Semantics(
-      button: true,
-      label: '長押しでダイアログを隠す',
-      child: GestureDetector(
-        key: const ValueKey<String>('game-over-peek-button'),
-        onLongPressStart: (_) => onHoldChanged(true),
-        onLongPressEnd: (_) => onHoldChanged(false),
-        onLongPressCancel: () => onHoldChanged(false),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: colorScheme.surface.withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.75),
-            ),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(
-                  Icons.visibility_off_outlined,
-                  size: 18,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '長押しで問題を確認',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _QuizPromptCard extends StatelessWidget {
-  const _QuizPromptCard({required this.question});
+  const _QuizPromptCard({
+    required this.question,
+    required this.availableHeight,
+  });
 
   final QuizQuestion question;
+  final double availableHeight;
 
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final double screenHeight = MediaQuery.sizeOf(context).height;
-    final double promptImageHeight = (screenHeight * 0.42).clamp(286.0, 380.0);
+    final bool isFacePrompt =
+        question.promptType == QuizPromptType.faceToName ||
+        question.promptType == QuizPromptType.faceToRegistration;
+    final double promptImageHeight = isFacePrompt
+        ? (availableHeight * 0.29).clamp(234.0, 324.0)
+        : (screenHeight * 0.42).clamp(286.0, 380.0);
 
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(isFacePrompt ? 10 : 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -596,6 +519,7 @@ class _QuizTextOptionList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       itemCount: options.length,
       separatorBuilder: (BuildContext context, int index) =>
           const SizedBox(height: 2),
@@ -636,6 +560,7 @@ class _QuizImageOptionGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
       itemCount: options.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -1047,27 +972,439 @@ Color? _backgroundColorFor(
   };
 }
 
-class _QuizStatusChip extends StatelessWidget {
-  const _QuizStatusChip({required this.icon, required this.label});
+class _AnimatedQuizBackdrop extends StatelessWidget {
+  const _AnimatedQuizBackdrop({
+    required this.progress,
+    required this.colors,
+    required this.emphasizeMotion,
+    required this.child,
+  });
 
-  final IconData icon;
-  final String label;
+  final double progress;
+  final List<Color> colors;
+  final bool emphasizeMotion;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final double animatedProgress = emphasizeMotion
+        ? Curves.easeInOutSine.transform(progress)
+        : progress;
+    final Alignment begin = Alignment.lerp(
+      emphasizeMotion
+          ? const Alignment(-0.22, -1.35)
+          : const Alignment(0, -1.2),
+      emphasizeMotion
+          ? const Alignment(0.3, -0.65)
+          : const Alignment(-0.18, -0.95),
+      animatedProgress,
+    )!;
+    final Alignment end = Alignment.lerp(
+      emphasizeMotion
+          ? const Alignment(-0.12, 1.22)
+          : const Alignment(0.12, 1.15),
+      emphasizeMotion
+          ? const Alignment(0.55, 0.72)
+          : const Alignment(0.32, 1.0),
+      animatedProgress,
+    )!;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: colors, begin: begin, end: end),
+          ),
+        ),
+        IgnorePointer(
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              Align(
+                alignment: Alignment.lerp(
+                  emphasizeMotion
+                      ? const Alignment(-1.2, -1.0)
+                      : const Alignment(-1.15, -0.9),
+                  emphasizeMotion
+                      ? const Alignment(0.85, -0.05)
+                      : const Alignment(0.65, -0.25),
+                  animatedProgress,
+                )!,
+                child: _BackdropOrb(
+                  color: colors.first.withValues(
+                    alpha: emphasizeMotion ? 0.34 : 0.26,
+                  ),
+                  size: emphasizeMotion ? 260 : 240,
+                ),
+              ),
+              Align(
+                alignment: Alignment.lerp(
+                  emphasizeMotion
+                      ? const Alignment(1.2, 0.15)
+                      : const Alignment(1.1, 0.3),
+                  emphasizeMotion
+                      ? const Alignment(-0.65, 1.05)
+                      : const Alignment(-0.45, 0.95),
+                  animatedProgress,
+                )!,
+                child: _BackdropOrb(
+                  color: colors.last.withValues(
+                    alpha: emphasizeMotion ? 0.24 : 0.18,
+                  ),
+                  size: emphasizeMotion ? 300 : 280,
+                ),
+              ),
+              Align(
+                alignment: Alignment.lerp(
+                  emphasizeMotion
+                      ? const Alignment(-0.1, -1.25)
+                      : const Alignment(0.25, -1.2),
+                  emphasizeMotion
+                      ? const Alignment(1.05, 0.55)
+                      : const Alignment(1.0, 0.35),
+                  animatedProgress,
+                )!,
+                child: _BackdropOrb(
+                  color: colors[1].withValues(
+                    alpha: emphasizeMotion ? 0.2 : 0.16,
+                  ),
+                  size: emphasizeMotion ? 220 : 200,
+                ),
+              ),
+            ],
+          ),
+        ),
+        child,
+      ],
+    );
+  }
+}
+
+class _BackdropOrb extends StatelessWidget {
+  const _BackdropOrb({required this.color, required this.size});
+
+  final Color color;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        shape: BoxShape.circle,
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: color,
+            blurRadius: size * 0.6,
+            spreadRadius: size * 0.1,
+          ),
+        ],
+      ),
+      child: SizedBox.square(dimension: size),
+    );
+  }
+}
+
+class _QuizSessionHudBar extends StatelessWidget {
+  const _QuizSessionHudBar({
+    required this.timerText,
+    required this.remainingRatio,
+    required this.isTimeFrozen,
+    required this.totalSeconds,
+  });
+
+  final String timerText;
+  final double? remainingRatio;
+  final bool isTimeFrozen;
+  final int? totalSeconds;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color primary = Theme.of(context).colorScheme.primary;
+    final bool isTimed = totalSeconds != null;
+    final Color accentColor = isTimed
+        ? _timerAccentColor(
+            remainingRatio: remainingRatio ?? 0,
+            isTimeFrozen: isTimeFrozen,
+          )
+        : const Color(0xFF145E9C);
+
+    if (!isTimed) {
+      final Color primary = Theme.of(context).colorScheme.primary;
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.58),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                '∞',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'FREE',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final int segmentCount = totalSeconds! <= 8 ? totalSeconds! : 10;
+    final double hudRatio = remainingRatio ?? 0;
+    final int activeSegments = isTimeFrozen
+        ? segmentCount
+        : (hudRatio * segmentCount).ceil().clamp(0, segmentCount);
+
+    return Row(
+      children: <Widget>[
+        _QuizHudCapsule(
+          icon: isTimed
+              ? (isTimeFrozen
+                    ? Icons.pause_circle_filled_rounded
+                    : Icons.timer_rounded)
+              : Icons.all_inclusive_rounded,
+          label: isTimed ? (isTimeFrozen ? 'STOP' : 'LIMIT') : 'FREE',
+          highlightColor: accentColor,
+          foregroundColor: primary,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _QuizMeterStrip(
+            segmentCount: segmentCount,
+            activeSegments: activeSegments,
+            activeColor: accentColor,
+            isDanger: isTimed && !isTimeFrozen && hudRatio <= 0.3,
+          ),
+        ),
+        const SizedBox(width: 10),
+        ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 68),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: isTimed
+                ? Text(
+                    '$timerText s',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: primary,
+                      fontWeight: FontWeight.w900,
+                      fontFeatures: const <FontFeature>[
+                        FontFeature.tabularFigures(),
+                      ],
+                      shadows: <Shadow>[
+                        Shadow(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          blurRadius: 12,
+                        ),
+                      ],
+                    ),
+                  )
+                : RichText(
+                    text: TextSpan(
+                      children: <InlineSpan>[
+                        TextSpan(
+                          text: '∞',
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                              ),
+                        ),
+                        TextSpan(
+                          text: '  FREE',
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.92),
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.6,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuizHudCapsule extends StatelessWidget {
+  const _QuizHudCapsule({
+    required this.icon,
+    required this.label,
+    required this.highlightColor,
+    this.foregroundColor = Colors.white,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color highlightColor;
+  final Color foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: highlightColor.withValues(alpha: 0.18),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(icon, size: 18),
-            const SizedBox(width: 8),
-            Text(label, style: Theme.of(context).textTheme.titleSmall),
+            Icon(icon, size: 18, color: foregroundColor),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: foregroundColor,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuizMeterStrip extends StatelessWidget {
+  const _QuizMeterStrip({
+    required this.segmentCount,
+    required this.activeSegments,
+    required this.activeColor,
+    required this.isDanger,
+  });
+
+  final int segmentCount;
+  final int activeSegments;
+  final Color activeColor;
+  final bool isDanger;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List<Widget>.generate(segmentCount, (int index) {
+        final bool isActive = index < activeSegments;
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(right: index == segmentCount - 1 ? 0 : 4),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              height: isActive ? 14 : 8,
+              decoration: BoxDecoration(
+                color: isActive
+                    ? (isDanger
+                          ? const Color(0xFFE9A4B4)
+                          : activeColor.withValues(alpha: 0.9))
+                    : activeColor.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(999),
+                boxShadow: isActive
+                    ? <BoxShadow>[
+                        BoxShadow(
+                          color: activeColor.withValues(alpha: 0.18),
+                          blurRadius: 10,
+                        ),
+                      ]
+                    : null,
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _QuizHintPanel extends StatelessWidget {
+  const _QuizHintPanel({
+    required this.showTimeFreeze,
+    required this.inputsEnabled,
+    required this.fiftyFiftyHintUsed,
+    required this.canUseFiftyFiftyHint,
+    required this.timeFreezeHintUsed,
+    required this.canUseTimeFreezeHint,
+    required this.hintConsumptionTick,
+    required this.consumedHintLabel,
+    required this.consumedHintId,
+    required this.onUseFiftyFiftyHint,
+    required this.onUseTimeFreezeHint,
+  });
+
+  final bool showTimeFreeze;
+  final bool inputsEnabled;
+  final bool fiftyFiftyHintUsed;
+  final bool canUseFiftyFiftyHint;
+  final bool timeFreezeHintUsed;
+  final bool canUseTimeFreezeHint;
+  final int hintConsumptionTick;
+  final String? consumedHintLabel;
+  final String? consumedHintId;
+  final VoidCallback onUseFiftyFiftyHint;
+  final VoidCallback onUseTimeFreezeHint;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(
+          children: <Widget>[
+            _QuizHintButton(
+              buttonKey: const ValueKey<String>('quiz-hint-fifty-fifty'),
+              hintId: 'fifty-fifty',
+              icon: Icons.filter_2_rounded,
+              tooltip: fiftyFiftyHintUsed ? '2択ヒントは使用済み' : '2択に絞る',
+              isUsed: fiftyFiftyHintUsed,
+              enabled: inputsEnabled && canUseFiftyFiftyHint,
+              justConsumed: consumedHintId == 'fifty-fifty',
+              consumptionTick: hintConsumptionTick,
+              onPressed: onUseFiftyFiftyHint,
+            ),
+            if (showTimeFreeze) ...<Widget>[
+              const SizedBox(width: 8),
+              _QuizHintButton(
+                buttonKey: const ValueKey<String>('quiz-hint-time-freeze'),
+                hintId: 'time-freeze',
+                icon: Icons.pause_rounded,
+                tooltip: timeFreezeHintUsed ? '時間停止ヒントは使用済み' : '時間を停止する',
+                isUsed: timeFreezeHintUsed,
+                enabled: inputsEnabled && canUseTimeFreezeHint,
+                justConsumed: consumedHintId == 'time-freeze',
+                consumptionTick: hintConsumptionTick,
+                onPressed: onUseTimeFreezeHint,
+              ),
+            ],
           ],
         ),
       ),
@@ -1078,38 +1415,210 @@ class _QuizStatusChip extends StatelessWidget {
 class _QuizHintButton extends StatelessWidget {
   const _QuizHintButton({
     required this.buttonKey,
+    required this.hintId,
     required this.icon,
     required this.tooltip,
     required this.isUsed,
     required this.enabled,
+    required this.justConsumed,
+    required this.consumptionTick,
     required this.onPressed,
   });
 
   final Key buttonKey;
+  final String hintId;
   final IconData icon;
   final String tooltip;
   final bool isUsed;
   final bool enabled;
+  final bool justConsumed;
+  final int consumptionTick;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final List<Color> buttonColors = isUsed
+        ? <Color>[
+            colorScheme.surfaceContainerHighest,
+            colorScheme.surfaceContainerHighest.withValues(alpha: 0.92),
+          ]
+        : <Color>[const Color(0xFF145E9C), const Color(0xFF22B7E8)];
+
     return Tooltip(
       message: tooltip,
-      child: IconButton.filledTonal(
-        key: buttonKey,
-        onPressed: enabled ? onPressed : null,
-        icon: Icon(icon),
-        style: IconButton.styleFrom(
-          backgroundColor: isUsed ? colorScheme.surfaceContainerHighest : null,
-          foregroundColor: isUsed
-              ? colorScheme.onSurface.withValues(alpha: 0.38)
-              : null,
-        ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: buttonColors,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isUsed
+                    ? colorScheme.outlineVariant.withValues(alpha: 0.42)
+                    : Colors.white.withValues(alpha: 0.18),
+              ),
+              boxShadow: isUsed
+                  ? null
+                  : <BoxShadow>[
+                      BoxShadow(
+                        color: const Color(0xFF145E9C).withValues(alpha: 0.26),
+                        blurRadius: 18,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                key: buttonKey,
+                borderRadius: BorderRadius.circular(16),
+                onTap: enabled ? onPressed : null,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: isUsed
+                        ? colorScheme.onSurface.withValues(alpha: 0.36)
+                        : Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (justConsumed)
+            Positioned.fill(
+              child: IgnorePointer(
+                child:
+                    DecoratedBox(
+                          key: ValueKey<String>(
+                            'hint-burst-$hintId-$consumptionTick',
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: const Color(0xFFFFE082),
+                              width: 2,
+                            ),
+                          ),
+                        )
+                        .animate()
+                        .fadeOut(duration: 420.ms)
+                        .scaleXY(begin: 0.96, end: 1.12),
+              ),
+            ),
+          if (justConsumed)
+            Positioned(
+              top: -10,
+              right: -6,
+              child: DecoratedBox(
+                key: ValueKey<String>('hint-stamp-$hintId-$consumptionTick'),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFE082),
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: const Color(0xFFFFE082).withValues(alpha: 0.32),
+                      blurRadius: 14,
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: Text(
+                    'USED!',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: const Color(0xFF4F2F00),
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ),
+              ).animate().fadeIn(duration: 90.ms).scaleXY(begin: 1.4, end: 1),
+            ),
+        ],
       ),
     );
   }
+}
+
+double? _buildRemainingRatio({
+  required Duration? remaining,
+  required int? totalSeconds,
+}) {
+  if (remaining == null || totalSeconds == null || totalSeconds <= 0) {
+    return null;
+  }
+  return (remaining.inMilliseconds /
+          Duration(seconds: totalSeconds).inMilliseconds)
+      .clamp(0.0, 1.0);
+}
+
+List<Color> _quizBackgroundGradient({
+  required String modeId,
+  required double? remainingRatio,
+  required bool isTimeFrozen,
+}) {
+  if (modeId == 'careful') {
+    return const <Color>[
+      Color(0xFFBBDDFC),
+      Color(0xFFDCEEFF),
+      Color(0xFFFCFEFF),
+    ];
+  }
+  if (isTimeFrozen) {
+    return const <Color>[
+      Color(0xFFCBE6F9),
+      Color(0xFFE1F2FF),
+      Color(0xFFF5FBFF),
+    ];
+  }
+  if (remainingRatio == null) {
+    return const <Color>[
+      Color(0xFFD2E7FA),
+      Color(0xFFE8F4FF),
+      Color(0xFFF8FCFF),
+    ];
+  }
+
+  final Color safeStart = const Color(0xFFCFE5FA);
+  final Color safeMid = const Color(0xFFE6F3FF);
+  final Color safeEnd = const Color(0xFFF8FCFF);
+  final Color dangerStart = const Color(0xFFF1D5DE);
+  final Color dangerMid = const Color(0xFFFBE9EE);
+  final Color dangerEnd = const Color(0xFFFFFBFC);
+
+  return <Color>[
+    Color.lerp(dangerStart, safeStart, remainingRatio)!,
+    Color.lerp(dangerMid, safeMid, remainingRatio)!,
+    Color.lerp(dangerEnd, safeEnd, remainingRatio)!,
+  ];
+}
+
+Color _timerAccentColor({
+  required double remainingRatio,
+  required bool isTimeFrozen,
+}) {
+  if (isTimeFrozen) {
+    return const Color(0xFF7CC8EA);
+  }
+  return Color.lerp(
+    const Color(0xFFE9A4B4),
+    const Color(0xFFB7D9F8),
+    remainingRatio.clamp(0.0, 1.0),
+  )!;
 }
 
 class _QuizAnswerFeedbackOverlay extends StatelessWidget {
