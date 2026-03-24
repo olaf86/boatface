@@ -22,12 +22,14 @@ class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({
     required this.mode,
     required this.sessionId,
+    required this.sessionExpiresAt,
     this.showIntroCountdown = false,
     super.key,
   });
 
   final QuizModeConfig mode;
   final String sessionId;
+  final DateTime sessionExpiresAt;
   final bool showIntroCountdown;
 
   @override
@@ -38,6 +40,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   bool _didPop = false;
   bool _dialogVisible = false;
+  bool _sessionExpiryDialogVisible = false;
   late bool _isIntroCountdownActive;
   late final AnimationController _backgroundFlowController;
   QuizAnswerFeedback? _activeFeedback;
@@ -69,12 +72,53 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (_isIntroCountdownActive) {
       return;
     }
+    final controller = ref.read(
+      quizSessionControllerProvider(widget.mode).notifier,
+    );
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
-      ref
-          .read(quizSessionControllerProvider(widget.mode).notifier)
-          .handleLifecyclePause();
+      controller.handleLifecyclePause();
+      return;
     }
+    if (state == AppLifecycleState.resumed) {
+      if (_isSessionExpired()) {
+        _handleExpiredSessionOnResume();
+        return;
+      }
+      controller.handleLifecycleResume();
+    }
+  }
+
+  bool _isSessionExpired() {
+    return DateTime.now().toUtc().isAfter(widget.sessionExpiresAt.toUtc());
+  }
+
+  Future<void> _handleExpiredSessionOnResume() async {
+    if (!mounted || _didPop || _sessionExpiryDialogVisible) {
+      return;
+    }
+    _sessionExpiryDialogVisible = true;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('セッション期限切れ'),
+        content: const Text('バックグラウンド中にクイズセッションの有効期限が切れました。ホームに戻ります。'),
+        actions: <Widget>[
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('ホームに戻る'),
+          ),
+        ],
+      ),
+    );
+    _sessionExpiryDialogVisible = false;
+
+    if (!mounted || _didPop) {
+      return;
+    }
+    _didPop = true;
+    Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
   }
 
   @override

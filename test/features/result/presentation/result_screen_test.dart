@@ -77,8 +77,11 @@ void main() {
 
 class _FakeQuizBackendRepository implements QuizBackendRepository {
   @override
-  Future<String> createQuizSession({required String modeId}) async {
-    return 'session-1';
+  Future<QuizSessionLease> createQuizSession({required String modeId}) async {
+    return QuizSessionLease(
+      sessionId: 'session-1',
+      expiresAt: DateTime.utc(2026, 3, 24, 12),
+    );
   }
 
   @override

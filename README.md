@@ -37,6 +37,13 @@ Generate Firebase files for the environment you want to run:
 ./scripts/configure_firebase.sh prod
 ```
 
+Firestore settings in this repo also configure a TTL policy for `quiz_sessions.expiresAt`, so expired quiz sessions are automatically cleaned up after deployment. Deploy Firestore config when you change indexes or field overrides:
+
+```bash
+firebase deploy --only firestore --project boatface-stg
+firebase deploy --only firestore --project boatface-prod
+```
+
 Generated native config files stay out of Git:
 - `android/app/src/<env>/google-services.json`
 - `ios/Firebase/<env>/GoogleService-Info.plist`

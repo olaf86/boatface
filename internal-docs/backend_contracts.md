@@ -122,6 +122,10 @@ Recommended `quiz_sessions/{sessionId}` shape:
 }
 ```
 
+Operational note:
+- configure a Firestore TTL policy on `quiz_sessions.expiresAt`
+- prefer disabling single-field indexing for that TTL field to avoid unnecessary timestamp hotspotting
+
 Allowed `status` values:
 - `issued`
 - `consumed`

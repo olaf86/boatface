@@ -25,6 +25,7 @@ class QuizSessionController
   late final QuizSession _session;
   late final Stopwatch _stopwatch;
   Timer? _ticker;
+  bool _isLifecyclePaused = false;
 
   @override
   QuizSessionState build(QuizModeConfig mode) {
@@ -118,14 +119,33 @@ class QuizSessionController
   }
 
   void handleLifecyclePause() {
+    if (_isLifecyclePaused) {
+      return;
+    }
     if (_session.gameOver ||
         _session.isCompleted ||
         _session.pendingAnswerFeedback != null ||
         _session.timeFreezeActive) {
       return;
     }
-    _session.submitTimeout(elapsed: _stopwatch.elapsed);
     _stopwatch.stop();
+    _isLifecyclePaused = true;
+    state = _toState();
+  }
+
+  void handleLifecycleResume() {
+    if (!_isLifecyclePaused) {
+      return;
+    }
+    _isLifecyclePaused = false;
+    if (_session.gameOver ||
+        _session.isCompleted ||
+        _session.pendingAnswerFeedback != null ||
+        _session.timeFreezeActive) {
+      state = _toState();
+      return;
+    }
+    _stopwatch.start();
     state = _toState();
   }
 
