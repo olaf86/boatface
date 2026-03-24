@@ -44,11 +44,11 @@ Generated native config files stay out of Git:
 The app initializes Firebase from those native files, so runtime does not depend on checked-in Dart `firebase_options*.dart` files.
 
 ## Run Commands
-Use the matching flavor-specific entrypoint.
+Use the matching flavor.
 
 ```bash
-flutter run --flavor stg -t lib/main_stg.dart
-flutter run --flavor prod -t lib/main_prod.dart
+flutter run --flavor stg
+flutter run --flavor prod
 ```
 
 For iOS builds, `flutter run --flavor stg` maps to the shared `stg` scheme, and `prod` maps to `prod`.
@@ -135,7 +135,7 @@ Xcode Cloud is expected to handle iOS staging archives from `main` and deploy th
 This repository includes [`ios/ci_scripts/ci_post_clone.sh`](ios/ci_scripts/ci_post_clone.sh) for Xcode Cloud. The script:
 - installs Flutter,
 - restores the staging `GoogleService-Info.plist` from a secret,
-- runs `flutter build ios --config-only --release --flavor stg --target lib/main_stg.dart`,
+- runs `flutter build ios --config-only --release --flavor stg`,
 - installs CocoaPods dependencies.
 
 Configure the Xcode Cloud workflow with:
