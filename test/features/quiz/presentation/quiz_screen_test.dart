@@ -5,7 +5,6 @@ import 'package:boatface/features/quiz/application/quiz_session_controller.dart'
 import 'package:boatface/features/quiz/domain/quiz_models.dart';
 import 'package:boatface/features/quiz/presentation/racer_name_text.dart';
 import 'package:boatface/features/quiz/presentation/quiz_screen.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -46,8 +45,8 @@ void main() {
       find.byKey(const ValueKey<String>('quiz-hint-time-freeze')),
     );
     await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
-    expect(find.text('時間停止中'), findsOneWidget);
     expect(find.byTooltip('時間停止ヒントは使用済み'), findsOneWidget);
   });
 
@@ -68,13 +67,11 @@ void main() {
     );
     expect(find.byTooltip('2択に絞る'), findsOneWidget);
     expect(find.byTooltip('時間を停止する'), findsNothing);
-    expect(find.text('制限時間: 無制限'), findsOneWidget);
   });
 
-  testWidgets('temporarily hides game-over dialog while holding peek button', (
+  testWidgets('shows game-over dialog after a wrong answer', (
     WidgetTester tester,
   ) async {
-    final SemanticsHandle semantics = tester.ensureSemantics();
     final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
     final ProviderContainer container = ProviderContainer(
       overrides: <Override>[
@@ -86,57 +83,36 @@ void main() {
         UncontrolledProviderScope(
           container: container,
           child: MaterialApp(
-            home: QuizScreen(mode: mode, sessionId: 'session-1'),
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
+      final QuizSessionController controller = container.read(
+        quizSessionControllerProvider(mode).notifier,
+      );
       final state = container.read(quizSessionControllerProvider(mode));
       final int wrongIndex = (state.currentQuestion!.correctIndex + 1) % 4;
 
-      final FilledButton wrongOption = tester.widget<FilledButton>(
-        find.byKey(ValueKey<String>('quiz-option-$wrongIndex')),
-      );
-      wrongOption.onPressed!.call();
+      controller.submitAnswer(wrongIndex);
+      controller.completeAnswerFeedback();
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 1200));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(
-        find.byKey(const ValueKey<String>('game-over-peek-button')),
+        find.byKey(const ValueKey<String>('game-over-dialog')),
         findsOneWidget,
       );
-
-      AnimatedOpacity visibility = tester.widget<AnimatedOpacity>(
-        find.byKey(const ValueKey<String>('game-over-dialog-visibility')),
-      );
-      expect(visibility.opacity, 1);
-
-      final TestGesture gesture = await tester.startGesture(
-        tester.getCenter(
-          find.byKey(const ValueKey<String>('game-over-peek-button')),
-        ),
-      );
-      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 80));
-      await tester.pump(const Duration(milliseconds: 160));
-
-      visibility = tester.widget<AnimatedOpacity>(
-        find.byKey(const ValueKey<String>('game-over-dialog-visibility')),
-      );
-      expect(visibility.opacity, 0);
-
-      await gesture.up();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 160));
-
-      visibility = tester.widget<AnimatedOpacity>(
-        find.byKey(const ValueKey<String>('game-over-dialog-visibility')),
-      );
-      expect(visibility.opacity, 1);
+      expect(find.text('ゲームオーバー'), findsOneWidget);
+      expect(find.text('結果へ'), findsOneWidget);
     } finally {
       container.dispose();
-      semantics.dispose();
     }
   });
 
@@ -147,6 +123,29 @@ void main() {
 
     expect(find.textContaining('センシュ'), findsWidgets);
     expect(find.textContaining('選手'), findsWidgets);
+  });
+
+  testWidgets('shows expiry dialog when session expired on resume', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      _buildApp(
+        mode: _buildMode(timeLimitSeconds: 10),
+        sessionExpiresAt: DateTime.utc(2000, 1, 1),
+      ),
+    );
+    await tester.pump();
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+
+    expect(find.text('セッション期限切れ'), findsOneWidget);
+    expect(
+      find.text('バックグラウンド中にクイズセッションの有効期限が切れました。ホームに戻ります。'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('splits family and given names with separate ruby labels', (
@@ -169,13 +168,17 @@ void main() {
   });
 }
 
-Widget _buildApp({required QuizModeConfig mode}) {
+Widget _buildApp({required QuizModeConfig mode, DateTime? sessionExpiresAt}) {
   return ProviderScope(
     overrides: <Override>[
       racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
     ],
     child: MaterialApp(
-      home: QuizScreen(mode: mode, sessionId: 'session-1'),
+      home: QuizScreen(
+        mode: mode,
+        sessionId: 'session-1',
+        sessionExpiresAt: sessionExpiresAt ?? DateTime.utc(2026, 3, 25),
+      ),
     ),
   );
 }

@@ -44,17 +44,23 @@ void main() {
 }
 
 class _FakeQuizBackendRepository implements QuizBackendRepository {
-  final Completer<String> _sessionCompleter = Completer<String>();
+  final Completer<QuizSessionLease> _sessionCompleter =
+      Completer<QuizSessionLease>();
 
   void completeSession() {
     if (_sessionCompleter.isCompleted) {
       return;
     }
-    _sessionCompleter.complete('session-1');
+    _sessionCompleter.complete(
+      QuizSessionLease(
+        sessionId: 'session-1',
+        expiresAt: DateTime.utc(2026, 3, 24, 12),
+      ),
+    );
   }
 
   @override
-  Future<String> createQuizSession({required String modeId}) {
+  Future<QuizSessionLease> createQuizSession({required String modeId}) {
     return _sessionCompleter.future;
   }
 
