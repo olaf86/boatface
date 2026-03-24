@@ -69,11 +69,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (_isIntroCountdownActive) {
       return;
     }
+    final controller = ref.read(
+      quizSessionControllerProvider(widget.mode).notifier,
+    );
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
-      ref
-          .read(quizSessionControllerProvider(widget.mode).notifier)
-          .handleLifecyclePause();
+      controller.handleLifecyclePause();
+      return;
+    }
+    if (state == AppLifecycleState.resumed) {
+      controller.handleLifecycleResume();
     }
   }
 

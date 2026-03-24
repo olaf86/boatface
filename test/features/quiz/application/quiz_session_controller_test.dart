@@ -224,6 +224,59 @@ void main() {
       expect(state.canUseTimeFreezeHint, false);
       expect(controller.useTimeFreezeHint(), false);
     });
+
+    test('does not fail immediately when app lifecycle pauses', () async {
+      final QuizModeConfig mode = _buildMode(questionCount: 1);
+      final ProviderContainer container = _createContainer();
+      addTearDown(container.dispose);
+      final provider = quizSessionControllerProvider(mode);
+      final ProviderSubscription<QuizSessionState> subscription = container
+          .listen(provider, (_, _) {});
+      addTearDown(subscription.close);
+
+      final QuizSessionController controller = container.read(
+        provider.notifier,
+      );
+
+      controller.handleLifecyclePause();
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+
+      final QuizSessionState pausedState = container.read(provider);
+      expect(pausedState.gameOver, false);
+      expect(pausedState.isCompleted, false);
+      expect(pausedState.endReason, isNull);
+    });
+
+    test('resumes timer after app lifecycle resumes', () async {
+      final QuizModeConfig mode = _buildMode(
+        questionCount: 1,
+        timeLimitSeconds: 1,
+      );
+      final ProviderContainer container = _createContainer();
+      addTearDown(container.dispose);
+      final provider = quizSessionControllerProvider(mode);
+      final ProviderSubscription<QuizSessionState> subscription = container
+          .listen(provider, (_, _) {});
+      addTearDown(subscription.close);
+
+      final QuizSessionController controller = container.read(
+        provider.notifier,
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      controller.handleLifecyclePause();
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+
+      final QuizSessionState pausedState = container.read(provider);
+      expect(pausedState.gameOver, false);
+
+      controller.handleLifecycleResume();
+      await Future<void>.delayed(const Duration(milliseconds: 1100));
+
+      final QuizSessionState resumedState = container.read(provider);
+      expect(resumedState.gameOver, true);
+      expect(resumedState.endReason, QuizEndReason.timeout);
+    });
   });
 }
 
