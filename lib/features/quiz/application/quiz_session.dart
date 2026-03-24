@@ -22,6 +22,7 @@ class QuizSession {
   final List<RacerProfile> _racers;
   final Random _random;
   final List<QuizQuestionRecord> _questionHistory = <QuizQuestionRecord>[];
+  final Set<String> _usedTargetIds = <String>{};
 
   int currentIndex = 0;
   int score = 0;
@@ -228,14 +229,11 @@ class QuizSession {
       timeLimitSeconds: mode.timeLimitSeconds,
     );
     _currentQuestion = question;
+    _usedTargetIds.add(question.correctRacerId);
     _questionHistory.add(
       QuizQuestionRecord(slotIndex: currentIndex, question: question),
     );
   }
-
-  Set<String> get _usedTargetIds => _questionHistory
-      .map((QuizQuestionRecord record) => record.question.correctRacerId)
-      .toSet();
 
   void _updateCurrentRecord(
     QuizQuestionRecord Function(QuizQuestionRecord record) update,
