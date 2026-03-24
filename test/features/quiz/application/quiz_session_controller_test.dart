@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:boatface/features/quiz/application/quiz_session_controller.dart';
+import 'package:boatface/features/quiz/application/quiz_session.dart';
 import 'package:boatface/features/quiz/application/quiz_session_state.dart';
 import 'package:boatface/features/quiz/data/quiz_data_providers.dart';
 import 'package:boatface/features/quiz/data/racer_master_models.dart';
@@ -74,7 +75,7 @@ void main() {
       expect(completedState.endReason, QuizEndReason.wrongAnswer);
     });
 
-    test('restarts the same question after continuing from an ad', () {
+    test('replaces the current question after continuing from an ad', () {
       final QuizModeConfig mode = _buildMode(questionCount: 2);
       final ProviderContainer container = _createContainer();
       addTearDown(container.dispose);
@@ -96,10 +97,26 @@ void main() {
       final QuizSessionState continuedState = container.read(
         quizSessionControllerProvider(mode),
       );
+      final QuizQuestion replacementQuestion = continuedState.currentQuestion!;
       expect(continuedState.gameOver, false);
       expect(continuedState.continuedByAd, true);
       expect(continuedState.currentQuestionIndex, 0);
-      expect(continuedState.currentQuestion, same(firstQuestion));
+      expect(replacementQuestion, isNot(same(firstQuestion)));
+      expect(
+        replacementQuestion.correctRacerId,
+        isNot(firstQuestion.correctRacerId),
+      );
+
+      final List<QuizQuestionRecord> history = controller.questionHistory;
+      expect(history, hasLength(2));
+      expect(history[0].slotIndex, 0);
+      expect(history[0].outcome, QuizQuestionOutcome.wrongAnswer);
+      expect(history[1].slotIndex, 0);
+      expect(
+        history[1].question.correctRacerId,
+        replacementQuestion.correctRacerId,
+      );
+      expect(history[1].outcome, isNull);
     });
 
     test(

@@ -173,7 +173,9 @@ void main() {
           racers: racers,
         );
 
-        for (final QuizQuestion question in session.questions) {
+        final List<QuizQuestion> questions = _collectQuestions(session);
+
+        for (final QuizQuestion question in questions) {
           final RacerProfile target = racerById[question.correctRacerId]!;
           expect(target.racerClass, 'A1');
           expect(
@@ -207,40 +209,41 @@ void main() {
         mode: carefulMode,
         racers: racers,
       );
+      final List<QuizQuestion> questions = _collectQuestions(session);
 
-      expect(session.questions, hasLength(30));
+      expect(questions, hasLength(30));
       _expectQuestionWindow(
-        session.questions.sublist(0, 10),
+        questions.sublist(0, 10),
         racerById,
         allowedTargetClasses: <String>['A1'],
         allowedOptionClasses: <String>['A1'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(10, 16),
+        questions.sublist(10, 16),
         racerById,
         allowedTargetClasses: <String>['A2'],
         allowedOptionClasses: <String>['A2'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(16, 20),
+        questions.sublist(16, 20),
         racerById,
         allowedTargetClasses: <String>['A2', 'B1', 'B2'],
         allowedOptionClasses: <String>['A2', 'B1', 'B2'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(20, 25),
+        questions.sublist(20, 25),
         racerById,
         allowedTargetClasses: <String>['A1'],
         allowedOptionClasses: <String>['A1'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(25, 28),
+        questions.sublist(25, 28),
         racerById,
         allowedTargetClasses: <String>['A2'],
         allowedOptionClasses: <String>['A2'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(28, 30),
+        questions.sublist(28, 30),
         racerById,
         allowedTargetClasses: <String>['A2', 'B1', 'B2'],
         allowedOptionClasses: <String>['A2', 'B1', 'B2'],
@@ -260,97 +263,138 @@ void main() {
         mode: challengeMode,
         racers: racers,
       );
+      final List<QuizQuestion> questions = _collectQuestions(session);
 
-      expect(session.questions, hasLength(50));
+      expect(questions, hasLength(50));
       _expectQuestionWindow(
-        session.questions.sublist(0, 4),
+        questions.sublist(0, 4),
         racerById,
         allowedTargetClasses: <String>['A1'],
         allowedOptionClasses: <String>['A1'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(4, 10),
+        questions.sublist(4, 10),
         racerById,
         allowedTargetClasses: <String>['A2'],
         allowedOptionClasses: <String>['A2'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(10, 20),
+        questions.sublist(10, 20),
         racerById,
         allowedTargetClasses: <String>['A2', 'B1', 'B2'],
         allowedOptionClasses: <String>['A2', 'B1', 'B2'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(20, 22),
+        questions.sublist(20, 22),
         racerById,
         allowedTargetClasses: <String>['A1'],
         allowedOptionClasses: <String>['A1'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(22, 25),
+        questions.sublist(22, 25),
         racerById,
         allowedTargetClasses: <String>['A2'],
         allowedOptionClasses: <String>['A2'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(25, 30),
+        questions.sublist(25, 30),
         racerById,
         allowedTargetClasses: <String>['A2', 'B1', 'B2'],
         allowedOptionClasses: <String>['A2', 'B1', 'B2'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(30, 32),
+        questions.sublist(30, 32),
         racerById,
         allowedTargetClasses: <String>['A1'],
         allowedOptionClasses: <String>['A1'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(32, 35),
+        questions.sublist(32, 35),
         racerById,
         allowedTargetClasses: <String>['A2'],
         allowedOptionClasses: <String>['A2'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(35, 40),
+        questions.sublist(35, 40),
         racerById,
         allowedTargetClasses: <String>['A2', 'B1', 'B2'],
         allowedOptionClasses: <String>['A2', 'B1', 'B2'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(40, 41),
+        questions.sublist(40, 41),
         racerById,
         allowedTargetClasses: <String>['A1'],
         allowedOptionClasses: <String>['A1'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(41, 43),
+        questions.sublist(41, 43),
         racerById,
         allowedTargetClasses: <String>['A2'],
         allowedOptionClasses: <String>['A2'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(43, 45),
+        questions.sublist(43, 45),
         racerById,
         allowedTargetClasses: <String>['A2', 'B1', 'B2'],
         allowedOptionClasses: <String>['A2', 'B1', 'B2'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(45, 46),
+        questions.sublist(45, 46),
         racerById,
         allowedTargetClasses: <String>['A1'],
         allowedOptionClasses: <String>['A1'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(46, 48),
+        questions.sublist(46, 48),
         racerById,
         allowedTargetClasses: <String>['A2'],
         allowedOptionClasses: <String>['A2'],
       );
       _expectQuestionWindow(
-        session.questions.sublist(48, 50),
+        questions.sublist(48, 50),
         racerById,
         allowedTargetClasses: <String>['A2', 'B1', 'B2'],
         allowedOptionClasses: <String>['A2', 'B1', 'B2'],
+      );
+    });
+
+    test('records repeated attempts under the same slot index', () {
+      final QuizSession session = QuizSessionFactory.create(
+        mode: const QuizModeConfig(
+          id: 'retry',
+          label: '再挑戦',
+          description: '',
+          timeLimitSeconds: 10,
+          segments: <QuizSegment>[
+            QuizSegment(promptType: QuizPromptType.faceToName, count: 2),
+          ],
+        ),
+        racers: _buildRacers(),
+      );
+
+      final QuizQuestion firstQuestion = session.currentQuestion!;
+      final int wrongIndex =
+          (firstQuestion.correctIndex + 1) % firstQuestion.options.length;
+
+      session.submitAnswer(
+        selectedIndex: wrongIndex,
+        elapsed: const Duration(seconds: 2),
+        remaining: const Duration(seconds: 8),
+      );
+      session.completePendingAnswerFeedback();
+      session.continueAfterAd();
+
+      expect(session.questionHistory, hasLength(2));
+      expect(session.questionHistory[0].slotIndex, 0);
+      expect(
+        session.questionHistory[0].outcome,
+        QuizQuestionOutcome.wrongAnswer,
+      );
+      expect(session.questionHistory[1].slotIndex, 0);
+      expect(session.questionHistory[1].outcome, isNull);
+      expect(
+        session.questionHistory[1].question.correctRacerId,
+        isNot(firstQuestion.correctRacerId),
       );
     });
 
@@ -427,6 +471,23 @@ List<RacerProfile> _buildFlowRacers() {
     for (int index = 12; index < 16; index += 1)
       _buildRacer(index, racerClass: 'B2', gender: 'female'),
   ];
+}
+
+List<QuizQuestion> _collectQuestions(QuizSession session) {
+  final List<QuizQuestion> questions = <QuizQuestion>[];
+
+  while (!session.isCompleted) {
+    final QuizQuestion question = session.currentQuestion!;
+    questions.add(question);
+    session.submitAnswer(
+      selectedIndex: question.correctIndex,
+      elapsed: Duration.zero,
+      remaining: null,
+    );
+    session.completePendingAnswerFeedback();
+  }
+
+  return questions;
 }
 
 void _expectQuestionWindow(
