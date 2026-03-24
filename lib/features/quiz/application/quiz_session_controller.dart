@@ -42,6 +42,7 @@ class QuizSessionController
   }
 
   QuizResultSummary get summary => _session.toSummary();
+  List<QuizQuestionRecord> get questionHistory => _session.questionHistory;
 
   QuizAnswerFeedback? submitAnswer(int selectedIndex) {
     final Duration elapsed = _stopwatch.elapsed;
@@ -153,7 +154,7 @@ class QuizSessionController
       mode: _session.mode,
       currentQuestion: _session.currentQuestion,
       currentQuestionIndex: _session.currentIndex,
-      totalQuestions: _session.questions.length,
+      totalQuestions: _session.totalQuestions,
       score: _session.score,
       correctAnswers: _session.correctAnswers,
       totalAnswerTime: _session.totalAnswerTime,

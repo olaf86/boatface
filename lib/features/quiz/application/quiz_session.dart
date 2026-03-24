@@ -4,10 +4,25 @@ import 'quiz_answer_feedback.dart';
 import '../domain/quiz_models.dart';
 
 class QuizSession {
-  QuizSession({required this.mode, required this.questions});
+  QuizSession({
+    required this.mode,
+    required List<_QuizPlanSlot> planSlots,
+    required List<RacerProfile> racers,
+    Random? random,
+  }) : _planSlots = planSlots,
+       _racers = racers,
+       _random = random ?? Random() {
+    if (_planSlots.isNotEmpty) {
+      _startQuestionForCurrentSlot();
+    }
+  }
 
   final QuizModeConfig mode;
-  final List<QuizQuestion> questions;
+  final List<_QuizPlanSlot> _planSlots;
+  final List<RacerProfile> _racers;
+  final Random _random;
+  final List<QuizQuestionRecord> _questionHistory = <QuizQuestionRecord>[];
+  final Set<String> _usedTargetIds = <String>{};
 
   int currentIndex = 0;
   int score = 0;
@@ -23,15 +38,16 @@ class QuizSession {
   QuizEndReason? endReason;
   DateTime? clientFinishedAt;
   QuizAnswerFeedback? pendingAnswerFeedback;
+  QuizQuestion? _currentQuestion;
 
-  QuizQuestion? get currentQuestion =>
-      currentIndex >= 0 && currentIndex < questions.length
-      ? questions[currentIndex]
-      : null;
+  int get totalQuestions => _planSlots.length;
+  QuizQuestion? get currentQuestion => _currentQuestion;
+  List<QuizQuestionRecord> get questionHistory =>
+      List<QuizQuestionRecord>.unmodifiable(_questionHistory);
 
   bool get isCompleted => endReason == QuizEndReason.completed;
   bool get canContinueWithAd =>
-      gameOver && !continuedByAd && currentIndex < questions.length;
+      gameOver && !continuedByAd && currentIndex < totalQuestions;
   bool get canUseFiftyFiftyHint =>
       !fiftyFiftyHintUsed &&
       !gameOver &&
@@ -57,7 +73,7 @@ class QuizSession {
     }
     totalAnswerTime += elapsed;
 
-    final QuizQuestion question = questions[currentIndex];
+    final QuizQuestion question = currentQuestion!;
     final bool correct = selectedIndex == question.correctIndex;
     final QuizAnswerFeedback feedback = QuizAnswerFeedback(
       question: question,
@@ -66,6 +82,16 @@ class QuizSession {
       correctIndex: question.correctIndex,
       isCorrect: correct,
       remainingForQuestion: remaining,
+    );
+    _updateCurrentRecord(
+      (QuizQuestionRecord record) => record.copyWith(
+        selectedIndex: selectedIndex,
+        elapsed: elapsed,
+        remainingForQuestion: remaining,
+        outcome: correct
+            ? QuizQuestionOutcome.correct
+            : QuizQuestionOutcome.wrongAnswer,
+      ),
     );
     pendingAnswerFeedback = feedback;
 
@@ -121,6 +147,7 @@ class QuizSession {
       return;
     }
     totalAnswerTime += elapsed;
+    _markCurrentRecordIfPending(QuizQuestionOutcome.timeout, elapsed: elapsed);
     _endAs(QuizEndReason.timeout);
   }
 
@@ -133,6 +160,7 @@ class QuizSession {
     endReason = null;
     clientFinishedAt = null;
     _resetQuestionScopedHints();
+    _startQuestionForCurrentSlot();
   }
 
   void abandon() {
@@ -140,6 +168,10 @@ class QuizSession {
       return;
     }
     rankingEligible = false;
+    _markCurrentRecordIfPending(
+      QuizQuestionOutcome.abandoned,
+      elapsed: _currentRecord?.elapsed ?? Duration.zero,
+    );
     _endAs(QuizEndReason.abandoned);
   }
 
@@ -149,7 +181,7 @@ class QuizSession {
       modeLabel: mode.label,
       score: score,
       correctAnswers: correctAnswers,
-      totalQuestions: questions.length,
+      totalQuestions: totalQuestions,
       totalAnswerTime: totalAnswerTime,
       endReason: endReason ?? QuizEndReason.completed,
       rankingEligible: rankingEligible,
@@ -161,10 +193,13 @@ class QuizSession {
   void _advance() {
     _resetQuestionScopedHints();
     currentIndex += 1;
-    if (currentIndex >= questions.length) {
+    if (currentIndex >= totalQuestions) {
+      _currentQuestion = null;
       endReason = QuizEndReason.completed;
       clientFinishedAt = DateTime.now();
+      return;
     }
+    _startQuestionForCurrentSlot();
   }
 
   void _endAs(QuizEndReason reason) {
@@ -178,6 +213,95 @@ class QuizSession {
     removedOptionIndexes = <int>{};
     timeFreezeActive = false;
   }
+
+  QuizQuestionRecord? get _currentRecord =>
+      _questionHistory.isEmpty ? null : _questionHistory.last;
+
+  void _startQuestionForCurrentSlot() {
+    final _QuizPlanSlot slot = _planSlots[currentIndex];
+    final QuizQuestion question = QuizSessionFactory._generateQuestion(
+      promptType: slot.promptType,
+      racers: _racers,
+      targetCondition: slot.targetCondition,
+      optionCondition: slot.optionCondition,
+      excludedTargetIds: _usedTargetIds,
+      random: _random,
+      timeLimitSeconds: mode.timeLimitSeconds,
+    );
+    _currentQuestion = question;
+    _usedTargetIds.add(question.correctRacerId);
+    _questionHistory.add(
+      QuizQuestionRecord(slotIndex: currentIndex, question: question),
+    );
+  }
+
+  void _updateCurrentRecord(
+    QuizQuestionRecord Function(QuizQuestionRecord record) update,
+  ) {
+    if (_questionHistory.isEmpty) {
+      return;
+    }
+    _questionHistory[_questionHistory.length - 1] = update(
+      _questionHistory.last,
+    );
+  }
+
+  void _markCurrentRecordIfPending(
+    QuizQuestionOutcome outcome, {
+    required Duration elapsed,
+  }) {
+    final QuizQuestionRecord? currentRecord = _currentRecord;
+    if (currentRecord == null || currentRecord.outcome != null) {
+      return;
+    }
+    _updateCurrentRecord(
+      (QuizQuestionRecord record) =>
+          record.copyWith(elapsed: elapsed, outcome: outcome),
+    );
+  }
+}
+
+enum QuizQuestionOutcome { correct, wrongAnswer, timeout, abandoned }
+
+class QuizQuestionRecord {
+  const QuizQuestionRecord({
+    required this.slotIndex,
+    required this.question,
+    this.selectedIndex,
+    this.elapsed = Duration.zero,
+    this.remainingForQuestion,
+    this.outcome,
+  });
+
+  final int slotIndex;
+  final QuizQuestion question;
+  final int? selectedIndex;
+  final Duration elapsed;
+  final Duration? remainingForQuestion;
+  final QuizQuestionOutcome? outcome;
+
+  QuizQuestionRecord copyWith({
+    int? selectedIndex,
+    bool replaceSelectedIndex = false,
+    Duration? elapsed,
+    Duration? remainingForQuestion,
+    bool replaceRemaining = false,
+    QuizQuestionOutcome? outcome,
+    bool replaceOutcome = false,
+  }) {
+    return QuizQuestionRecord(
+      slotIndex: slotIndex,
+      question: question,
+      selectedIndex: replaceSelectedIndex
+          ? selectedIndex
+          : (selectedIndex ?? this.selectedIndex),
+      elapsed: elapsed ?? this.elapsed,
+      remainingForQuestion: replaceRemaining
+          ? remainingForQuestion
+          : (remainingForQuestion ?? this.remainingForQuestion),
+      outcome: replaceOutcome ? outcome : (outcome ?? this.outcome),
+    );
+  }
 }
 
 class QuizSessionFactory {
@@ -186,41 +310,44 @@ class QuizSessionFactory {
     required List<RacerProfile> racers,
   }) {
     final Random random = Random();
-    final List<QuizQuestion> questions = <QuizQuestion>[];
+    final List<_QuizPlanSlot> planSlots = <_QuizPlanSlot>[];
     for (final QuizSegment segment in mode.segments) {
       for (final _SegmentFlowPlan plan in _buildSegmentFlowPlans(segment)) {
-        final List<RacerProfile> targets = _pickTargetsForCondition(
-          racers: racers,
-          condition: plan.step.targetCondition,
-          count: plan.questionCount,
-          random: random,
-        );
-        for (final RacerProfile target in targets) {
-          questions.add(
-            _buildQuestion(
+        for (int i = 0; i < plan.questionCount; i += 1) {
+          planSlots.add(
+            _QuizPlanSlot(
               promptType: segment.promptType,
-              target: target,
-              racers: racers,
+              targetCondition: plan.step.targetCondition,
               optionCondition: plan.step.resolvedOptionCondition,
-              random: random,
-              timeLimitSeconds: mode.timeLimitSeconds,
             ),
           );
         }
       }
     }
 
-    return QuizSession(mode: mode, questions: questions);
+    return QuizSession(
+      mode: mode,
+      planSlots: planSlots,
+      racers: racers,
+      random: random,
+    );
   }
 
-  static QuizQuestion _buildQuestion({
+  static QuizQuestion _generateQuestion({
     required QuizPromptType promptType,
-    required RacerProfile target,
     required List<RacerProfile> racers,
+    required QuizRacerCondition targetCondition,
     required QuizRacerCondition optionCondition,
+    required Set<String> excludedTargetIds,
     required Random random,
     required int? timeLimitSeconds,
   }) {
+    final RacerProfile target = _pickTargetForQuestion(
+      racers: racers,
+      condition: targetCondition,
+      excludedTargetIds: excludedTargetIds,
+      random: random,
+    );
     final List<RacerProfile> candidatePool = _candidatePoolForQuestion(
       target: target,
       racers: racers,
@@ -253,6 +380,36 @@ class QuizSessionFactory {
       correctIndex: correctIndex,
       correctRacerId: target.id,
     );
+  }
+
+  static RacerProfile _pickTargetForQuestion({
+    required List<RacerProfile> racers,
+    required QuizRacerCondition condition,
+    required Set<String> excludedTargetIds,
+    required Random random,
+  }) {
+    final List<RacerProfile> availablePool = racers
+        .where((RacerProfile racer) => !excludedTargetIds.contains(racer.id))
+        .toList(growable: false);
+    final List<RacerProfile>? filteredAvailablePool = availablePool.isEmpty
+        ? null
+        : _filterRacersByCondition(
+            racers: availablePool,
+            condition: condition,
+            minimumCount: 1,
+          );
+    final List<RacerProfile> targetPool =
+        filteredAvailablePool == null || filteredAvailablePool.isEmpty
+        ? (_filterRacersByCondition(
+                racers: racers,
+                condition: condition,
+                minimumCount: 1,
+              ) ??
+              racers)
+        : filteredAvailablePool;
+    final List<RacerProfile> shuffledPool = List<RacerProfile>.from(targetPool)
+      ..shuffle(random);
+    return shuffledPool.first;
   }
 
   static String _buildPrompt(QuizPromptType type, RacerProfile target) {
@@ -601,4 +758,16 @@ class _SegmentFlowRemainder {
 
   final int index;
   final double value;
+}
+
+class _QuizPlanSlot {
+  const _QuizPlanSlot({
+    required this.promptType,
+    required this.targetCondition,
+    required this.optionCondition,
+  });
+
+  final QuizPromptType promptType;
+  final QuizRacerCondition targetCondition;
+  final QuizRacerCondition optionCondition;
 }
