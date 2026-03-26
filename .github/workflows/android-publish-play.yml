@@ -44,22 +44,11 @@ jobs:
 
       - name: Restore Android staging secrets
         shell: bash
-        env:
-          ANDROID_STG_GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.ANDROID_STG_GOOGLE_SERVICES_JSON_BASE64 }}
-          ANDROID_STG_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_STG_UPLOAD_KEYSTORE_BASE64 }}
-          ANDROID_STG_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_STG_UPLOAD_KEYSTORE_PASSWORD }}
-          ANDROID_STG_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_STG_UPLOAD_KEY_ALIAS }}
-          ANDROID_STG_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_STG_UPLOAD_KEY_PASSWORD }}
         run: |
           mkdir -p android/app/src/stg
-          printf '%s' "$ANDROID_STG_GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > android/app/src/stg/google-services.json
-          printf '%s' "$ANDROID_STG_UPLOAD_KEYSTORE_BASE64" | base64 --decode > android/boatface_stg_upload.jks
-          cat <<EOF > android/key.properties
-          storeFile=${{ github.workspace }}/android/boatface_stg_upload.jks
-          storePassword=$ANDROID_STG_UPLOAD_KEYSTORE_PASSWORD
-          keyAlias=$ANDROID_STG_UPLOAD_KEY_ALIAS
-          keyPassword=$ANDROID_STG_UPLOAD_KEY_PASSWORD
-          EOF
+          echo "${{ secrets.ANDROID_STG_GOOGLE_SERVICES_JSON_BASE64 }}" | base64 --decode > android/app/src/stg/google-services.json
+          echo "${{ secrets.ANDROID_STG_KEY_PROPERTIES_BASE64 }}" | base64 --decode > android/key.properties
+          echo "${{ secrets.ANDROID_STG_UPLOAD_KEYSTORE_BASE64 }}" | base64 --decode > android/boatface_stg_upload.jks
 
       - name: Setup Java
         uses: actions/setup-java@v4
