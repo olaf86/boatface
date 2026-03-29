@@ -128,7 +128,9 @@ Before the workflow can publish successfully, prepare Google Play Console:
 - Create the `dev.asobo.boatface.stg` app.
 - Enable Play App Signing.
 - Create or confirm the `internal` testing track.
+- In the Google Cloud project that owns the Play service account, enable the Google Play Developer API (`androidpublisher.googleapis.com`).
 - Create a service account with Play Console release permissions for this app.
+- Invite that service account email on Play Console and grant the app release permissions it needs.
 - Register internal testers or a tester group.
 
 Store the Play service account JSON as the `PLAY_STG_SERVICE_ACCOUNT_JSON` GitHub secret.
