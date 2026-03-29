@@ -4,7 +4,7 @@ import 'quiz_answer_feedback.dart';
 import '../domain/quiz_models.dart';
 
 class QuizSession {
-  QuizSession({
+  QuizSession._internal({
     required this.mode,
     required List<_QuizPlanSlot> planSlots,
     required List<RacerProfile> racers,
@@ -325,7 +325,7 @@ class QuizSessionFactory {
       }
     }
 
-    return QuizSession(
+    return QuizSession._internal(
       mode: mode,
       planSlots: planSlots,
       racers: racers,
@@ -576,29 +576,6 @@ class QuizSessionFactory {
     return plans
         .where(((_SegmentFlowPlan plan) => plan.questionCount > 0))
         .toList(growable: false);
-  }
-
-  static List<RacerProfile> _pickTargetsForCondition({
-    required List<RacerProfile> racers,
-    required QuizRacerCondition condition,
-    required int count,
-    required Random random,
-  }) {
-    if (count == 0) {
-      return const <RacerProfile>[];
-    }
-    final List<RacerProfile>? filteredPool = _filterRacersByCondition(
-      racers: racers,
-      condition: condition,
-      minimumCount: 1,
-    );
-    final List<RacerProfile> base = List<RacerProfile>.from(
-      filteredPool ?? racers,
-    )..shuffle(random);
-
-    return <RacerProfile>[
-      for (int i = 0; i < count; i += 1) base[i % base.length],
-    ];
   }
 
   static List<RacerProfile>? _filterRacersByCondition({
