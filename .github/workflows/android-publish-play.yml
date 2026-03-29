@@ -48,7 +48,7 @@ jobs:
           mkdir -p android/app/src/stg
           echo "${{ secrets.ANDROID_STG_GOOGLE_SERVICES_JSON_BASE64 }}" | base64 --decode > android/app/src/stg/google-services.json
           echo "${{ secrets.ANDROID_STG_KEY_PROPERTIES_BASE64 }}" | base64 --decode > android/key.properties
-          echo "${{ secrets.ANDROID_STG_UPLOAD_KEYSTORE_BASE64 }}" | base64 --decode > android/boatface_stg_upload.jks
+          echo "${{ secrets.ANDROID_STG_UPLOAD_KEYSTORE_BASE64 }}" | base64 --decode > android/boat-face-stg-upload-keystore.jks
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -97,5 +97,5 @@ jobs:
         shell: bash
         run: |
           rm -f android/key.properties
-          rm -f android/boatface_stg_upload.jks
+          rm -f android/boat-face-stg-upload-keystore.jks
           rm -f android/app/src/stg/google-services.json

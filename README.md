@@ -91,6 +91,7 @@ Notes:
 - `android/key.properties` is Git-ignored.
 - Release variants use the configured release keystore only when this file exists.
 - Without `android/key.properties`, release builds fall back to unsigned behavior for local development.
+- For the GitHub Actions staging secret, set `storeFile=../boat-face-stg-upload-keystore.jks` so it matches the CI restore path from `android/app`.
 
 ## CI/CD
 ### GitHub Actions
@@ -118,7 +119,7 @@ Base64 encode file-based secrets before registering them:
 
 ```bash
 base64 -i android/app/src/stg/google-services.json | pbcopy
-base64 -i /absolute/path/to/boatface_stg_upload.jks | pbcopy
+base64 -i /absolute/path/to/boat-face-stg-upload-keystore.jks | pbcopy
 ```
 
 The Android workflow restores those secrets only inside step-scoped `env` values and removes the generated files in a final cleanup step.
