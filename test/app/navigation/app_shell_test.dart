@@ -52,8 +52,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('まだ振り返りデータがありません'), findsOneWidget);
 
-    await tester.pageBack();
+    await tester.tap(find.text('ホームへ戻る'));
     await tester.pumpAndSettle();
+    expect(find.text('クイズモードを選択'), findsOneWidget);
 
     await tester.tap(find.text('ランキング'));
     await tester.pumpAndSettle();

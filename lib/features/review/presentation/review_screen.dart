@@ -68,11 +68,11 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                         ),
                         const SizedBox(height: 20),
                         FilledButton.icon(
-                          onPressed: () {
-                            ref
-                                .read(appShellTabControllerProvider.notifier)
-                                .select(AppShellTab.home);
-                          },
+                          onPressed: () => navigateToAppShellTab(
+                            context,
+                            ref,
+                            AppShellTab.home,
+                          ),
                           icon: const Icon(Icons.play_arrow_rounded),
                           label: const Text('ホームへ戻る'),
                         ),
