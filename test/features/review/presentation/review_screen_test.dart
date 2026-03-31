@@ -5,6 +5,7 @@ import 'package:boatface/features/quiz/domain/quiz_models.dart';
 import 'package:boatface/features/review/data/review_repository.dart';
 import 'package:boatface/features/review/domain/review_models.dart';
 import 'package:boatface/features/review/presentation/review_screen.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,11 +27,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('最近のミス 10 件'), findsOneWidget);
-    expect(find.text('正解だった選手'), findsOneWidget);
-    expect(find.text('選んでしまった選手'), findsOneWidget);
-    expect(find.text('正解レーサー'), findsOneWidget);
-    expect(find.text('誤答レーサー'), findsOneWidget);
+    expect(find.text('正解レーサー'), findsWidgets);
+    expect(find.text('不正解レーサー'), findsWidgets);
     expect(find.text('顔 -> 選手名'), findsOneWidget);
+    expect(find.text('生年月日'), findsNWidgets(2));
+    expect(find.text('出身'), findsNWidgets(2));
+    expect(find.text('支部'), findsNWidgets(2));
+    expect(find.text('所属'), findsNothing);
+    expect(find.text('問題のおさらい'), findsNothing);
+  });
+
+  testWidgets('can move to older mistakes with vertical swipe', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          reviewRepositoryProvider.overrideWithValue(_MultiReviewRepository()),
+          racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ReviewScreen())),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('1 / 2 件目'), findsOneWidget);
+
+    await tester.drag(find.byType(CarouselSlider), const Offset(0, -300));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('2 / 2 件目'), findsOneWidget);
+    expect(find.textContaining('じっくり'), findsOneWidget);
   });
 }
 
@@ -67,6 +95,74 @@ class _FakeReviewRepository implements ReviewRepository {
         elapsedMs: 1320,
         outcome: QuizMistakeOutcome.wrongAnswer,
         createdAt: DateTime.utc(2026, 3, 31, 10),
+      ),
+    ];
+  }
+}
+
+class _MultiReviewRepository implements ReviewRepository {
+  @override
+  Future<List<ReviewMistakeEntry>> fetchMyMistakes() async {
+    return <ReviewMistakeEntry>[
+      ReviewMistakeEntry(
+        mistakeId: 'mistake-1',
+        resultId: 'result-1',
+        sessionId: 'session-1',
+        modeId: 'quick',
+        modeLabel: 'さくっと',
+        questionIndex: 2,
+        mistakeSequence: 0,
+        promptType: QuizPromptType.faceToName,
+        prompt: 'この選手は誰？',
+        options: const <ReviewMistakeOption>[
+          ReviewMistakeOption(racerId: 'correct', label: '正解レーサー'),
+          ReviewMistakeOption(racerId: 'wrong', label: '誤答レーサー'),
+        ],
+        correctIndex: 0,
+        selectedIndex: 1,
+        correctRacerId: 'correct',
+        selectedRacerId: 'wrong',
+        correctOption: const ReviewMistakeOption(
+          racerId: 'correct',
+          label: '正解レーサー',
+        ),
+        selectedOption: const ReviewMistakeOption(
+          racerId: 'wrong',
+          label: '誤答レーサー',
+        ),
+        elapsedMs: 1320,
+        outcome: QuizMistakeOutcome.wrongAnswer,
+        createdAt: DateTime.utc(2026, 3, 31, 10),
+      ),
+      ReviewMistakeEntry(
+        mistakeId: 'mistake-2',
+        resultId: 'result-2',
+        sessionId: 'session-2',
+        modeId: 'deep',
+        modeLabel: 'じっくり',
+        questionIndex: 5,
+        mistakeSequence: 1,
+        promptType: QuizPromptType.registrationToFace,
+        prompt: 'この登録番号の選手は誰？',
+        options: const <ReviewMistakeOption>[
+          ReviewMistakeOption(racerId: 'correct', label: '正解レーサー'),
+          ReviewMistakeOption(racerId: 'wrong', label: '誤答レーサー'),
+        ],
+        correctIndex: 0,
+        selectedIndex: 1,
+        correctRacerId: 'correct',
+        selectedRacerId: 'wrong',
+        correctOption: const ReviewMistakeOption(
+          racerId: 'correct',
+          label: '正解レーサー',
+        ),
+        selectedOption: const ReviewMistakeOption(
+          racerId: 'wrong',
+          label: '誤答レーサー',
+        ),
+        elapsedMs: 2140,
+        outcome: QuizMistakeOutcome.wrongAnswer,
+        createdAt: DateTime.utc(2026, 3, 30, 10),
       ),
     ];
   }
@@ -123,6 +219,8 @@ RacerProfile _buildRacer({
     imageSource: 'seed',
     updatedAt: DateTime.utc(2026, 3, 31),
     isActive: true,
+    birthDate: DateTime.utc(1990, 4, 2),
+    birthPlace: '福岡県',
     homeBranch: '東京',
     affiliationBranch: '東京',
   );
