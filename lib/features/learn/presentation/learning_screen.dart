@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/navigation/app_route.dart';
-import '../../review/presentation/review_screen.dart';
+import '../navigation/learning_navigation.dart';
 
 class LearningScreen extends StatelessWidget {
   const LearningScreen({super.key});
@@ -58,14 +57,7 @@ class LearningScreen extends StatelessWidget {
               description: '最近ミスした問題を見直して、正解だった選手と誤答した選手を並べて確認します。',
               icon: Icons.history_edu_rounded,
               buttonLabel: '振り返りを開く',
-              onPressed: () {
-                Navigator.of(context).push(
-                  buildAppRoute<void>(
-                    page: const ReviewPage(),
-                    transition: AppRouteTransition.sharedAxisHorizontal,
-                  ),
-                );
-              },
+              onPressed: () => pushLearningReviewPage(context),
             ),
             const SizedBox(height: 14),
             _LearningActionCard(

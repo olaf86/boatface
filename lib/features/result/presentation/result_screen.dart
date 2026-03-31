@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_shell.dart';
+import '../../learn/navigation/learning_navigation.dart';
 import '../../quiz/data/quiz_backend_repository.dart';
 import '../../quiz/domain/quiz_backend_models.dart';
 import '../../quiz/domain/quiz_models.dart';
@@ -152,7 +153,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   if (!_isSubmitting &&
                       widget.summary.mistakes.isNotEmpty) ...<Widget>[
                     FilledButton.icon(
-                      onPressed: () => navigateToReviewScreen(context, ref),
+                      onPressed: () => openLearningReviewFlow(context, ref),
                       icon: const Icon(Icons.history_edu_rounded),
                       label: const Text('ミスを振り返る'),
                     ),

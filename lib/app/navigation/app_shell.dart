@@ -6,7 +6,6 @@ import '../../features/home/presentation/settings_screen.dart';
 import '../../features/learn/presentation/learning_screen.dart';
 import '../../features/quiz/application/racer_master_sync_controller.dart';
 import '../../features/ranking/presentation/ranking_screen.dart';
-import '../../features/review/presentation/review_screen.dart';
 import 'app_route.dart';
 
 enum AppShellTab { home, learning, ranking }
@@ -119,16 +118,4 @@ void navigateToAppShellTab(
 ) {
   ref.read(appShellTabControllerProvider.notifier).select(tab);
   Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
-}
-
-void navigateToReviewScreen(BuildContext context, WidgetRef ref) {
-  final NavigatorState navigator = Navigator.of(context);
-  ref.read(appShellTabControllerProvider.notifier).select(AppShellTab.learning);
-  navigator.popUntil((Route<dynamic> route) => route.isFirst);
-  navigator.push(
-    buildAppRoute<void>(
-      page: const ReviewPage(),
-      transition: AppRouteTransition.sharedAxisHorizontal,
-    ),
-  );
 }
