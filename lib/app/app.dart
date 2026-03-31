@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/presentation/login_screen.dart';
-import '../features/home/presentation/home_screen.dart';
 import '../features/quiz/application/racer_master_sync_controller.dart';
 import '../features/quiz/application/racer_master_sync_state.dart';
+import 'navigation/app_shell.dart';
 import '../shared/format/date_time_formatters.dart';
 
 class BoatfaceApp extends ConsumerWidget {
@@ -206,7 +206,7 @@ class BoatfaceApp extends ConsumerWidget {
       },
       home: authStateAsync.when(
         data: (authState) =>
-            authState.isSignedIn ? const HomeScreen() : const LoginScreen(),
+            authState.isSignedIn ? const AppShellScreen() : const LoginScreen(),
         loading: () =>
             const Scaffold(body: Center(child: CircularProgressIndicator())),
         error: (Object error, StackTrace stackTrace) => Scaffold(

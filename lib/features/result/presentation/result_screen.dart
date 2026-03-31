@@ -2,6 +2,7 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/navigation/app_shell.dart';
 import '../../quiz/data/quiz_backend_repository.dart';
 import '../../quiz/domain/quiz_backend_models.dart';
 import '../../quiz/domain/quiz_models.dart';
@@ -148,12 +149,27 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                     onRetry: _isSubmitting ? null : _submitResult,
                   ),
                   const SizedBox(height: 24),
-                  FilledButton(
+                  if (!_isSubmitting &&
+                      widget.summary.mistakes.isNotEmpty) ...<Widget>[
+                    FilledButton.icon(
+                      onPressed: () => navigateToAppShellTab(
+                        context,
+                        ref,
+                        AppShellTab.review,
+                      ),
+                      icon: const Icon(Icons.history_edu_rounded),
+                      label: const Text('ミスを振り返る'),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  OutlinedButton(
                     onPressed: _isSubmitting
                         ? null
-                        : () => Navigator.of(
-                              context,
-                            ).popUntil((Route<dynamic> route) => route.isFirst),
+                        : () => navigateToAppShellTab(
+                            context,
+                            ref,
+                            AppShellTab.home,
+                          ),
                     child: Text(_isSubmitting ? '結果を保存中…' : 'ホームに戻る'),
                   ),
                 ],
@@ -227,7 +243,10 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     try {
       final QuizResultSubmissionReceipt receipt = await ref
           .read(quizBackendRepositoryProvider)
-          .submitQuizResult(sessionId: widget.sessionId, summary: widget.summary);
+          .submitQuizResult(
+            sessionId: widget.sessionId,
+            summary: widget.summary,
+          );
       if (!mounted) {
         return;
       }

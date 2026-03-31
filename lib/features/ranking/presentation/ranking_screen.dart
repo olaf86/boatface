@@ -34,229 +34,222 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
     );
     final ThemeData theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('ランキング')),
-      body: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final bool twoColumn = constraints.maxWidth >= 900;
-          final Widget filters = ListView(
-            padding: const EdgeInsets.all(16),
-            children: <Widget>[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text('表示条件', style: theme.textTheme.titleMedium),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: _modeId,
-                        decoration: const InputDecoration(
-                          labelText: 'モード',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: kQuizModes
-                            .where((QuizModeConfig mode) => mode.availableInMvp)
-                            .map(
-                              (QuizModeConfig mode) => DropdownMenuItem<String>(
-                                value: mode.id,
-                                child: Text(mode.label),
-                              ),
-                            )
-                            .toList(growable: false),
-                        onChanged: (String? value) {
-                          if (value == null) {
-                            return;
-                          }
-                          setState(() {
-                            _modeId = value;
-                          });
-                        },
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool twoColumn = constraints.maxWidth >= 900;
+        final Widget filters = ListView(
+          padding: const EdgeInsets.all(16),
+          children: <Widget>[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('表示条件', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: _modeId,
+                      decoration: const InputDecoration(
+                        labelText: 'モード',
+                        border: OutlineInputBorder(),
                       ),
-                      const SizedBox(height: 12),
-                      SegmentedButton<RankingPeriod>(
-                        segments: const <ButtonSegment<RankingPeriod>>[
-                          ButtonSegment<RankingPeriod>(
-                            value: RankingPeriod.today,
-                            label: Text('本日'),
-                          ),
-                          ButtonSegment<RankingPeriod>(
-                            value: RankingPeriod.term,
-                            label: Text('期別'),
-                          ),
-                        ],
-                        selected: <RankingPeriod>{_period},
-                        onSelectionChanged: (Set<RankingPeriod> value) {
-                          setState(() {
-                            _period = value.first;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _CurrentUserCard(
-                rankingAsync: rankingAsync,
-                currentUserId: currentUserId,
-                period: _period,
-                questionCount: mode.questionCount,
-              ),
-              const SizedBox(height: 16),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const <Widget>[
-                      Text('集計メモ'),
-                      SizedBox(height: 8),
-                      Text('本日ランキングは JST 00:00 区切りです。'),
-                      SizedBox(height: 4),
-                      Text('期別ランキングは 1月1日 / 7月1日 開始です。'),
-                      SizedBox(height: 4),
-                      Text('表示名と地域は設定画面のプロフィール設定を使います。'),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          );
-
-          final Widget leaderboard = Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-            child: Card(
-              clipBehavior: Clip.hardEdge,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
-                    child: Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                '${mode.label} / ${_period.label}',
-                                style: theme.textTheme.titleLarge,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                rankingAsync.valueOrNull == null
-                                    ? 'ランキングを読み込み中です。'
-                                    : '更新日時: ${formatDateTimeYmdHm(rankingAsync.valueOrNull!.generatedAt)}',
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
+                      items: kQuizModes
+                          .where((QuizModeConfig mode) => mode.availableInMvp)
+                          .map(
+                            (QuizModeConfig mode) => DropdownMenuItem<String>(
+                              value: mode.id,
+                              child: Text(mode.label),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: (String? value) {
+                        if (value == null) {
+                          return;
+                        }
+                        setState(() {
+                          _modeId = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    SegmentedButton<RankingPeriod>(
+                      segments: const <ButtonSegment<RankingPeriod>>[
+                        ButtonSegment<RankingPeriod>(
+                          value: RankingPeriod.today,
+                          label: Text('本日'),
                         ),
-                        IconButton(
-                          tooltip: '再読み込み',
-                          onPressed: () =>
-                              ref.invalidate(rankingSnapshotProvider(request)),
-                          icon: const Icon(Icons.refresh),
+                        ButtonSegment<RankingPeriod>(
+                          value: RankingPeriod.term,
+                          label: Text('期別'),
                         ),
                       ],
+                      selected: <RankingPeriod>{_period},
+                      onSelectionChanged: (Set<RankingPeriod> value) {
+                        setState(() {
+                          _period = value.first;
+                        });
+                      },
                     ),
-                  ),
-                  const Divider(height: 1),
-                  _LeaderboardTableHeader(theme: theme),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: ClipRect(
-                      child: rankingAsync.when(
-                        data: (RankingSnapshot snapshot) {
-                          if (snapshot.entries.isEmpty) {
-                            return const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(24),
-                                child: Text('まだランキングデータがありません。'),
-                              ),
-                            );
-                          }
-
-                          return ListView.separated(
-                            padding: EdgeInsets.zero,
-                            itemCount: snapshot.entries.length,
-                            separatorBuilder:
-                                (BuildContext context, int index) => Divider(
-                                  height: 1,
-                                  color: theme.colorScheme.outlineVariant,
-                                ),
-                            itemBuilder: (BuildContext context, int index) {
-                              final RankingEntry entry =
-                                  snapshot.entries[index];
-                              final bool isCurrentUser =
-                                  currentUserId != null &&
-                                  currentUserId == entry.userId;
-                              return _RankingListRow(
-                                entry: entry,
-                                isCurrentUser: isCurrentUser,
-                                formattedTime: _formatSeconds(
-                                  entry.totalAnswerTimeMs,
-                                ),
-                              );
-                            },
-                          );
-                        },
-                        loading: () =>
-                            const Center(child: CircularProgressIndicator()),
-                        error: (Object error, StackTrace stackTrace) {
-                          return Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: <Widget>[
-                                  Text(
-                                    _messageForError(error),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  OutlinedButton(
-                                    onPressed: () => ref.invalidate(
-                                      rankingSnapshotProvider(request),
-                                    ),
-                                    child: const Text('再試行'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          );
-
-          if (!twoColumn) {
-            return Column(
-              children: <Widget>[
-                SizedBox(height: 272, child: filters),
-                Expanded(child: leaderboard),
-              ],
-            );
-          }
-
-          return Row(
-            children: <Widget>[
-              SizedBox(width: 300, child: filters),
-              VerticalDivider(
-                width: 1,
-                color: theme.colorScheme.outlineVariant,
+            const SizedBox(height: 16),
+            _CurrentUserCard(
+              rankingAsync: rankingAsync,
+              currentUserId: currentUserId,
+              period: _period,
+              questionCount: mode.questionCount,
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const <Widget>[
+                    Text('集計メモ'),
+                    SizedBox(height: 8),
+                    Text('本日ランキングは JST 00:00 区切りです。'),
+                    SizedBox(height: 4),
+                    Text('期別ランキングは 1月1日 / 7月1日 開始です。'),
+                    SizedBox(height: 4),
+                    Text('表示名と地域は設定画面のプロフィール設定を使います。'),
+                  ],
+                ),
               ),
+            ),
+          ],
+        );
+
+        final Widget leaderboard = Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+          child: Card(
+            clipBehavior: Clip.hardEdge,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              '${mode.label} / ${_period.label}',
+                              style: theme.textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              rankingAsync.valueOrNull == null
+                                  ? 'ランキングを読み込み中です。'
+                                  : '更新日時: ${formatDateTimeYmdHm(rankingAsync.valueOrNull!.generatedAt)}',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: '再読み込み',
+                        onPressed: () =>
+                            ref.invalidate(rankingSnapshotProvider(request)),
+                        icon: const Icon(Icons.refresh),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                _LeaderboardTableHeader(theme: theme),
+                const Divider(height: 1),
+                Expanded(
+                  child: ClipRect(
+                    child: rankingAsync.when(
+                      data: (RankingSnapshot snapshot) {
+                        if (snapshot.entries.isEmpty) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(24),
+                              child: Text('まだランキングデータがありません。'),
+                            ),
+                          );
+                        }
+
+                        return ListView.separated(
+                          padding: EdgeInsets.zero,
+                          itemCount: snapshot.entries.length,
+                          separatorBuilder: (BuildContext context, int index) =>
+                              Divider(
+                                height: 1,
+                                color: theme.colorScheme.outlineVariant,
+                              ),
+                          itemBuilder: (BuildContext context, int index) {
+                            final RankingEntry entry = snapshot.entries[index];
+                            final bool isCurrentUser =
+                                currentUserId != null &&
+                                currentUserId == entry.userId;
+                            return _RankingListRow(
+                              entry: entry,
+                              isCurrentUser: isCurrentUser,
+                              formattedTime: _formatSeconds(
+                                entry.totalAnswerTimeMs,
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (Object error, StackTrace stackTrace) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Text(
+                                  _messageForError(error),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 12),
+                                OutlinedButton(
+                                  onPressed: () => ref.invalidate(
+                                    rankingSnapshotProvider(request),
+                                  ),
+                                  child: const Text('再試行'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+        if (!twoColumn) {
+          return Column(
+            children: <Widget>[
+              SizedBox(height: 272, child: filters),
               Expanded(child: leaderboard),
             ],
           );
-        },
-      ),
+        }
+
+        return Row(
+          children: <Widget>[
+            SizedBox(width: 300, child: filters),
+            VerticalDivider(width: 1, color: theme.colorScheme.outlineVariant),
+            Expanded(child: leaderboard),
+          ],
+        );
+      },
     );
   }
 
