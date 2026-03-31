@@ -41,11 +41,11 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('学習タブを開く'), findsOneWidget);
+    expect(find.text('クイズモードを選択'), findsOneWidget);
+    expect(find.text('モードを選んでクイズにチャレンジしよう！'), findsOneWidget);
 
     await tester.tap(find.text('学習'));
     await tester.pumpAndSettle();
-    expect(find.text('学習メニュー'), findsOneWidget);
     expect(find.text('振り返りを開く'), findsOneWidget);
 
     await tester.tap(find.text('振り返りを開く'));

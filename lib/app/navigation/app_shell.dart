@@ -8,7 +8,7 @@ import '../../features/quiz/application/racer_master_sync_controller.dart';
 import '../../features/ranking/presentation/ranking_screen.dart';
 import 'app_route.dart';
 
-enum AppShellTab { home, learning, ranking }
+enum AppShellTab { learning, home, ranking }
 
 extension AppShellTabX on AppShellTab {
   String get label => switch (this) {
@@ -87,8 +87,8 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
       body: IndexedStack(
         index: currentTab.index,
         children: <Widget>[
-          HomeScreen(onOpenLearning: () => _selectTab(AppShellTab.learning)),
           const LearningScreen(),
+          const HomeScreen(),
           const RankingScreen(),
         ],
       ),
