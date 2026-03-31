@@ -158,6 +158,58 @@ async function callFunction(path, options = {}) {
   return {response, body};
 }
 
+async function submitResultWithMistake(authHeaders, sessionId, mistakeIndex) {
+  const submitResult = await callFunction("submitQuizResult", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({
+      sessionId,
+      modeId: "quick",
+      modeLabel: "さくっと",
+      score: 7,
+      correctAnswers: 7,
+      totalQuestions: 10,
+      totalAnswerTimeMs: 5432 + mistakeIndex,
+      endReason: "wrongAnswer",
+      rankingEligible: true,
+      continuedByAd: false,
+      clientFinishedAt: "2026-03-15T10:00:00Z",
+      mistakes: [
+        {
+          questionIndex: mistakeIndex % 10,
+          mistakeSequence: 0,
+          promptType: "faceToName",
+          prompt: `この選手は誰？ #${mistakeIndex}`,
+          promptImageUrl: "https://example.com/prompt.png",
+          options: [
+            {
+              racerId: "racer-active",
+              label: "Active Racer",
+              labelReading: "アクティブレーサー",
+              imageUrl: "https://example.com/active.png",
+            },
+            {
+              racerId: "racer-inactive",
+              label: "Inactive Racer",
+              labelReading: "インアクティブレーサー",
+              imageUrl: "https://example.com/inactive.png",
+            },
+          ],
+          correctIndex: 0,
+          selectedIndex: 1,
+          correctRacerId: "racer-active",
+          selectedRacerId: "racer-inactive",
+          elapsedMs: 1200 + mistakeIndex,
+          outcome: "wrongAnswer",
+        },
+      ],
+    }),
+  });
+  assert.equal(submitResult.response.status, 201);
+
+  return submitResult;
+}
+
 test("functions endpoints work together in the emulator suite", async () => {
   await clearFirestore();
   await clearAuth();
@@ -261,27 +313,34 @@ test("functions endpoints work together in the emulator suite", async () => {
     code: "tokyo",
     label: "東京都",
   });
-
-  const submitResult = await callFunction("submitQuizResult", {
-    method: "POST",
-    headers: authHeaders,
-    body: JSON.stringify({
-      sessionId: sessionResult.body.sessionId,
-      modeId: "quick",
-      modeLabel: "さくっと",
-      score: 7,
-      correctAnswers: 7,
-      totalQuestions: 10,
-      totalAnswerTimeMs: 5432,
-      endReason: "wrongAnswer",
-      rankingEligible: true,
-      continuedByAd: false,
-      clientFinishedAt: "2026-03-15T10:00:00Z",
-    }),
-  });
+  const submitResult = await submitResultWithMistake(
+    authHeaders,
+    sessionResult.body.sessionId,
+    0,
+  );
   assert.equal(submitResult.response.status, 201);
   assert.equal(typeof submitResult.body.resultId, "string");
   assert.equal(submitResult.body.rankingEligible, true);
+
+  const storedMistakes = await db
+    .collection("users")
+    .doc(localId)
+    .collection("quiz_mistakes")
+    .orderBy("sortKey", "desc")
+    .get();
+  assert.equal(storedMistakes.size, 1);
+  assert.equal(storedMistakes.docs[0].get("prompt"), "この選手は誰？ #0");
+  assert.equal(storedMistakes.docs[0].get("selectedRacerId"), "racer-inactive");
+
+  const quizMistakesResult = await callFunction("getMyQuizMistakes", {
+    method: "GET",
+    headers: {Authorization: `Bearer ${idToken}`},
+  });
+  assert.equal(quizMistakesResult.response.status, 200);
+  assert.equal(quizMistakesResult.body.mistakes.length, 1);
+  assert.equal(quizMistakesResult.body.mistakes[0].prompt, "この選手は誰？ #0");
+  assert.equal(quizMistakesResult.body.mistakes[0].correctOption.label, "Active Racer");
+  assert.equal(quizMistakesResult.body.mistakes[0].selectedOption.label, "Inactive Racer");
 
   const rankingsResult = await callFunction("getRankings?modeId=quick&period=today&limit=10", {
     method: "GET",
@@ -309,4 +368,28 @@ test("functions endpoints work together in the emulator suite", async () => {
   });
   assert.equal(publicRankingsResult.response.status, 401);
   assert.equal(publicRankingsResult.body.error, "unauthenticated");
+
+  for (let i = 1; i <= 11; i += 1) {
+    const nextSessionResult = await callFunction("createQuizSession", {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({modeId: "quick"}),
+    });
+    assert.equal(nextSessionResult.response.status, 201);
+    await submitResultWithMistake(authHeaders, nextSessionResult.body.sessionId, i);
+  }
+
+  const trimmedMistakes = await db
+    .collection("users")
+    .doc(localId)
+    .collection("quiz_mistakes")
+    .get();
+  assert.equal(trimmedMistakes.size, 10);
+
+  const latestQuizMistakesResult = await callFunction("getMyQuizMistakes", {
+    method: "GET",
+    headers: {Authorization: `Bearer ${idToken}`},
+  });
+  assert.equal(latestQuizMistakesResult.response.status, 200);
+  assert.equal(latestQuizMistakesResult.body.mistakes.length, 10);
 });

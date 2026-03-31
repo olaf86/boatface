@@ -69,6 +69,9 @@ class FirebaseQuizBackendRepository implements QuizBackendRepository {
         'rankingEligible': summary.rankingEligible,
         'continuedByAd': summary.continuedByAd,
         'clientFinishedAt': summary.clientFinishedAt.toUtc().toIso8601String(),
+        'mistakes': summary.mistakes
+            .map((QuizMistakeSnapshot mistake) => mistake.toJson())
+            .toList(),
       },
       defaultErrorMessage: 'クイズ結果の送信に失敗しました。',
     );

@@ -24,6 +24,29 @@ export type QuizResultSubmitRequest = {
   rankingEligible?: boolean;
   continuedByAd?: boolean;
   clientFinishedAt?: string;
+  mistakes?: QuizMistakeSubmitItem[];
+};
+
+export type QuizMistakeSubmitOption = {
+  racerId?: string;
+  label?: string;
+  labelReading?: string | null;
+  imageUrl?: string | null;
+};
+
+export type QuizMistakeSubmitItem = {
+  questionIndex?: number;
+  mistakeSequence?: number;
+  promptType?: string;
+  prompt?: string;
+  promptImageUrl?: string | null;
+  options?: QuizMistakeSubmitOption[];
+  correctIndex?: number;
+  selectedIndex?: number | null;
+  correctRacerId?: string;
+  selectedRacerId?: string | null;
+  elapsedMs?: number;
+  outcome?: string;
 };
 
 export type UserProfileUpdateRequest = {
@@ -41,6 +64,34 @@ export type QuizSessionRecord = {
   createdAt: Timestamp;
   expiresAt: Timestamp;
   consumedAt: Timestamp | null;
+};
+
+export type QuizMistakeRecord = {
+  resultId: string;
+  sessionId: string;
+  modeId: string;
+  modeLabel: string;
+  questionIndex: number;
+  mistakeSequence: number;
+  promptType: string;
+  prompt: string;
+  promptImageUrl: string | null;
+  options: QuizMistakeStoredOption[];
+  correctIndex: number;
+  selectedIndex: number | null;
+  correctRacerId: string;
+  selectedRacerId: string | null;
+  elapsedMs: number;
+  outcome: string;
+  sortKey: number;
+  createdAt: Timestamp;
+};
+
+export type QuizMistakeStoredOption = {
+  racerId: string;
+  label: string;
+  labelReading: string | null;
+  imageUrl: string | null;
 };
 
 export type RankingEntry = {

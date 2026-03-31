@@ -2,6 +2,7 @@ export {getMyProfile} from "./getMyProfile.js";
 export {updateMyProfile} from "./updateMyProfile.js";
 export {createQuizSession} from "./createQuizSession.js";
 export {submitQuizResult} from "./submitQuizResult.js";
+export {getMyQuizMistakes} from "./getMyQuizMistakes.js";
 export {getRankings} from "./getRankings.js";
 export {getRacerDatasetManifest} from "./getRacerDatasetManifest.js";
 export {getRacerDatasetSnapshot} from "./getRacerDatasetSnapshot.js";

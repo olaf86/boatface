@@ -393,6 +393,80 @@ class QuizQuestion {
       options.any((QuizOption option) => option.hasImage);
 }
 
+enum QuizMistakeOutcome { wrongAnswer, timeout, abandoned }
+
+class QuizMistakeOptionSnapshot {
+  const QuizMistakeOptionSnapshot({
+    required this.racerId,
+    required this.label,
+    this.labelReading,
+    this.imageUrl,
+  });
+
+  final String racerId;
+  final String label;
+  final String? labelReading;
+  final String? imageUrl;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'racerId': racerId,
+      'label': label,
+      'labelReading': labelReading,
+      'imageUrl': imageUrl,
+    };
+  }
+}
+
+class QuizMistakeSnapshot {
+  const QuizMistakeSnapshot({
+    required this.questionIndex,
+    required this.mistakeSequence,
+    required this.promptType,
+    required this.prompt,
+    this.promptImageUrl,
+    required this.options,
+    required this.correctIndex,
+    this.selectedIndex,
+    required this.correctRacerId,
+    this.selectedRacerId,
+    required this.elapsed,
+    required this.outcome,
+  });
+
+  final int questionIndex;
+  final int mistakeSequence;
+  final QuizPromptType promptType;
+  final String prompt;
+  final String? promptImageUrl;
+  final List<QuizMistakeOptionSnapshot> options;
+  final int correctIndex;
+  final int? selectedIndex;
+  final String correctRacerId;
+  final String? selectedRacerId;
+  final Duration elapsed;
+  final QuizMistakeOutcome outcome;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'questionIndex': questionIndex,
+      'mistakeSequence': mistakeSequence,
+      'promptType': promptType.name,
+      'prompt': prompt,
+      'promptImageUrl': promptImageUrl,
+      'options': options
+          .map((QuizMistakeOptionSnapshot option) => option.toJson())
+          .toList(),
+      'correctIndex': correctIndex,
+      'selectedIndex': selectedIndex,
+      'correctRacerId': correctRacerId,
+      'selectedRacerId': selectedRacerId,
+      'elapsedMs': elapsed.inMilliseconds,
+      'outcome': outcome.name,
+    };
+  }
+}
+
 class QuizResultSummary {
   const QuizResultSummary({
     required this.modeId,
@@ -405,6 +479,7 @@ class QuizResultSummary {
     required this.rankingEligible,
     required this.continuedByAd,
     required this.clientFinishedAt,
+    required this.mistakes,
   });
 
   final String modeId;
@@ -417,6 +492,7 @@ class QuizResultSummary {
   final bool rankingEligible;
   final bool continuedByAd;
   final DateTime clientFinishedAt;
+  final List<QuizMistakeSnapshot> mistakes;
 }
 
 String promptTypeLabel(QuizPromptType type) {
