@@ -9,19 +9,17 @@ import '../../features/ranking/presentation/ranking_screen.dart';
 import '../../features/review/presentation/review_screen.dart';
 import 'app_route.dart';
 
-enum AppShellTab { home, review, learning, ranking }
+enum AppShellTab { home, learning, ranking }
 
 extension AppShellTabX on AppShellTab {
   String get label => switch (this) {
     AppShellTab.home => 'ホーム',
-    AppShellTab.review => '振り返り',
     AppShellTab.learning => '学習',
     AppShellTab.ranking => 'ランキング',
   };
 
   IconData get icon => switch (this) {
     AppShellTab.home => Icons.home_rounded,
-    AppShellTab.review => Icons.history_edu_rounded,
     AppShellTab.learning => Icons.menu_book_rounded,
     AppShellTab.ranking => Icons.leaderboard_rounded,
   };
@@ -90,8 +88,7 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
       body: IndexedStack(
         index: currentTab.index,
         children: <Widget>[
-          HomeScreen(onOpenReview: () => _selectTab(AppShellTab.review)),
-          const ReviewScreen(),
+          HomeScreen(onOpenLearning: () => _selectTab(AppShellTab.learning)),
           const LearningScreen(),
           const RankingScreen(),
         ],
@@ -122,4 +119,16 @@ void navigateToAppShellTab(
 ) {
   ref.read(appShellTabControllerProvider.notifier).select(tab);
   Navigator.of(context).popUntil((Route<dynamic> route) => route.isFirst);
+}
+
+void navigateToReviewScreen(BuildContext context, WidgetRef ref) {
+  final NavigatorState navigator = Navigator.of(context);
+  ref.read(appShellTabControllerProvider.notifier).select(AppShellTab.learning);
+  navigator.popUntil((Route<dynamic> route) => route.isFirst);
+  navigator.push(
+    buildAppRoute<void>(
+      page: const ReviewPage(),
+      transition: AppRouteTransition.sharedAxisHorizontal,
+    ),
+  );
 }

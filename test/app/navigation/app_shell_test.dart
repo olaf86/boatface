@@ -41,15 +41,19 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('最近のミスを振り返る'), findsOneWidget);
-
-    await tester.tap(find.text('振り返り'));
-    await tester.pumpAndSettle();
-    expect(find.text('まだ振り返りデータがありません'), findsOneWidget);
+    expect(find.text('学習タブを開く'), findsOneWidget);
 
     await tester.tap(find.text('学習'));
     await tester.pumpAndSettle();
-    expect(find.text('学習モードを準備中です'), findsOneWidget);
+    expect(find.text('学習メニュー'), findsOneWidget);
+    expect(find.text('振り返りを開く'), findsOneWidget);
+
+    await tester.tap(find.text('振り返りを開く'));
+    await tester.pumpAndSettle();
+    expect(find.text('まだ振り返りデータがありません'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('ランキング'));
     await tester.pumpAndSettle();

@@ -10,6 +10,18 @@ import '../../quiz/domain/quiz_models.dart';
 import '../application/review_providers.dart';
 import '../domain/review_models.dart';
 
+class ReviewPage extends StatelessWidget {
+  const ReviewPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('振り返り')),
+      body: const ReviewScreen(),
+    );
+  }
+}
+
 class ReviewScreen extends ConsumerStatefulWidget {
   const ReviewScreen({super.key});
 

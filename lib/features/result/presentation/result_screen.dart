@@ -152,11 +152,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   if (!_isSubmitting &&
                       widget.summary.mistakes.isNotEmpty) ...<Widget>[
                     FilledButton.icon(
-                      onPressed: () => navigateToAppShellTab(
-                        context,
-                        ref,
-                        AppShellTab.review,
-                      ),
+                      onPressed: () => navigateToReviewScreen(context, ref),
                       icon: const Icon(Icons.history_edu_rounded),
                       label: const Text('ミスを振り返る'),
                     ),

@@ -7,11 +7,11 @@ import '../../quiz/domain/quiz_models.dart';
 import '../../quiz/presentation/quiz_rule_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({this.onOpenReview, super.key});
+  const HomeScreen({this.onOpenLearning, super.key});
 
   static const double _modeButtonMaxWidth = 320;
 
-  final VoidCallback? onOpenReview;
+  final VoidCallback? onOpenLearning;
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -26,7 +26,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: <Widget>[
-            _HomeSummaryCard(onOpenReview: widget.onOpenReview),
+            _HomeSummaryCard(onOpenLearning: widget.onOpenLearning),
             const SizedBox(height: 12),
             ...kQuizModes.map(
               (QuizModeConfig mode) => Padding(
@@ -63,9 +63,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _HomeSummaryCard extends StatelessWidget {
-  const _HomeSummaryCard({this.onOpenReview});
+  const _HomeSummaryCard({this.onOpenLearning});
 
-  final VoidCallback? onOpenReview;
+  final VoidCallback? onOpenLearning;
 
   @override
   Widget build(BuildContext context) {
@@ -80,15 +80,15 @@ class _HomeSummaryCard extends StatelessWidget {
             Text('モードを選択', style: theme.textTheme.headlineSmall),
             const SizedBox(height: 8),
             Text(
-              '詳細なルールは次の画面で確認できます。最近のミスは振り返りタブから見返せます。',
+              '詳細なルールは次の画面で確認できます。ミスの振り返りや今後の学習機能は学習タブから使えるようにしていきます。',
               style: theme.textTheme.bodyMedium,
             ),
-            if (onOpenReview != null) ...<Widget>[
+            if (onOpenLearning != null) ...<Widget>[
               const SizedBox(height: 14),
               OutlinedButton.icon(
-                onPressed: onOpenReview,
-                icon: const Icon(Icons.history_edu_rounded),
-                label: const Text('最近のミスを振り返る'),
+                onPressed: onOpenLearning,
+                icon: const Icon(Icons.menu_book_rounded),
+                label: const Text('学習タブを開く'),
               ),
             ],
           ],
