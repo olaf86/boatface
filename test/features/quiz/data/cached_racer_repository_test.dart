@@ -437,6 +437,9 @@ RacerDatasetSnapshot _buildSnapshot({
         imageSource: prefix,
         updatedAt: updatedAt,
         isActive: index < 4 || prefix == 'local',
+        birthDate: DateTime.utc(1990, 4, index + 1),
+        birthPlace: '福岡県',
+        homeBranch: '東京',
       );
     }),
   );

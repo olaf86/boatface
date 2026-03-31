@@ -412,22 +412,67 @@ class _RacerDetailCard extends StatelessWidget {
                           style: theme.textTheme.titleMedium,
                         ),
                         const SizedBox(height: 6),
-                        _DetailLine(
-                          label: '基本',
-                          value:
-                              '${racer?.registrationNumber.toString() ?? '---'} / ${racer?.racerClass ?? '---'} / ${_genderLabel(racer?.gender)}',
-                        ),
-                        _DetailLine(
-                          label: '生年月日',
-                          value: _birthDateLabel(racer?.birthDate),
-                        ),
-                        _DetailLine(
-                          label: '出身',
-                          value: racer?.birthPlace ?? '---',
-                        ),
-                        _DetailLine(
-                          label: '支部',
-                          value: racer?.homeBranch ?? '---',
+                        Expanded(
+                          child: Column(
+                            children: <Widget>[
+                              Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: _DetailTile(
+                                      label: '登録番号',
+                                      value:
+                                          racer?.registrationNumber
+                                              .toString() ??
+                                          '---',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: _DetailTile(
+                                      label: '級別',
+                                      value: racer?.racerClass ?? '---',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: _DetailTile(
+                                      label: '性別',
+                                      value: _genderLabel(racer?.gender),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: _DetailTile(
+                                      label: '生年月日',
+                                      value: _birthDateLabel(racer?.birthDate),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: _DetailTile(
+                                      label: '出身',
+                                      value: racer?.birthPlace ?? '---',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: _DetailTile(
+                                      label: '支部',
+                                      value: racer?.homeBranch ?? '---',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -543,8 +588,8 @@ class _ReviewImageFallback extends StatelessWidget {
   }
 }
 
-class _DetailLine extends StatelessWidget {
-  const _DetailLine({required this.label, required this.value});
+class _DetailTile extends StatelessWidget {
+  const _DetailTile({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -553,23 +598,32 @@ class _DetailLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
             label,
-            style: theme.textTheme.bodySmall?.copyWith(
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.72),
             ),
           ),
-          const SizedBox(height: 1),
+          const SizedBox(height: 2),
           Text(
             value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodyMedium,
+            style: theme.textTheme.bodySmall,
           ),
         ],
       ),
