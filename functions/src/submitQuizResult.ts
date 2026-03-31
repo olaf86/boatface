@@ -1,6 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import {onRequest} from "firebase-functions/v2/https";
-import {FieldValue} from "firebase-admin/firestore";
+import {FieldValue, type Transaction} from "firebase-admin/firestore";
 
 import {appHttpOptions, db} from "./shared/firebase.js";
 import {handleOptions, sendError, setCorsHeaders} from "./shared/http.js";
@@ -14,6 +14,60 @@ import {
   requireNonNegativeInteger,
   requireString,
 } from "./shared/validation.js";
+
+function buildUserHighScoreDocId(modeId: string, termKey: string): string {
+  return `${modeId}_${termKey}`;
+}
+
+async function maybeUpdateUserHighScore({
+  transaction,
+  uid,
+  sessionId,
+  modeId,
+  score,
+  termKey,
+  resultId,
+}: {
+  transaction: Transaction;
+  uid: string;
+  sessionId: string;
+  modeId: string;
+  score: number;
+  termKey: string;
+  resultId: string;
+}) {
+  if (modeId === "custom") {
+    return;
+  }
+
+  const highScoreRef = db
+    .collection("users")
+    .doc(uid)
+    .collection("quiz_high_scores")
+    .doc(buildUserHighScoreDocId(modeId, termKey));
+  const highScoreSnapshot = await transaction.get(highScoreRef);
+  const existingBestScore = highScoreSnapshot.get("bestScore");
+
+  if (typeof existingBestScore === "number" && existingBestScore >= score) {
+    return;
+  }
+
+  const nextHighScore: Record<string, unknown> = {
+    uid,
+    modeId,
+    periodKeyTerm: termKey,
+    bestScore: score,
+    resultId,
+    sessionId,
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  if (!highScoreSnapshot.exists) {
+    nextHighScore.createdAt = FieldValue.serverTimestamp();
+  }
+
+  transaction.set(highScoreRef, nextHighScore, {merge: true});
+}
 
 export const submitQuizResult = onRequest(appHttpOptions, async (request, response) => {
   setCorsHeaders(response);
@@ -97,6 +151,16 @@ export const submitQuizResult = onRequest(appHttpOptions, async (request, respon
         transaction.update(sessionRef, {status: "expired"});
         throw new Error("session_expired");
       }
+
+      await maybeUpdateUserHighScore({
+        transaction,
+        uid: token.uid,
+        sessionId,
+        modeId,
+        score,
+        termKey: periodKeys.term,
+        resultId: resultRef.id,
+      });
 
       transaction.set(resultRef, {
         uid: token.uid,

@@ -283,6 +283,123 @@ test("functions endpoints work together in the emulator suite", async () => {
   assert.equal(typeof submitResult.body.resultId, "string");
   assert.equal(submitResult.body.rankingEligible, true);
 
+  const highScoreRef = db
+    .collection("users")
+    .doc(localId)
+    .collection("quiz_high_scores")
+    .doc("quick_2026-H1");
+  const highScoreSnapshot = await highScoreRef.get();
+  assert.equal(highScoreSnapshot.exists, true);
+  assert.deepEqual(highScoreSnapshot.data(), {
+    uid: localId,
+    modeId: "quick",
+    periodKeyTerm: "2026-H1",
+    bestScore: 7,
+    resultId: submitResult.body.resultId,
+    sessionId: sessionResult.body.sessionId,
+    createdAt: highScoreSnapshot.get("createdAt"),
+    updatedAt: highScoreSnapshot.get("updatedAt"),
+  });
+
+  const lowerScoreSessionResult = await callFunction("createQuizSession", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({modeId: "quick"}),
+  });
+  assert.equal(lowerScoreSessionResult.response.status, 201);
+
+  const lowerScoreResult = await callFunction("submitQuizResult", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({
+      sessionId: lowerScoreSessionResult.body.sessionId,
+      modeId: "quick",
+      modeLabel: "さくっと",
+      score: 5,
+      correctAnswers: 5,
+      totalQuestions: 10,
+      totalAnswerTimeMs: 4321,
+      endReason: "wrongAnswer",
+      rankingEligible: true,
+      continuedByAd: false,
+      clientFinishedAt: "2026-03-15T10:05:00Z",
+    }),
+  });
+  assert.equal(lowerScoreResult.response.status, 201);
+
+  const highScoreAfterLowerResult = await highScoreRef.get();
+  assert.equal(highScoreAfterLowerResult.get("bestScore"), 7);
+  assert.equal(highScoreAfterLowerResult.get("resultId"), submitResult.body.resultId);
+  assert.equal(highScoreAfterLowerResult.get("sessionId"), sessionResult.body.sessionId);
+
+  const higherScoreSessionResult = await callFunction("createQuizSession", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({modeId: "quick"}),
+  });
+  assert.equal(higherScoreSessionResult.response.status, 201);
+
+  const higherScoreResult = await callFunction("submitQuizResult", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({
+      sessionId: higherScoreSessionResult.body.sessionId,
+      modeId: "quick",
+      modeLabel: "さくっと",
+      score: 9,
+      correctAnswers: 9,
+      totalQuestions: 10,
+      totalAnswerTimeMs: 4000,
+      endReason: "wrongAnswer",
+      rankingEligible: true,
+      continuedByAd: false,
+      clientFinishedAt: "2026-03-15T10:10:00Z",
+    }),
+  });
+  assert.equal(higherScoreResult.response.status, 201);
+
+  const highScoreAfterHigherResult = await highScoreRef.get();
+  assert.equal(highScoreAfterHigherResult.get("bestScore"), 9);
+  assert.equal(highScoreAfterHigherResult.get("resultId"), higherScoreResult.body.resultId);
+  assert.equal(
+    highScoreAfterHigherResult.get("sessionId"),
+    higherScoreSessionResult.body.sessionId,
+  );
+
+  const customSessionResult = await callFunction("createQuizSession", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({modeId: "custom"}),
+  });
+  assert.equal(customSessionResult.response.status, 201);
+
+  const customSubmitResult = await callFunction("submitQuizResult", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({
+      sessionId: customSessionResult.body.sessionId,
+      modeId: "custom",
+      modeLabel: "カスタム",
+      score: 8,
+      correctAnswers: 8,
+      totalQuestions: 10,
+      totalAnswerTimeMs: 3900,
+      endReason: "completed",
+      rankingEligible: false,
+      continuedByAd: false,
+      clientFinishedAt: "2026-03-15T10:12:00Z",
+    }),
+  });
+  assert.equal(customSubmitResult.response.status, 201);
+
+  const customHighScoreSnapshot = await db
+    .collection("users")
+    .doc(localId)
+    .collection("quiz_high_scores")
+    .doc("custom_2026-H1")
+    .get();
+  assert.equal(customHighScoreSnapshot.exists, false);
+
   const rankingsResult = await callFunction("getRankings?modeId=quick&period=today&limit=10", {
     method: "GET",
     headers: {Authorization: `Bearer ${idToken}`},
@@ -290,7 +407,7 @@ test("functions endpoints work together in the emulator suite", async () => {
   assert.equal(rankingsResult.response.status, 200);
   assert.equal(rankingsResult.body.modeId, "quick");
   assert.equal(rankingsResult.body.period, "today");
-  assert.equal(rankingsResult.body.entries.length, 1);
+  assert.equal(rankingsResult.body.entries.length, 3);
   assert.deepEqual(rankingsResult.body.entries[0], {
     rank: 1,
     userId: localId,
@@ -300,8 +417,32 @@ test("functions endpoints work together in the emulator suite", async () => {
       code: "tokyo",
       label: "東京都",
     },
+    score: 9,
+    totalAnswerTimeMs: 4000,
+  });
+  assert.deepEqual(rankingsResult.body.entries[1], {
+    rank: 2,
+    userId: localId,
+    displayName: "テスト太郎",
+    region: {
+      category: "prefecture",
+      code: "tokyo",
+      label: "東京都",
+    },
     score: 7,
     totalAnswerTimeMs: 5432,
+  });
+  assert.deepEqual(rankingsResult.body.entries[2], {
+    rank: 3,
+    userId: localId,
+    displayName: "テスト太郎",
+    region: {
+      category: "prefecture",
+      code: "tokyo",
+      label: "東京都",
+    },
+    score: 5,
+    totalAnswerTimeMs: 4321,
   });
 
   const publicRankingsResult = await callFunction("getRankings?modeId=quick&period=today&limit=10", {

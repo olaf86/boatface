@@ -43,6 +43,17 @@ export type QuizSessionRecord = {
   consumedAt: Timestamp | null;
 };
 
+export type UserQuizHighScoreRecord = {
+  uid: string;
+  modeId: string;
+  periodKeyTerm: string;
+  bestScore: number;
+  resultId: string;
+  sessionId: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+};
+
 export type RankingEntry = {
   rank: number;
   userId: string;

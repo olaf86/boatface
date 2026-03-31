@@ -194,6 +194,26 @@ Backend write behavior:
 - store the result
 - mark the referenced session as `consumed`
 - trigger ranking snapshot refresh for the relevant buckets
+- for non-custom modes, update `users/{uid}/quiz_high_scores/{modeId}_{termKey}` when the submitted score exceeds the stored term high score
+
+Recommended `users/{uid}/quiz_high_scores/{modeId}_{termKey}` shape:
+
+```json
+{
+  "uid": "firebase uid",
+  "modeId": "challenge",
+  "periodKeyTerm": "2026-H1",
+  "bestScore": 32,
+  "resultId": "result_123",
+  "sessionId": "qs_01HQ...",
+  "createdAt": "server timestamp",
+  "updatedAt": "server timestamp"
+}
+```
+
+Notes:
+- term high scores are tracked per `uid + modeId + periodKeyTerm`
+- custom mode does not create or update a term high score record
 
 ## 6. Ranking Read Contract
 
