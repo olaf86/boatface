@@ -19,6 +19,31 @@ function buildUserHighScoreDocId(modeId: string, termKey: string): string {
   return `${modeId}_${termKey}`;
 }
 
+function buildUserQuizProgressUpdates({
+  modeId,
+  endReason,
+}: {
+  modeId: string;
+  endReason: string;
+}): Record<string, unknown> {
+  const updates: Record<string, unknown> = {
+    "quizProgress.totalAttempts": FieldValue.increment(1),
+    [`quizProgress.attemptCountsByMode.${modeId}`]: FieldValue.increment(1),
+    "quizProgress.lastAttemptAt": FieldValue.serverTimestamp(),
+    "quizProgress.lastAttemptModeId": modeId,
+    "quizProgress.updatedAt": FieldValue.serverTimestamp(),
+  };
+
+  if (modeId !== "custom" && endReason === "completed") {
+    updates["quizProgress.clearedModeIds"] = FieldValue.arrayUnion(modeId);
+    updates[`quizProgress.clearedAtByMode.${modeId}`] = FieldValue.serverTimestamp();
+    updates["quizProgress.lastClearedAt"] = FieldValue.serverTimestamp();
+    updates["quizProgress.lastClearedModeId"] = modeId;
+  }
+
+  return updates;
+}
+
 async function maybeUpdateUserHighScore({
   transaction,
   uid,
@@ -128,6 +153,7 @@ export const submitQuizResult = onRequest(appHttpOptions, async (request, respon
 
     await db.runTransaction(async (transaction) => {
       const sessionRef = db.collection("quiz_sessions").doc(sessionId);
+      const userRef = db.collection("users").doc(token.uid);
       const sessionSnapshot = await transaction.get(sessionRef);
 
       if (!sessionSnapshot.exists) {
@@ -161,6 +187,8 @@ export const submitQuizResult = onRequest(appHttpOptions, async (request, respon
         termKey: periodKeys.term,
         resultId: resultRef.id,
       });
+
+      transaction.update(userRef, buildUserQuizProgressUpdates({modeId, endReason}));
 
       transaction.set(resultRef, {
         uid: token.uid,

@@ -43,6 +43,18 @@ export type QuizSessionRecord = {
   consumedAt: Timestamp | null;
 };
 
+export type UserQuizProgressRecord = {
+  totalAttempts: number;
+  attemptCountsByMode: Record<string, number>;
+  clearedModeIds: string[];
+  clearedAtByMode: Record<string, Timestamp>;
+  lastAttemptAt: Timestamp;
+  lastAttemptModeId: string;
+  lastClearedAt: Timestamp | null;
+  lastClearedModeId: string | null;
+  updatedAt: Timestamp;
+};
+
 export type UserQuizHighScoreRecord = {
   uid: string;
   modeId: string;

@@ -50,6 +50,24 @@ Recommended `users/{uid}` shape:
     "code": "tokyo",
     "label": "東京都"
   },
+  "quizProgress": {
+    "totalAttempts": 12,
+    "attemptCountsByMode": {
+      "quick": 5,
+      "careful": 4,
+      "custom": 3
+    },
+    "clearedModeIds": ["quick", "careful"],
+    "clearedAtByMode": {
+      "quick": "server timestamp",
+      "careful": "server timestamp"
+    },
+    "lastAttemptAt": "server timestamp",
+    "lastAttemptModeId": "custom",
+    "lastClearedAt": "server timestamp",
+    "lastClearedModeId": "careful",
+    "updatedAt": "server timestamp"
+  },
   "authProviders": ["anonymous"],
   "createdAt": "server timestamp",
   "updatedAt": "server timestamp"
@@ -193,6 +211,8 @@ Recommended `quiz_results/{resultId}` shape:
 Backend write behavior:
 - store the result
 - mark the referenced session as `consumed`
+- increment `users/{uid}.quizProgress.totalAttempts` and `users/{uid}.quizProgress.attemptCountsByMode.{modeId}`
+- when a non-custom mode ends with `endReason = completed`, record it under `users/{uid}.quizProgress.clearedModeIds`
 - trigger ranking snapshot refresh for the relevant buckets
 - for non-custom modes, update `users/{uid}/quiz_high_scores/{modeId}_{termKey}` when the submitted score exceeds the stored term high score
 

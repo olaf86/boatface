@@ -348,9 +348,9 @@ test("functions endpoints work together in the emulator suite", async () => {
       modeLabel: "さくっと",
       score: 9,
       correctAnswers: 9,
-      totalQuestions: 10,
+      totalQuestions: 9,
       totalAnswerTimeMs: 4000,
-      endReason: "wrongAnswer",
+      endReason: "completed",
       rankingEligible: true,
       continuedByAd: false,
       clientFinishedAt: "2026-03-15T10:10:00Z",
@@ -382,7 +382,7 @@ test("functions endpoints work together in the emulator suite", async () => {
       modeLabel: "カスタム",
       score: 8,
       correctAnswers: 8,
-      totalQuestions: 10,
+      totalQuestions: 8,
       totalAnswerTimeMs: 3900,
       endReason: "completed",
       rankingEligible: false,
@@ -399,6 +399,17 @@ test("functions endpoints work together in the emulator suite", async () => {
     .doc("custom_2026-H1")
     .get();
   assert.equal(customHighScoreSnapshot.exists, false);
+
+  const userSnapshot = await db.collection("users").doc(localId).get();
+  assert.equal(userSnapshot.get("quizProgress.totalAttempts"), 4);
+  assert.equal(userSnapshot.get("quizProgress.attemptCountsByMode.quick"), 3);
+  assert.equal(userSnapshot.get("quizProgress.attemptCountsByMode.custom"), 1);
+  assert.deepEqual(userSnapshot.get("quizProgress.clearedModeIds"), ["quick"]);
+  assert.equal(userSnapshot.get("quizProgress.lastAttemptModeId"), "custom");
+  assert.equal(userSnapshot.get("quizProgress.lastClearedModeId"), "quick");
+  assert.ok(userSnapshot.get("quizProgress.lastAttemptAt"));
+  assert.ok(userSnapshot.get("quizProgress.lastClearedAt"));
+  assert.ok(userSnapshot.get("quizProgress.clearedAtByMode.quick"));
 
   const rankingsResult = await callFunction("getRankings?modeId=quick&period=today&limit=10", {
     method: "GET",
