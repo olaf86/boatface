@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('shows locked prerequisite message for careful mode', (
+  testWidgets('shows locked state for unavailable modes', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -31,9 +31,9 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('「さくっと」を全問クリアで開放'), findsOneWidget);
     expect(find.text('未開放'), findsNWidgets(2));
-    expect(find.text('開放状況: 0 / 3 モードをクリア済み'), findsOneWidget);
+    expect(find.text('クイズモードを選択'), findsOneWidget);
+    expect(find.text('10問・A1級限定の顔 -> 選手名'), findsNothing);
   });
 
   testWidgets('unlocks careful after quick clear and keeps challenge locked', (
@@ -67,9 +67,9 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('「さくっと」を全問クリアで開放'), findsNothing);
-    expect(find.text('30問・前半20問は顔 -> 選手名、後半10問は選手名 -> 顔'), findsOneWidget);
-    expect(find.text('「じっくり」を全問クリアで開放'), findsOneWidget);
+    expect(find.text('未開放'), findsOneWidget);
+    expect(find.text('じっくり'), findsOneWidget);
+    expect(find.text('30問・前半20問は顔 -> 選手名、後半10問は選手名 -> 顔'), findsNothing);
   });
 }
 

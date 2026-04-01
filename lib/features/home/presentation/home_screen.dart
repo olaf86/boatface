@@ -31,7 +31,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: <Widget>[
-            _HomeSummaryCard(profileAsync: profileAsync),
+            const _HomeSummaryCard(),
             const SizedBox(height: 12),
             ...kQuizModes.map((QuizModeConfig mode) {
               final QuizModeAccess access = resolveQuizModeAccess(
@@ -72,25 +72,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _HomeSummaryCard extends StatelessWidget {
-  const _HomeSummaryCard({required this.profileAsync});
-
-  final AsyncValue<UserProfile> profileAsync;
+  const _HomeSummaryCard();
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final UserQuizProgress? quizProgress =
-        profileAsync.valueOrNull?.quizProgress;
-    final int clearedModeCount = kQuizModes
-        .where(
-          (QuizModeConfig mode) =>
-              !kAlwaysUnlockedQuizModeIds.contains(mode.id),
-        )
-        .where(
-          (QuizModeConfig mode) =>
-              quizProgress?.hasClearedMode(mode.id) ?? false,
-        )
-        .length;
 
     return Card(
       child: Padding(
@@ -101,21 +87,6 @@ class _HomeSummaryCard extends StatelessWidget {
             Text('クイズモードを選択', style: theme.textTheme.headlineSmall),
             const SizedBox(height: 8),
             Text('モードを選んでクイズにチャレンジしよう！', style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 12),
-            profileAsync.when(
-              data: (UserProfile profile) => Text(
-                '開放状況: $clearedModeCount / 3 モードをクリア済み',
-                style: theme.textTheme.labelLarge,
-              ),
-              loading: () =>
-                  Text('開放状況を確認しています…', style: theme.textTheme.bodyMedium),
-              error: (Object error, StackTrace stackTrace) => Text(
-                '開放状況を取得できなかったため、基本モードのみ表示しています。',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -138,9 +109,6 @@ class _ModeListItem extends StatelessWidget {
     final String? statusText = access.isImplemented
         ? (access.isUnlocked ? null : '未開放')
         : '準備中';
-    final String supportingText = !access.isImplemented
-        ? 'このモードはまだ実装準備中です。'
-        : (access.lockedReason ?? mode.description);
 
     return Card(
       elevation: enabled ? 4 : 0,
@@ -164,13 +132,15 @@ class _ModeListItem extends StatelessWidget {
                   )
                 : null,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  if (badge != null)
-                    Container(
+          child: SizedBox(
+            height: 32,
+            child: Stack(
+              alignment: Alignment.center,
+              children: <Widget>[
+                if (badge != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 5,
@@ -187,10 +157,15 @@ class _ModeListItem extends StatelessWidget {
                         ),
                       ),
                     ),
-                  if (badge != null) const SizedBox(width: 12),
-                  Expanded(
+                  ),
+                Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: badge != null || statusText != null ? 72 : 0,
+                    ),
                     child: Text(
                       mode.label,
+                      textAlign: TextAlign.center,
                       style: theme.textTheme.titleLarge?.copyWith(
                         color: enabled
                             ? theme.colorScheme.primary
@@ -200,8 +175,11 @@ class _ModeListItem extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (statusText != null)
-                    Text(
+                ),
+                if (statusText != null)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
                       statusText,
                       style: theme.textTheme.labelLarge?.copyWith(
                         color: access.isImplemented
@@ -211,18 +189,9 @@ class _ModeListItem extends StatelessWidget {
                               ),
                       ),
                     ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                supportingText,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: enabled
-                      ? theme.colorScheme.onSurface
-                      : theme.colorScheme.onSurface.withValues(alpha: 0.68),
-                ),
-              ),
-            ],
+                  ),
+              ],
+            ),
           ),
         ),
       ),
