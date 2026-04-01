@@ -100,7 +100,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                       options: CarouselOptions(
                         height: constraints.maxHeight,
                         scrollDirection: Axis.vertical,
-                        viewportFraction: mistakes.length == 1 ? 1 : 0.88,
+                        viewportFraction: mistakes.length == 1 ? 1 : 0.82,
                         enlargeCenterPage: false,
                         enableInfiniteScroll: false,
                         onPageChanged:
@@ -116,7 +116,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                             final bool isActive = index == currentIndex;
                             return AnimatedScale(
                               duration: const Duration(milliseconds: 180),
-                              scale: isActive ? 1 : 0.9,
+                              scale: isActive ? 1 : 0.83,
                               child: _ReviewMistakeCard(
                                 mistake: mistake,
                                 correctRacer:
@@ -301,7 +301,7 @@ class _RacerDetailCard extends StatelessWidget {
             Expanded(
               flex: 2,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -321,49 +321,67 @@ class _RacerDetailCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  RacerNameText(
-                    name: displayName,
-                    nameKana: nameKana,
-                    textAlign: TextAlign.left,
-                    style: theme.textTheme.titleLarge,
-                    kanaStyle: theme.textTheme.labelMedium?.copyWith(
-                      fontSize:
-                          (theme.textTheme.titleLarge?.fontSize ?? 22) * 0.28,
-                      height: 0.74,
-                      color: theme.textTheme.titleLarge?.color?.withValues(
-                        alpha: 0.72,
+                  SizedBox(
+                    width: double.infinity,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: RacerNameText(
+                        name: displayName,
+                        nameKana: nameKana,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleLarge,
+                        kanaStyle: theme.textTheme.labelMedium?.copyWith(
+                          fontSize:
+                              (theme.textTheme.titleLarge?.fontSize ?? 22) *
+                              0.28,
+                          height: 0.74,
+                          color: theme.textTheme.titleLarge?.color?.withValues(
+                            alpha: 0.72,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _InlineDetailText(
-                    label: '登録番号',
-                    value: racer?.registrationNumber.toString() ?? '---',
-                  ),
-                  const SizedBox(height: 4),
-                  _InlineDetailText(
-                    label: '登録期',
-                    value: _registrationTermLabel(racer?.registrationTerm),
-                  ),
-                  const SizedBox(height: 4),
-                  _InlineDetailText(
-                    label: '生年月日',
-                    value: _birthDateLabel(racer?.birthDate),
-                  ),
-                  const SizedBox(height: 4),
-                  _InlineDetailText(
-                    label: '級別',
-                    value: racer?.racerClass ?? '---',
-                  ),
-                  const SizedBox(height: 4),
-                  _InlineDetailText(
-                    label: '支部',
-                    value: racer?.homeBranch ?? '---',
-                  ),
-                  const SizedBox(height: 4),
-                  _InlineDetailText(
-                    label: '出身',
-                    value: racer?.birthPlace ?? '---',
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Column(
+                      children: <Widget>[
+                        _InlineDetailText(
+                          label: '登録番号',
+                          value: racer?.registrationNumber.toString() ?? '---',
+                        ),
+                        const SizedBox(height: 5),
+                        _InlineDetailText(
+                          label: '登録期',
+                          value: _registrationTermLabel(
+                            racer?.registrationTerm,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        _InlineDetailText(
+                          label: '生年月日',
+                          value: _birthDateLabel(racer?.birthDate),
+                          valueScaleX: 0.9,
+                        ),
+                        const SizedBox(height: 5),
+                        _InlineDetailText(
+                          label: '級別',
+                          value: racer?.racerClass ?? '---',
+                        ),
+                        const SizedBox(height: 5),
+                        _InlineDetailText(
+                          label: '支部',
+                          value: racer?.homeBranch ?? '---',
+                        ),
+                        const SizedBox(height: 5),
+                        _InlineDetailText(
+                          label: '出身',
+                          value: racer?.birthPlace ?? '---',
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -475,14 +493,26 @@ class _ReviewImageFallback extends StatelessWidget {
 }
 
 class _InlineDetailText extends StatelessWidget {
-  const _InlineDetailText({required this.label, required this.value});
+  const _InlineDetailText({
+    required this.label,
+    required this.value,
+    this.valueScaleX = 1,
+  });
 
   final String label;
   final String value;
+  final double valueScaleX;
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final TextStyle? labelStyle = theme.textTheme.labelSmall?.copyWith(
+      fontSize: (theme.textTheme.labelSmall?.fontSize ?? 11) - 0.5,
+      color: theme.colorScheme.onSurface.withValues(alpha: 0.68),
+    );
+    final TextStyle? valueStyle = theme.textTheme.labelMedium?.copyWith(
+      fontSize: (theme.textTheme.labelMedium?.fontSize ?? 12) - 0.5,
+    );
 
     return Row(
       children: <Widget>[
@@ -490,9 +520,7 @@ class _InlineDetailText extends StatelessWidget {
           width: 48,
           child: Text(
             label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.72),
-            ),
+            style: labelStyle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -500,13 +528,17 @@ class _InlineDetailText extends StatelessWidget {
         const SizedBox(width: 6),
         Expanded(
           child: SizedBox(
-            height: (theme.textTheme.labelMedium?.fontSize ?? 12) * 1.3,
+            height: (valueStyle?.fontSize ?? 11.5) * 1.35,
             child: Align(
               alignment: Alignment.centerLeft,
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: Text(value, style: theme.textTheme.labelMedium),
+                child: Transform.scale(
+                  scaleX: valueScaleX,
+                  alignment: Alignment.centerLeft,
+                  child: Text(value, style: valueStyle),
+                ),
               ),
             ),
           ),
