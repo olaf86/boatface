@@ -26,15 +26,16 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('最近のミス 10 件'), findsOneWidget);
     expect(find.text('正解レーサー'), findsWidgets);
     expect(find.text('不正解レーサー'), findsWidgets);
+    expect(find.text('さくっと'), findsOneWidget);
     expect(find.text('顔 -> 選手名'), findsOneWidget);
     expect(find.text('生年月日'), findsNWidgets(2));
     expect(find.text('出身'), findsNWidgets(2));
     expect(find.text('支部'), findsNWidgets(2));
     expect(find.text('所属'), findsNothing);
     expect(find.text('問題のおさらい'), findsNothing);
+    expect(find.textContaining('回答時間'), findsNothing);
   });
 
   testWidgets('can move to older mistakes with vertical swipe', (
@@ -52,12 +53,11 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('1 / 2 件目'), findsOneWidget);
+    expect(find.text('さくっと'), findsOneWidget);
 
     await tester.drag(find.byType(CarouselSlider), const Offset(0, -300));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('2 / 2 件目'), findsOneWidget);
     expect(find.textContaining('じっくり'), findsOneWidget);
   });
 }

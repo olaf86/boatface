@@ -86,46 +86,11 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
         }
 
         final int currentIndex = _currentIndex.clamp(0, mistakes.length - 1);
-        final ReviewMistakeEntry currentMistake = mistakes[currentIndex];
 
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           child: Column(
             children: <Widget>[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 16,
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              '最近のミス 10 件',
-                              style: theme.textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${currentIndex + 1} / ${mistakes.length} 件目  •  ${currentMistake.modeLabel}  •  ${formatDateTimeMdHm(currentMistake.createdAt)}',
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: '再読み込み',
-                        onPressed: () => ref.invalidate(myQuizMistakesProvider),
-                        icon: const Icon(Icons.refresh_rounded),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
               Expanded(
                 child: LayoutBuilder(
                   builder: (BuildContext context, BoxConstraints constraints) {
@@ -159,7 +124,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                   },
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Wrap(
                 spacing: 8,
                 children: List<Widget>.generate(
@@ -270,40 +235,14 @@ class _ReviewMistakeCard extends StatelessWidget {
               runSpacing: 8,
               children: <Widget>[
                 _MetaChip(
+                  label: mistake.modeLabel,
+                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                ),
+                _MetaChip(
                   label: promptTypeLabel(mistake.promptType),
                   color: theme.colorScheme.secondary.withValues(alpha: 0.2),
                 ),
-                _MetaChip(
-                  label: '${mistake.questionIndex + 1} 問目',
-                  color: theme.colorScheme.tertiary.withValues(alpha: 0.16),
-                ),
-                _MetaChip(
-                  label: _outcomeLabel(mistake.outcome),
-                  color: theme.colorScheme.error.withValues(alpha: 0.14),
-                ),
               ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.72,
-                ),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                children: <Widget>[
-                  Icon(Icons.timer_outlined, color: theme.colorScheme.primary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      '回答時間 ${(mistake.elapsedMs / 1000).toStringAsFixed(1)} 秒',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                  ),
-                ],
-              ),
             ),
             const SizedBox(height: 16),
             Expanded(child: details),
@@ -311,14 +250,6 @@ class _ReviewMistakeCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _outcomeLabel(QuizMistakeOutcome outcome) {
-    return switch (outcome) {
-      QuizMistakeOutcome.wrongAnswer => '誤答',
-      QuizMistakeOutcome.timeout => '時間切れ',
-      QuizMistakeOutcome.abandoned => '離脱',
-    };
   }
 }
 
