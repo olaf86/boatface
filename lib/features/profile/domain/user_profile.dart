@@ -56,6 +56,7 @@ class UserProfile {
     required this.nickname,
     required this.rankingDisplayName,
     required this.region,
+    required this.quizProgress,
   });
 
   final String uid;
@@ -63,6 +64,7 @@ class UserProfile {
   final String? nickname;
   final String rankingDisplayName;
   final UserRegion? region;
+  final UserQuizProgress quizProgress;
 
   static UserProfile? tryParseJson(Map<String, Object?> json) {
     final String? uid = json['uid'] as String?;
@@ -81,6 +83,75 @@ class UserProfile {
       nickname: nickname,
       rankingDisplayName: rankingDisplayName,
       region: UserRegion.tryParseJson(json['region']),
+      quizProgress: UserQuizProgress.tryParseJson(json['quizProgress']),
+    );
+  }
+}
+
+class UserQuizProgress {
+  const UserQuizProgress({
+    required this.totalAttempts,
+    required this.attemptCountsByMode,
+    required this.clearedModeIds,
+    required this.lastAttemptModeId,
+    required this.lastClearedModeId,
+  });
+
+  const UserQuizProgress.empty()
+    : totalAttempts = 0,
+      attemptCountsByMode = const <String, int>{},
+      clearedModeIds = const <String>[],
+      lastAttemptModeId = null,
+      lastClearedModeId = null;
+
+  final int totalAttempts;
+  final Map<String, int> attemptCountsByMode;
+  final List<String> clearedModeIds;
+  final String? lastAttemptModeId;
+  final String? lastClearedModeId;
+
+  bool hasClearedMode(String modeId) => clearedModeIds.contains(modeId);
+
+  static UserQuizProgress tryParseJson(Object? value) {
+    if (value is! Map<Object?, Object?>) {
+      return const UserQuizProgress.empty();
+    }
+
+    final Object? totalAttemptsValue = value['totalAttempts'];
+    final Object? attemptCountsValue = value['attemptCountsByMode'];
+    final Object? clearedModeIdsValue = value['clearedModeIds'];
+
+    final Map<String, int> attemptCountsByMode = <String, int>{};
+    if (attemptCountsValue is Map<Object?, Object?>) {
+      for (final MapEntry<Object?, Object?> entry
+          in attemptCountsValue.entries) {
+        final Object? rawKey = entry.key;
+        final Object? rawValue = entry.value;
+        if (rawKey is! String || rawValue is! int || rawValue < 0) {
+          continue;
+        }
+        attemptCountsByMode[rawKey] = rawValue;
+      }
+    }
+
+    final List<String> clearedModeIds = <String>[
+      if (clearedModeIdsValue is List<Object?>)
+        for (final Object? item in clearedModeIdsValue)
+          if (item is String) item,
+    ];
+
+    return UserQuizProgress(
+      totalAttempts: totalAttemptsValue is int && totalAttemptsValue >= 0
+          ? totalAttemptsValue
+          : 0,
+      attemptCountsByMode: Map<String, int>.unmodifiable(attemptCountsByMode),
+      clearedModeIds: List<String>.unmodifiable(clearedModeIds),
+      lastAttemptModeId: value['lastAttemptModeId'] is String
+          ? value['lastAttemptModeId'] as String
+          : null,
+      lastClearedModeId: value['lastClearedModeId'] is String
+          ? value['lastClearedModeId'] as String
+          : null,
     );
   }
 }

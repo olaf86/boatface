@@ -293,6 +293,21 @@ test("functions endpoints work together in the emulator suite", async () => {
   assert.equal(profileBeforeUpdate.body.nickname, null);
   assert.equal(profileBeforeUpdate.body.rankingDisplayName, "Integration Tester");
   assert.equal(profileBeforeUpdate.body.region, null);
+  assert.deepEqual(profileBeforeUpdate.body.quizProgress, {
+    totalAttempts: 0,
+    attemptCountsByMode: {},
+    clearedModeIds: [],
+    lastAttemptModeId: null,
+    lastClearedModeId: null,
+  });
+
+  const carefulSessionBeforeUnlock = await callFunction("createQuizSession", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({modeId: "careful"}),
+  });
+  assert.equal(carefulSessionBeforeUnlock.response.status, 403);
+  assert.equal(carefulSessionBeforeUnlock.body.error, "mode_locked");
 
   const profileUpdate = await callFunction("updateMyProfile", {
     method: "POST",
@@ -417,6 +432,21 @@ test("functions endpoints work together in the emulator suite", async () => {
   });
   assert.equal(higherScoreResult.response.status, 201);
 
+  const carefulSessionAfterUnlock = await callFunction("createQuizSession", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({modeId: "careful"}),
+  });
+  assert.equal(carefulSessionAfterUnlock.response.status, 201);
+
+  const challengeSessionBeforeUnlock = await callFunction("createQuizSession", {
+    method: "POST",
+    headers: authHeaders,
+    body: JSON.stringify({modeId: "challenge"}),
+  });
+  assert.equal(challengeSessionBeforeUnlock.response.status, 403);
+  assert.equal(challengeSessionBeforeUnlock.body.error, "mode_locked");
+
   const highScoreAfterHigherResult = await highScoreRef.get();
   assert.equal(highScoreAfterHigherResult.get("bestScore"), 9);
   assert.equal(highScoreAfterHigherResult.get("resultId"), higherScoreResult.body.resultId);
@@ -469,6 +499,22 @@ test("functions endpoints work together in the emulator suite", async () => {
   assert.ok(userSnapshot.get("quizProgress.lastAttemptAt"));
   assert.ok(userSnapshot.get("quizProgress.lastClearedAt"));
   assert.ok(userSnapshot.get("quizProgress.clearedAtByMode.quick"));
+
+  const profileAfterResults = await callFunction("getMyProfile", {
+    method: "GET",
+    headers: {Authorization: `Bearer ${idToken}`},
+  });
+  assert.equal(profileAfterResults.response.status, 200);
+  assert.deepEqual(profileAfterResults.body.quizProgress, {
+    totalAttempts: 4,
+    attemptCountsByMode: {
+      quick: 3,
+      custom: 1,
+    },
+    clearedModeIds: ["quick"],
+    lastAttemptModeId: "custom",
+    lastClearedModeId: "quick",
+  });
 
   const rankingsResult = await callFunction("getRankings?modeId=quick&period=today&limit=10", {
     method: "GET",

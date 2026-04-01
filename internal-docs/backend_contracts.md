@@ -90,6 +90,17 @@ Recommended profile response:
     "category": "prefecture",
     "code": "tokyo",
     "label": "東京都"
+  },
+  "quizProgress": {
+    "totalAttempts": 12,
+    "attemptCountsByMode": {
+      "quick": 5,
+      "careful": 4,
+      "custom": 3
+    },
+    "clearedModeIds": ["quick", "careful"],
+    "lastAttemptModeId": "custom",
+    "lastClearedModeId": "careful"
   }
 }
 ```

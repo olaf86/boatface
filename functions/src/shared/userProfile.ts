@@ -118,6 +118,58 @@ export function readStoredUserRegion(value: unknown): UserRegion | null {
   return normalized === undefined ? null : normalized;
 }
 
+function normalizeAttemptCountsByMode(value: unknown): Record<string, number> {
+  if (typeof value !== "object" || value == null || Array.isArray(value)) {
+    return {};
+  }
+
+  const attemptCountsByMode: Record<string, number> = {};
+  for (const [key, rawValue] of Object.entries(value)) {
+    if (typeof rawValue !== "number" || !Number.isInteger(rawValue) || rawValue < 0) {
+      continue;
+    }
+    attemptCountsByMode[key] = rawValue;
+  }
+
+  return attemptCountsByMode;
+}
+
+function normalizeClearedModeIds(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+export function buildUserQuizProgressResponse(value: unknown) {
+  if (typeof value !== "object" || value == null || Array.isArray(value)) {
+    return {
+      totalAttempts: 0,
+      attemptCountsByMode: {},
+      clearedModeIds: [],
+      lastAttemptModeId: null,
+      lastClearedModeId: null,
+    };
+  }
+
+  const record = value as Record<string, unknown>;
+  const totalAttempts =
+    typeof record.totalAttempts === "number" &&
+      Number.isInteger(record.totalAttempts) &&
+      record.totalAttempts >= 0 ?
+      record.totalAttempts :
+      0;
+
+  return {
+    totalAttempts,
+    attemptCountsByMode: normalizeAttemptCountsByMode(record.attemptCountsByMode),
+    clearedModeIds: normalizeClearedModeIds(record.clearedModeIds),
+    lastAttemptModeId: requireString(record.lastAttemptModeId),
+    lastClearedModeId: requireString(record.lastClearedModeId),
+  };
+}
+
 export function resolveRankingDisplayName(data: {
   displayName?: unknown;
   nickname?: unknown;
@@ -138,6 +190,7 @@ export function buildUserProfileResponse(uid: string, data: Record<string, unkno
     nickname,
     rankingDisplayName: resolveRankingDisplayName({displayName, nickname}),
     region,
+    quizProgress: buildUserQuizProgressResponse(data.quizProgress),
   };
 }
 

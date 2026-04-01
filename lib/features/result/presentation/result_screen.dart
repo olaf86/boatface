@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_shell.dart';
 import '../../learn/navigation/learning_navigation.dart';
+import '../../profile/application/user_profile_controller.dart';
 import '../../quiz/data/quiz_backend_repository.dart';
 import '../../quiz/domain/quiz_backend_models.dart';
 import '../../quiz/domain/quiz_models.dart';
@@ -270,6 +271,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       if (!mounted) {
         return;
       }
+      ref.invalidate(userProfileProvider);
       setState(() {
         _isSubmitting = false;
         _submissionReceipt = receipt;

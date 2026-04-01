@@ -8,6 +8,7 @@ import 'package:boatface/features/quiz/domain/quiz_models.dart';
 import 'package:boatface/features/ranking/data/ranking_repository.dart';
 import 'package:boatface/features/ranking/domain/ranking_models.dart';
 import 'package:boatface/features/profile/domain/user_profile.dart';
+import 'package:boatface/features/profile/data/user_profile_repository.dart';
 import 'package:boatface/features/review/data/review_repository.dart';
 import 'package:boatface/features/review/domain/review_models.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +27,9 @@ void main() {
           racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
           reviewRepositoryProvider.overrideWithValue(_EmptyReviewRepository()),
           rankingRepositoryProvider.overrideWithValue(_FakeRankingRepository()),
+          userProfileRepositoryProvider.overrideWithValue(
+            _FakeUserProfileRepository(),
+          ),
           authStateProvider.overrideWith(
             (Ref ref) => Stream<AuthState>.value(
               const AuthState(
@@ -133,6 +137,28 @@ class _FakeRankingRepository implements RankingRepository {
         ),
       ],
     );
+  }
+}
+
+class _FakeUserProfileRepository implements UserProfileRepository {
+  @override
+  Future<UserProfile> fetchMyProfile() async {
+    return const UserProfile(
+      uid: 'current-user',
+      displayName: 'テストユーザー',
+      nickname: null,
+      rankingDisplayName: 'テストユーザー',
+      region: _tokyo,
+      quizProgress: UserQuizProgress.empty(),
+    );
+  }
+
+  @override
+  Future<UserProfile> updateMyProfile({
+    required String nickname,
+    required UserRegion? region,
+  }) {
+    throw UnimplementedError();
   }
 }
 

@@ -5,6 +5,7 @@ import {Timestamp} from "firebase-admin/firestore";
 
 import {appHttpOptions, db} from "./shared/firebase.js";
 import {handleOptions, sendError, setCorsHeaders} from "./shared/http.js";
+import {getQuizModeUnlockPrerequisite, isQuizModeUnlocked} from "./shared/quizModeUnlocks.js";
 import {buildSessionId} from "./shared/rankings.js";
 import type {QuizSessionCreateRequest, QuizSessionRecord} from "./shared/types.js";
 import {isAuthError, upsertUserProfile, verifyRequestAuth} from "./shared/userProfile.js";
@@ -31,6 +32,21 @@ export const createQuizSession = onRequest(appHttpOptions, async (request, respo
     const modeId = requireModeId(body.modeId);
     if (!modeId) {
       sendError(response, 400, "invalid_mode_id", "modeId must be one of the allowed values.");
+      return;
+    }
+
+    const userSnapshot = await db.collection("users").doc(token.uid).get();
+    const userData = userSnapshot.data() ?? {};
+    if (!isQuizModeUnlocked(modeId, userData.quizProgress)) {
+      const prerequisiteModeId = getQuizModeUnlockPrerequisite(modeId);
+      sendError(
+        response,
+        403,
+        "mode_locked",
+        prerequisiteModeId ?
+          `modeId ${modeId} is locked until ${prerequisiteModeId} is cleared.` :
+          `modeId ${modeId} is locked.`,
+      );
       return;
     }
 

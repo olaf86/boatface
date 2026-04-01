@@ -165,3 +165,13 @@ const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[
     availableInMvp: true,
   ),
 ];
+
+QuizModeConfig? quizModeById(String modeId) {
+  for (final QuizModeConfig mode in kQuizModes) {
+    if (mode.id == modeId) {
+      return mode;
+    }
+  }
+
+  return null;
+}
