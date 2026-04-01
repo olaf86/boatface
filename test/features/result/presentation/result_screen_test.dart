@@ -2,6 +2,7 @@ import 'package:boatface/features/quiz/data/quiz_backend_repository.dart';
 import 'package:boatface/features/quiz/domain/quiz_backend_models.dart';
 import 'package:boatface/features/quiz/domain/quiz_models.dart';
 import 'package:boatface/features/result/presentation/result_screen.dart';
+import 'package:boatface/app/navigation/app_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -74,6 +75,126 @@ void main() {
     );
     expect(find.text('MODE CLEAR'), findsNothing);
   });
+
+  testWidgets('ランキングボタンで AppShell のランキングタブへ戻る', (WidgetTester tester) async {
+    _setResultSurfaceSize(tester);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          quizBackendRepositoryProvider.overrideWithValue(
+            _FakeQuizBackendRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          home: const _ShellProbeScreen(),
+        ),
+      ),
+    );
+
+    navigatorKey.currentState!.push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) {
+          return ResultScreen(
+            summary: buildSummary(endReason: QuizEndReason.completed),
+            sessionId: 'session-1',
+          );
+        },
+      ),
+    );
+
+    await _pumpResultScreen(tester);
+    final Finder rankingButton = find.text('ランキングを見る', skipOffstage: false);
+    await tester.ensureVisible(rankingButton);
+    await tester.tap(rankingButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('現在タブ: ランキング'), findsOneWidget);
+    expect(find.text('リザルト'), findsNothing);
+  });
+
+  testWidgets('左上 Home と中央のホームボタンでホームへ戻る', (WidgetTester tester) async {
+    _setResultSurfaceSize(tester);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          quizBackendRepositoryProvider.overrideWithValue(
+            _FakeQuizBackendRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          home: const _ShellProbeScreen(),
+        ),
+      ),
+    );
+
+    navigatorKey.currentState!.push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) {
+          return ResultScreen(
+            summary: buildSummary(endReason: QuizEndReason.completed),
+            sessionId: 'session-1',
+          );
+        },
+      ),
+    );
+
+    await _pumpResultScreen(tester);
+    await tester.tap(find.widgetWithText(TextButton, 'Home'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('現在タブ: ホーム'), findsOneWidget);
+    expect(find.text('リザルト'), findsNothing);
+
+    navigatorKey.currentState!.push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) {
+          return ResultScreen(
+            summary: buildSummary(endReason: QuizEndReason.completed),
+            sessionId: 'session-1',
+          );
+        },
+      ),
+    );
+
+    await _pumpResultScreen(tester);
+    final Finder homeButton = find.text('ホームに戻る', skipOffstage: false);
+    await tester.ensureVisible(homeButton);
+    await tester.tap(homeButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('現在タブ: ホーム'), findsOneWidget);
+    expect(find.text('リザルト'), findsNothing);
+  });
+}
+
+class _ShellProbeScreen extends ConsumerWidget {
+  const _ShellProbeScreen();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppShellTab currentTab = ref.watch(appShellTabControllerProvider);
+    return Scaffold(body: Center(child: Text('現在タブ: ${currentTab.label}')));
+  }
+}
+
+Future<void> _pumpResultScreen(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 500));
+}
+
+void _setResultSurfaceSize(WidgetTester tester) {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(800, 1400);
 }
 
 class _FakeQuizBackendRepository implements QuizBackendRepository {

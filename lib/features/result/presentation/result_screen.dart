@@ -52,6 +52,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   @override
   Widget build(BuildContext context) {
     final QuizResultSummary summary = widget.summary;
+    final ThemeData theme = Theme.of(context);
     final String endReasonText = switch (summary.endReason) {
       QuizEndReason.completed => '全問クリア',
       QuizEndReason.wrongAnswer => '不正解で終了',
@@ -61,6 +62,16 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leadingWidth: 112,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: TextButton.icon(
+            onPressed: () =>
+                navigateToAppShellTab(context, ref, AppShellTab.home),
+            icon: const Icon(Icons.home_rounded),
+            label: const Text('Home'),
+          ),
+        ),
         title: const Text('リザルト'),
         automaticallyImplyLeading: false,
       ),
@@ -149,7 +160,29 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                     submissionReceipt: _submissionReceipt,
                     onRetry: _isSubmitting ? null : _submitResult,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
+                  FilledButton.icon(
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => navigateToAppShellTab(
+                            context,
+                            ref,
+                            AppShellTab.ranking,
+                          ),
+                    icon: const Icon(Icons.leaderboard_rounded),
+                    label: Text(_isSubmitting ? 'ランキングを準備中…' : 'ランキングを見る'),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: theme.colorScheme.secondary,
+                      foregroundColor: theme.colorScheme.onSecondary,
+                    ),
+                    onPressed: () =>
+                        navigateToAppShellTab(context, ref, AppShellTab.home),
+                    child: const Text('ホームに戻る'),
+                  ),
+                  const SizedBox(height: 16),
                   if (!_isSubmitting &&
                       widget.summary.mistakes.isNotEmpty) ...<Widget>[
                     FilledButton.icon(
@@ -159,16 +192,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                     ),
                     const SizedBox(height: 12),
                   ],
-                  OutlinedButton(
-                    onPressed: _isSubmitting
-                        ? null
-                        : () => navigateToAppShellTab(
-                            context,
-                            ref,
-                            AppShellTab.home,
-                          ),
-                    child: Text(_isSubmitting ? '結果を保存中…' : 'ホームに戻る'),
-                  ),
                 ],
               ),
             ),
