@@ -520,6 +520,7 @@ RacerProfile _buildRacer(
     name: '選手$index',
     nameKana: 'センシュ$index',
     registrationNumber: 4000 + index,
+    registrationTerm: 70 + index,
     racerClass: racerClass,
     gender: gender,
     imageUrl: 'https://example.com/racer-$index.jpg',

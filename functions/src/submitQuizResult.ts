@@ -4,6 +4,13 @@ import {FieldValue} from "firebase-admin/firestore";
 
 import {appHttpOptions, db} from "./shared/firebase.js";
 import {handleOptions, sendError, setCorsHeaders} from "./shared/http.js";
+import {
+  buildQuizMistakeWriteData,
+  maxStoredQuizMistakes,
+  parseQuizMistakes,
+  quizMistakesCollection,
+  trimRecentQuizMistakes,
+} from "./shared/quizMistakes.js";
 import {getNowJstParts, refreshRankingSnapshots} from "./shared/rankings.js";
 import type {QuizResultSubmitRequest, QuizSessionRecord} from "./shared/types.js";
 import {isAuthError, upsertUserProfile, verifyRequestAuth} from "./shared/userProfile.js";
@@ -41,6 +48,7 @@ export const submitQuizResult = onRequest(appHttpOptions, async (request, respon
     const totalAnswerTimeMs = requireNonNegativeInteger(body.totalAnswerTimeMs);
     const continuedByAd = requireBoolean(body.continuedByAd);
     const clientFinishedAt = parseClientFinishedAt(body.clientFinishedAt);
+    const submittedMistakes = parseQuizMistakes(body.mistakes);
 
     if (
       !sessionId ||
@@ -52,7 +60,8 @@ export const submitQuizResult = onRequest(appHttpOptions, async (request, respon
       totalQuestions === null ||
       totalAnswerTimeMs === null ||
       continuedByAd === null ||
-      !clientFinishedAt
+      !clientFinishedAt ||
+      submittedMistakes == null
     ) {
       sendError(response, 400, "invalid_payload", "Request body does not match the result contract.");
       return;
@@ -68,9 +77,23 @@ export const submitQuizResult = onRequest(appHttpOptions, async (request, respon
       return;
     }
 
+    if (submittedMistakes.length > totalQuestions) {
+      sendError(response, 400, "invalid_mistakes", "mistakes cannot exceed totalQuestions.");
+      return;
+    }
+
+    for (const mistake of submittedMistakes) {
+      if (mistake.questionIndex >= totalQuestions) {
+        sendError(response, 400, "invalid_mistakes", "questionIndex must be within totalQuestions.");
+        return;
+      }
+    }
+
     const periodKeys = getNowJstParts(new Date());
     const rankingEligible = body.rankingEligible === true;
     const resultRef = db.collection("quiz_results").doc();
+    const recentMistakes = trimRecentQuizMistakes(submittedMistakes);
+    const submittedAtMs = Date.now();
 
     await db.runTransaction(async (transaction) => {
       const sessionRef = db.collection("quiz_sessions").doc(sessionId);
@@ -96,6 +119,35 @@ export const submitQuizResult = onRequest(appHttpOptions, async (request, respon
       if (session.expiresAt.toMillis() <= Date.now()) {
         transaction.update(sessionRef, {status: "expired"});
         throw new Error("session_expired");
+      }
+
+      if (recentMistakes.length > 0) {
+        const mistakesRef = quizMistakesCollection(token.uid);
+        const existingMistakesSnapshot = await transaction.get(
+          mistakesRef.orderBy("sortKey", "asc"),
+        );
+        const overflowCount = Math.max(
+          0,
+          existingMistakesSnapshot.docs.length + recentMistakes.length - maxStoredQuizMistakes,
+        );
+
+        for (const doc of existingMistakesSnapshot.docs.slice(0, overflowCount)) {
+          transaction.delete(doc.ref);
+        }
+
+        for (const mistake of recentMistakes) {
+          transaction.set(
+            mistakesRef.doc(),
+            buildQuizMistakeWriteData({
+              resultId: resultRef.id,
+              sessionId,
+              modeId,
+              modeLabel,
+              mistake,
+              submittedAtMs,
+            }),
+          );
+        }
       }
 
       transaction.set(resultRef, {

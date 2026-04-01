@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_route.dart';
-import '../../quiz/application/racer_master_sync_controller.dart';
 import '../../quiz/domain/quiz_modes.dart';
 import '../../quiz/domain/quiz_models.dart';
 import '../../quiz/presentation/quiz_rule_screen.dart';
-import '../../ranking/presentation/ranking_screen.dart';
-import 'settings_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -20,75 +17,34 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref
-          .read(racerMasterSyncControllerProvider.notifier)
-          .startBackgroundSyncIfNeeded();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('BoatFace'),
-        actions: <Widget>[
-          IconButton(
-            tooltip: 'ランキング',
-            onPressed: () {
-              Navigator.of(context).push(
-                buildAppRoute<void>(
-                  page: const RankingScreen(),
-                  transition: AppRouteTransition.fadeScale,
-                ),
-              );
-            },
-            icon: const Icon(Icons.leaderboard_outlined),
-          ),
-          IconButton(
-            tooltip: '設定',
-            onPressed: () {
-              Navigator.of(context).push(
-                buildAppRoute<void>(
-                  page: const SettingsScreen(),
-                  transition: AppRouteTransition.sharedAxisHorizontal,
-                ),
-              );
-            },
-            icon: const Icon(Icons.settings_outlined),
-          ),
-        ],
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: <Widget>[
-              const _HomeSummaryCard(),
-              const SizedBox(height: 12),
-              ...kQuizModes.map(
-                (QuizModeConfig mode) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: HomeScreen._modeButtonMaxWidth,
-                      ),
-                      child: _ModeListItem(
-                        mode: mode,
-                        onTap: mode.availableInMvp
-                            ? () => _startFlow(context, mode)
-                            : null,
-                      ),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: <Widget>[
+            const _HomeSummaryCard(),
+            const SizedBox(height: 12),
+            ...kQuizModes.map(
+              (QuizModeConfig mode) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: HomeScreen._modeButtonMaxWidth,
+                    ),
+                    child: _ModeListItem(
+                      mode: mode,
+                      onTap: mode.availableInMvp
+                          ? () => _startFlow(context, mode)
+                          : null,
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -117,9 +73,9 @@ class _HomeSummaryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text('モードを選択', style: theme.textTheme.headlineSmall),
+            Text('クイズモードを選択', style: theme.textTheme.headlineSmall),
             const SizedBox(height: 8),
-            Text('詳細なルールは次の画面で確認できます。', style: theme.textTheme.bodyMedium),
+            Text('モードを選んでクイズにチャレンジしよう！', style: theme.textTheme.bodyMedium),
           ],
         ),
       ),

@@ -19,6 +19,7 @@ void main() {
       rankingEligible: true,
       continuedByAd: false,
       clientFinishedAt: DateTime.utc(2026, 3, 22, 12),
+      mistakes: const <QuizMistakeSnapshot>[],
     );
   }
 

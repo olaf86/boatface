@@ -14,4 +14,11 @@ String formatDateTimeMdHm(DateTime dateTime) {
       '${_twoDigits(local.minute)}';
 }
 
+String formatDateYmd(DateTime dateTime) {
+  final DateTime local = dateTime.toLocal();
+  return '${local.year.toString().padLeft(4, '0')}/'
+      '${_twoDigits(local.month)}/'
+      '${_twoDigits(local.day)}';
+}
+
 String _twoDigits(int value) => value.toString().padLeft(2, '0');

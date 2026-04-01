@@ -430,6 +430,7 @@ RacerDatasetSnapshot _buildSnapshot({
         name: '選手$index',
         nameKana: 'センシュ$index',
         registrationNumber: 1000 + index,
+        registrationTerm: 80 + index,
         racerClass: index < 4 ? 'A1' : 'B1',
         gender: index.isEven ? 'male' : 'female',
         imageUrl: 'https://example.com/$prefix/$index.jpg',
@@ -437,6 +438,9 @@ RacerDatasetSnapshot _buildSnapshot({
         imageSource: prefix,
         updatedAt: updatedAt,
         isActive: index < 4 || prefix == 'local',
+        birthDate: DateTime.utc(1990, 4, index + 1),
+        birthPlace: '福岡県',
+        homeBranch: '東京',
       );
     }),
   );

@@ -10,6 +10,18 @@ export const allowedModeIds = new Set([
 ]);
 
 export const allowedPeriods = new Set(["today", "term"]);
+export const allowedQuizPromptTypes = new Set([
+  "faceToName",
+  "nameToFace",
+  "partialFaceToName",
+  "registrationToFace",
+  "faceToRegistration",
+]);
+export const allowedQuizMistakeOutcomes = new Set([
+  "wrongAnswer",
+  "timeout",
+  "abandoned",
+]);
 
 export function requireModeId(modeId: unknown): string | null {
   if (typeof modeId !== "string" || !allowedModeIds.has(modeId)) {
@@ -49,6 +61,19 @@ export function requireBoolean(value: unknown): boolean | null {
   }
 
   return value;
+}
+
+export function requireOptionalNullableString(value: unknown): string | null | undefined {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  return normalized ? normalized : null;
 }
 
 export function parseOptionalBoolean(value: unknown): boolean | null {

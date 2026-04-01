@@ -75,6 +75,41 @@ void main() {
       expect(completedState.endReason, QuizEndReason.wrongAnswer);
     });
 
+    test('summary includes mistake snapshots for later review', () {
+      final QuizModeConfig mode = _buildMode(questionCount: 2);
+      final ProviderContainer container = _createContainer();
+      addTearDown(container.dispose);
+
+      final QuizSessionController controller = container.read(
+        quizSessionControllerProvider(mode).notifier,
+      );
+      final QuizQuestion firstQuestion = container
+          .read(quizSessionControllerProvider(mode))
+          .currentQuestion!;
+      final int wrongIndex =
+          (firstQuestion.correctIndex + 1) % firstQuestion.options.length;
+
+      controller.submitAnswer(wrongIndex);
+      controller.completeAnswerFeedback();
+
+      final QuizResultSummary summary = controller.summary;
+      expect(summary.mistakes, hasLength(1));
+      expect(summary.mistakes.single.questionIndex, 0);
+      expect(summary.mistakes.single.mistakeSequence, 0);
+      expect(summary.mistakes.single.promptType, firstQuestion.promptType);
+      expect(summary.mistakes.single.correctIndex, firstQuestion.correctIndex);
+      expect(summary.mistakes.single.selectedIndex, wrongIndex);
+      expect(
+        summary.mistakes.single.correctRacerId,
+        firstQuestion.correctRacerId,
+      );
+      expect(
+        summary.mistakes.single.selectedRacerId,
+        firstQuestion.options[wrongIndex].racerId,
+      );
+      expect(summary.mistakes.single.outcome, QuizMistakeOutcome.wrongAnswer);
+    });
+
     test('replaces the current question after continuing from an ad', () {
       final QuizModeConfig mode = _buildMode(questionCount: 2);
       final ProviderContainer container = _createContainer();
@@ -332,6 +367,7 @@ class _FakeRacerRepository implements RacerRepository {
         name: '選手$index',
         nameKana: 'センシュ$index',
         registrationNumber: 5000 + index,
+        registrationTerm: 90 + index,
         racerClass: index.isEven ? 'A1' : 'A2',
         gender: index.isEven ? 'male' : 'female',
         imageUrl: 'https://example.com/racer-$index.jpg',

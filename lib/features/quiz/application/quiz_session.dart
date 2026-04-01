@@ -187,6 +187,7 @@ class QuizSession {
       rankingEligible: rankingEligible,
       continuedByAd: continuedByAd,
       clientFinishedAt: clientFinishedAt ?? DateTime.now(),
+      mistakes: _buildMistakeSnapshots(),
     );
   }
 
@@ -258,6 +259,59 @@ class QuizSession {
       (QuizQuestionRecord record) =>
           record.copyWith(elapsed: elapsed, outcome: outcome),
     );
+  }
+
+  List<QuizMistakeSnapshot> _buildMistakeSnapshots() {
+    final List<QuizMistakeSnapshot> mistakes = <QuizMistakeSnapshot>[];
+    for (final QuizQuestionRecord record in _questionHistory) {
+      final QuizMistakeOutcome? mistakeOutcome = _mapMistakeOutcome(
+        record.outcome,
+      );
+      if (mistakeOutcome == null) {
+        continue;
+      }
+
+      final QuizQuestion question = record.question;
+      final int? selectedIndex = record.selectedIndex;
+      mistakes.add(
+        QuizMistakeSnapshot(
+          questionIndex: record.slotIndex,
+          mistakeSequence: mistakes.length,
+          promptType: question.promptType,
+          prompt: question.prompt,
+          promptImageUrl: question.promptImageUrl,
+          options: question.options
+              .map(
+                (QuizOption option) => QuizMistakeOptionSnapshot(
+                  racerId: option.racerId,
+                  label: option.label,
+                  labelReading: option.labelReading,
+                  imageUrl: option.imageUrl,
+                ),
+              )
+              .toList(growable: false),
+          correctIndex: question.correctIndex,
+          selectedIndex: selectedIndex,
+          correctRacerId: question.correctRacerId,
+          selectedRacerId: selectedIndex == null
+              ? null
+              : question.options[selectedIndex].racerId,
+          elapsed: record.elapsed,
+          outcome: mistakeOutcome,
+        ),
+      );
+    }
+
+    return List<QuizMistakeSnapshot>.unmodifiable(mistakes);
+  }
+
+  QuizMistakeOutcome? _mapMistakeOutcome(QuizQuestionOutcome? outcome) {
+    return switch (outcome) {
+      QuizQuestionOutcome.wrongAnswer => QuizMistakeOutcome.wrongAnswer,
+      QuizQuestionOutcome.timeout => QuizMistakeOutcome.timeout,
+      QuizQuestionOutcome.abandoned => QuizMistakeOutcome.abandoned,
+      QuizQuestionOutcome.correct || null => null,
+    };
   }
 }
 

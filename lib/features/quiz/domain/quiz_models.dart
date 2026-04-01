@@ -147,6 +147,7 @@ class RacerProfile {
     required this.name,
     required this.nameKana,
     required this.registrationNumber,
+    required this.registrationTerm,
     required this.racerClass,
     required this.gender,
     required this.imageUrl,
@@ -165,6 +166,7 @@ class RacerProfile {
   final String name;
   final String nameKana;
   final int registrationNumber;
+  final int registrationTerm;
   final String racerClass;
   final String gender;
   final String imageUrl;
@@ -188,6 +190,7 @@ class RacerProfile {
     String? name,
     String? nameKana,
     int? registrationNumber,
+    int? registrationTerm,
     String? racerClass,
     String? gender,
     String? imageUrl,
@@ -212,6 +215,7 @@ class RacerProfile {
       name: name ?? this.name,
       nameKana: nameKana ?? this.nameKana,
       registrationNumber: registrationNumber ?? this.registrationNumber,
+      registrationTerm: registrationTerm ?? this.registrationTerm,
       racerClass: racerClass ?? this.racerClass,
       gender: gender ?? this.gender,
       imageUrl: imageUrl ?? this.imageUrl,
@@ -239,6 +243,7 @@ class RacerProfile {
       'name': name,
       'nameKana': nameKana,
       'registrationNumber': registrationNumber,
+      'registrationTerm': registrationTerm,
       'class': racerClass,
       'gender': gender,
       'imageUrl': imageUrl,
@@ -258,6 +263,7 @@ class RacerProfile {
     final Object? nameValue = json['name'];
     final Object? nameKanaValue = json['nameKana'];
     final Object? registrationNumberValue = json['registrationNumber'];
+    final Object? registrationTermValue = json['registrationTerm'];
     final Object? classValue = json['class'];
     final Object? genderValue = json['gender'];
     final Object? imageUrlValue = json['imageUrl'];
@@ -277,6 +283,7 @@ class RacerProfile {
         nameKanaValue is! String ||
         nameKanaValue.isEmpty ||
         registrationNumberValue is! int ||
+        registrationTermValue is! int ||
         classValue is! String ||
         classValue.isEmpty ||
         genderValue is! String ||
@@ -305,6 +312,7 @@ class RacerProfile {
       name: nameValue,
       nameKana: nameKanaValue,
       registrationNumber: registrationNumberValue,
+      registrationTerm: registrationTermValue,
       racerClass: classValue,
       gender: genderValue,
       imageUrl: imageUrlValue,
@@ -393,6 +401,80 @@ class QuizQuestion {
       options.any((QuizOption option) => option.hasImage);
 }
 
+enum QuizMistakeOutcome { wrongAnswer, timeout, abandoned }
+
+class QuizMistakeOptionSnapshot {
+  const QuizMistakeOptionSnapshot({
+    required this.racerId,
+    required this.label,
+    this.labelReading,
+    this.imageUrl,
+  });
+
+  final String racerId;
+  final String label;
+  final String? labelReading;
+  final String? imageUrl;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'racerId': racerId,
+      'label': label,
+      'labelReading': labelReading,
+      'imageUrl': imageUrl,
+    };
+  }
+}
+
+class QuizMistakeSnapshot {
+  const QuizMistakeSnapshot({
+    required this.questionIndex,
+    required this.mistakeSequence,
+    required this.promptType,
+    required this.prompt,
+    this.promptImageUrl,
+    required this.options,
+    required this.correctIndex,
+    this.selectedIndex,
+    required this.correctRacerId,
+    this.selectedRacerId,
+    required this.elapsed,
+    required this.outcome,
+  });
+
+  final int questionIndex;
+  final int mistakeSequence;
+  final QuizPromptType promptType;
+  final String prompt;
+  final String? promptImageUrl;
+  final List<QuizMistakeOptionSnapshot> options;
+  final int correctIndex;
+  final int? selectedIndex;
+  final String correctRacerId;
+  final String? selectedRacerId;
+  final Duration elapsed;
+  final QuizMistakeOutcome outcome;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'questionIndex': questionIndex,
+      'mistakeSequence': mistakeSequence,
+      'promptType': promptType.name,
+      'prompt': prompt,
+      'promptImageUrl': promptImageUrl,
+      'options': options
+          .map((QuizMistakeOptionSnapshot option) => option.toJson())
+          .toList(),
+      'correctIndex': correctIndex,
+      'selectedIndex': selectedIndex,
+      'correctRacerId': correctRacerId,
+      'selectedRacerId': selectedRacerId,
+      'elapsedMs': elapsed.inMilliseconds,
+      'outcome': outcome.name,
+    };
+  }
+}
+
 class QuizResultSummary {
   const QuizResultSummary({
     required this.modeId,
@@ -405,6 +487,7 @@ class QuizResultSummary {
     required this.rankingEligible,
     required this.continuedByAd,
     required this.clientFinishedAt,
+    required this.mistakes,
   });
 
   final String modeId;
@@ -417,6 +500,7 @@ class QuizResultSummary {
   final bool rankingEligible;
   final bool continuedByAd;
   final DateTime clientFinishedAt;
+  final List<QuizMistakeSnapshot> mistakes;
 }
 
 String promptTypeLabel(QuizPromptType type) {

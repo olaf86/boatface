@@ -1,6 +1,6 @@
 # BoatFace Backend Contracts v0.1
 
-Last updated: 2026-03-22
+Last updated: 2026-03-31
 
 ## 1. Purpose
 
@@ -194,6 +194,94 @@ Backend write behavior:
 - store the result
 - mark the referenced session as `consumed`
 - trigger ranking snapshot refresh for the relevant buckets
+
+### Mistake review snapshot
+
+To support later review without bloating leaderboard-oriented result rows, keep recent quiz mistakes in a separate per-user collection:
+
+`users/{uid}/quiz_mistakes/{mistakeId}`
+
+Recommended rules:
+- store at question level, not at run level
+- keep only the most recent 10 records per user
+- write it alongside result submission
+- include enough denormalized prompt and option data to render a review UI without re-generating the quiz
+
+Recommended `users/{uid}/quiz_mistakes/{mistakeId}` shape:
+
+```json
+{
+  "resultId": "qr_01HQ...",
+  "sessionId": "qs_01HQ...",
+  "modeId": "challenge",
+  "modeLabel": "チャレンジ",
+  "questionIndex": 7,
+  "mistakeSequence": 0,
+  "promptType": "faceToName",
+  "prompt": "この選手は誰？",
+  "promptImageUrl": "https://...",
+  "options": [
+    {
+      "racerId": "racer_1",
+      "label": "山田 太郎",
+      "labelReading": "やまだ たろう",
+      "imageUrl": null
+    }
+  ],
+  "correctIndex": 0,
+  "selectedIndex": 2,
+  "correctRacerId": "racer_1",
+  "selectedRacerId": "racer_3",
+  "elapsedMs": 1430,
+  "outcome": "wrongAnswer",
+  "sortKey": 1711846800000,
+  "createdAt": "server timestamp"
+}
+```
+
+Recommended review read endpoint:
+- `GET /getMyQuizMistakes`
+
+Recommended review response:
+
+```json
+{
+  "mistakes": [
+    {
+      "mistakeId": "mistake_123",
+      "resultId": "qr_01HQ...",
+      "sessionId": "qs_01HQ...",
+      "modeId": "challenge",
+      "modeLabel": "チャレンジ",
+      "questionIndex": 7,
+      "mistakeSequence": 0,
+      "promptType": "faceToName",
+      "prompt": "この選手は誰？",
+      "promptImageUrl": "https://...",
+      "options": [],
+      "correctIndex": 0,
+      "selectedIndex": 2,
+      "correctRacerId": "racer_1",
+      "selectedRacerId": "racer_3",
+      "correctOption": {
+        "racerId": "racer_1",
+        "label": "山田 太郎",
+        "labelReading": "やまだ たろう",
+        "imageUrl": null
+      },
+      "selectedOption": {
+        "racerId": "racer_3",
+        "label": "佐藤 花子",
+        "labelReading": "さとう はなこ",
+        "imageUrl": null
+      },
+      "elapsedMs": 1430,
+      "outcome": "wrongAnswer",
+      "createdAt": "2026-03-22T12:00:00.000Z"
+    }
+  ]
+}
+```
 
 ## 6. Ranking Read Contract
 

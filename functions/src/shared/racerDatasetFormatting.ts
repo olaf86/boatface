@@ -1,6 +1,6 @@
 import {Timestamp} from "firebase-admin/firestore";
 
-import {requirePositiveInteger} from "./validation.js";
+import {requireOptionalNullableString, requirePositiveInteger} from "./validation.js";
 
 export function timestampToIsoString(value: unknown): string | null {
   return value instanceof Timestamp ? value.toDate().toISOString() : null;
@@ -38,6 +38,7 @@ export function mapRacerResponse(id: string, data: Record<string, unknown>) {
     name: data.name ?? null,
     nameKana: data.nameKana ?? null,
     registrationNumber: data.registrationNumber ?? null,
+    registrationTerm: requirePositiveInteger(data.registrationTerm ?? data.term),
     class: data.class ?? null,
     gender: data.gender ?? null,
     imageUrl: data.imageUrl ?? null,
@@ -45,5 +46,9 @@ export function mapRacerResponse(id: string, data: Record<string, unknown>) {
     imageSource: data.imageSource ?? null,
     updatedAt: timestampToIsoString(data.updatedAt),
     isActive: data.isActive ?? null,
+    birthDate: requireOptionalNullableString(data.birthDate) ?? null,
+    birthPlace: requireOptionalNullableString(data.birthPlace ?? data.hometown) ?? null,
+    homeBranch: requireOptionalNullableString(data.homeBranch ?? data.branch) ?? null,
+    affiliationBranch: requireOptionalNullableString(data.affiliationBranch) ?? null,
   };
 }
