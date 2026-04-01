@@ -100,7 +100,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                       options: CarouselOptions(
                         height: constraints.maxHeight,
                         scrollDirection: Axis.vertical,
-                        viewportFraction: mistakes.length == 1 ? 1 : 0.95,
+                        viewportFraction: mistakes.length == 1 ? 1 : 0.88,
                         enlargeCenterPage: false,
                         enableInfiniteScroll: false,
                         onPageChanged:
@@ -113,9 +113,10 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                       itemBuilder:
                           (BuildContext context, int index, int realIndex) {
                             final ReviewMistakeEntry mistake = mistakes[index];
+                            final bool isActive = index == currentIndex;
                             return AnimatedScale(
                               duration: const Duration(milliseconds: 180),
-                              scale: index == currentIndex ? 1 : 0.97,
+                              scale: isActive ? 1 : 0.9,
                               child: _ReviewMistakeCard(
                                 mistake: mistake,
                                 correctRacer:
@@ -324,36 +325,45 @@ class _RacerDetailCard extends StatelessWidget {
                     name: displayName,
                     nameKana: nameKana,
                     textAlign: TextAlign.left,
-                    style: theme.textTheme.headlineSmall,
-                    kanaStyle: theme.textTheme.titleSmall?.copyWith(
-                      color: theme.textTheme.headlineSmall?.color?.withValues(
-                        alpha: 0.78,
+                    style: theme.textTheme.titleLarge,
+                    kanaStyle: theme.textTheme.labelMedium?.copyWith(
+                      fontSize:
+                          (theme.textTheme.titleLarge?.fontSize ?? 22) * 0.28,
+                      height: 0.74,
+                      color: theme.textTheme.titleLarge?.color?.withValues(
+                        alpha: 0.72,
                       ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _InlineDetailRow(
-                    leftLabel: '登録番号',
-                    leftValue: racer?.registrationNumber.toString() ?? '---',
-                    rightLabel: '登録期',
-                    rightValue: _registrationTermLabel(racer?.registrationTerm),
+                  _InlineDetailText(
+                    label: '登録番号',
+                    value: racer?.registrationNumber.toString() ?? '---',
                   ),
                   const SizedBox(height: 4),
-                  _InlineDetailRow(
-                    leftLabel: '生年月日',
-                    leftValue: _birthDateLabel(racer?.birthDate),
+                  _InlineDetailText(
+                    label: '登録期',
+                    value: _registrationTermLabel(racer?.registrationTerm),
                   ),
                   const SizedBox(height: 4),
-                  _InlineDetailRow(
-                    leftLabel: '級別',
-                    leftValue: racer?.racerClass ?? '---',
+                  _InlineDetailText(
+                    label: '生年月日',
+                    value: _birthDateLabel(racer?.birthDate),
                   ),
                   const SizedBox(height: 4),
-                  _InlineDetailRow(
-                    leftLabel: '支部',
-                    leftValue: racer?.homeBranch ?? '---',
-                    rightLabel: '出身',
-                    rightValue: racer?.birthPlace ?? '---',
+                  _InlineDetailText(
+                    label: '級別',
+                    value: racer?.racerClass ?? '---',
+                  ),
+                  const SizedBox(height: 4),
+                  _InlineDetailText(
+                    label: '支部',
+                    value: racer?.homeBranch ?? '---',
+                  ),
+                  const SizedBox(height: 4),
+                  _InlineDetailText(
+                    label: '出身',
+                    value: racer?.birthPlace ?? '---',
                   ),
                 ],
               ),
@@ -464,37 +474,6 @@ class _ReviewImageFallback extends StatelessWidget {
   }
 }
 
-class _InlineDetailRow extends StatelessWidget {
-  const _InlineDetailRow({
-    required this.leftLabel,
-    required this.leftValue,
-    this.rightLabel,
-    this.rightValue,
-  });
-
-  final String leftLabel;
-  final String leftValue;
-  final String? rightLabel;
-  final String? rightValue;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: _InlineDetailText(label: leftLabel, value: leftValue),
-        ),
-        if (rightLabel != null && rightValue != null) ...<Widget>[
-          const SizedBox(width: 10),
-          Expanded(
-            child: _InlineDetailText(label: rightLabel!, value: rightValue!),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
 class _InlineDetailText extends StatelessWidget {
   const _InlineDetailText({required this.label, required this.value});
 
@@ -505,20 +484,34 @@ class _InlineDetailText extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    return Text.rich(
-      TextSpan(
-        children: <InlineSpan>[
-          TextSpan(
-            text: '$label ',
+    return Row(
+      children: <Widget>[
+        SizedBox(
+          width: 48,
+          child: Text(
+            label,
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.72),
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          TextSpan(text: value, style: theme.textTheme.labelMedium),
-        ],
-      ),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: SizedBox(
+            height: (theme.textTheme.labelMedium?.fontSize ?? 12) * 1.3,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(value, style: theme.textTheme.labelMedium),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
