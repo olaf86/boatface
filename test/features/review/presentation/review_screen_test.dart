@@ -65,6 +65,30 @@ void main() {
 
     expect(find.textContaining('じっくり'), findsOneWidget);
   });
+
+  testWidgets('shows stylized empty state for no answer', (
+    WidgetTester tester,
+  ) async {
+    _setMobileSurfaceSize(tester);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          reviewRepositoryProvider.overrideWithValue(
+            _NoAnswerReviewRepository(),
+          ),
+          racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+        ],
+        child: const MaterialApp(home: Scaffold(body: ReviewScreen())),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('NO ANSWER'), findsOneWidget);
+    expect(find.text('画像なし'), findsNothing);
+    expect(find.text('情報なし'), findsNothing);
+  });
 }
 
 class _FakeReviewRepository implements ReviewRepository {
@@ -168,6 +192,41 @@ class _MultiReviewRepository implements ReviewRepository {
         elapsedMs: 2140,
         outcome: QuizMistakeOutcome.wrongAnswer,
         createdAt: DateTime.utc(2026, 3, 30, 10),
+      ),
+    ];
+  }
+}
+
+class _NoAnswerReviewRepository implements ReviewRepository {
+  @override
+  Future<List<ReviewMistakeEntry>> fetchMyMistakes() async {
+    return <ReviewMistakeEntry>[
+      ReviewMistakeEntry(
+        mistakeId: 'mistake-no-answer',
+        resultId: 'result-no-answer',
+        sessionId: 'session-no-answer',
+        modeId: 'quick',
+        modeLabel: 'さくっと',
+        questionIndex: 1,
+        mistakeSequence: 0,
+        promptType: QuizPromptType.faceToName,
+        prompt: 'この選手は誰？',
+        options: const <ReviewMistakeOption>[
+          ReviewMistakeOption(racerId: 'correct', label: '正解レーサー'),
+          ReviewMistakeOption(racerId: 'wrong', label: '誤答レーサー'),
+        ],
+        correctIndex: 0,
+        selectedIndex: null,
+        correctRacerId: 'correct',
+        selectedRacerId: null,
+        correctOption: const ReviewMistakeOption(
+          racerId: 'correct',
+          label: '正解レーサー',
+        ),
+        selectedOption: null,
+        elapsedMs: 5000,
+        outcome: QuizMistakeOutcome.timeout,
+        createdAt: DateTime.utc(2026, 3, 31, 11),
       ),
     ];
   }

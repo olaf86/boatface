@@ -275,8 +275,13 @@ class _RacerDetailCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final ReviewMistakeOption? option = fallback;
-    final String displayName = racer?.name ?? option?.label ?? '情報なし';
-    final String? nameKana = racer?.nameKana ?? option?.labelReading;
+    final bool isNoAnswer = racer == null && option == null;
+    final String displayName = isNoAnswer
+        ? ''
+        : (racer?.name ?? option?.label ?? '情報なし');
+    final String? nameKana = isNoAnswer
+        ? null
+        : (racer?.nameKana ?? option?.labelReading);
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -295,7 +300,11 @@ class _RacerDetailCard extends StatelessWidget {
           children: <Widget>[
             Expanded(
               flex: 3,
-              child: _RacerImage(racer: racer, fallback: option),
+              child: _RacerImage(
+                racer: racer,
+                fallback: option,
+                accentColor: accentColor,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -321,28 +330,30 @@ class _RacerDetailCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.center,
-                      child: RacerNameText(
-                        name: displayName,
-                        nameKana: nameKana,
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.titleLarge,
-                        kanaStyle: theme.textTheme.labelMedium?.copyWith(
-                          fontSize:
-                              (theme.textTheme.titleLarge?.fontSize ?? 22) *
-                              0.28,
-                          height: 0.74,
-                          color: theme.textTheme.titleLarge?.color?.withValues(
-                            alpha: 0.72,
+                  if (displayName.isNotEmpty)
+                    SizedBox(
+                      width: double.infinity,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.center,
+                        child: RacerNameText(
+                          name: displayName,
+                          nameKana: nameKana,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.titleLarge,
+                          kanaStyle: theme.textTheme.labelMedium?.copyWith(
+                            fontSize:
+                                (theme.textTheme.titleLarge?.fontSize ?? 22) *
+                                0.28,
+                            height: 0.74,
+                            color: theme.textTheme.titleLarge?.color
+                                ?.withValues(alpha: 0.72),
                           ),
                         ),
                       ),
-                    ),
-                  ),
+                    )
+                  else
+                    const SizedBox(height: 18),
                   const SizedBox(height: 8),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -361,12 +372,6 @@ class _RacerDetailCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 5),
                         _InlineDetailText(
-                          label: '生年月日',
-                          value: _birthDateLabel(racer?.birthDate),
-                          valueScaleX: 0.9,
-                        ),
-                        const SizedBox(height: 5),
-                        _InlineDetailText(
                           label: '級別',
                           value: racer?.racerClass ?? '---',
                         ),
@@ -379,6 +384,11 @@ class _RacerDetailCard extends StatelessWidget {
                         _InlineDetailText(
                           label: '出身',
                           value: racer?.birthPlace ?? '---',
+                        ),
+                        const SizedBox(height: 5),
+                        _StackedDetailText(
+                          label: '生年月日',
+                          value: _birthDateLabel(racer?.birthDate),
                         ),
                       ],
                     ),
@@ -408,13 +418,19 @@ class _RacerDetailCard extends StatelessWidget {
 }
 
 class _RacerImage extends StatelessWidget {
-  const _RacerImage({required this.racer, required this.fallback});
+  const _RacerImage({
+    required this.racer,
+    required this.fallback,
+    required this.accentColor,
+  });
 
   final RacerProfile? racer;
   final ReviewMistakeOption? fallback;
+  final Color accentColor;
 
   @override
   Widget build(BuildContext context) {
+    final bool isNoAnswer = racer == null && fallback == null;
     final String? localImagePath = racer?.localImagePath;
     final String? remoteImageUrl = racer?.imageUrl ?? fallback?.imageUrl;
     if (localImagePath != null && localImagePath.isNotEmpty) {
@@ -425,7 +441,7 @@ class _RacerImage extends StatelessWidget {
           fit: BoxFit.cover,
           errorBuilder:
               (BuildContext context, Object error, StackTrace? stackTrace) {
-                return _fallback();
+                return _fallback(isNoAnswer: isNoAnswer);
               },
         ),
       );
@@ -439,28 +455,36 @@ class _RacerImage extends StatelessWidget {
           fit: BoxFit.cover,
           errorBuilder:
               (BuildContext context, Object error, StackTrace? stackTrace) {
-                return _fallback();
+                return _fallback(isNoAnswer: isNoAnswer);
               },
         ),
       );
     }
 
-    return _fallback();
+    return _fallback(isNoAnswer: isNoAnswer);
   }
 
-  Widget _fallback() {
-    return const _ReviewImageFallback(
-      icon: Icons.person_search_rounded,
-      label: '画像なし',
+  Widget _fallback({required bool isNoAnswer}) {
+    return _ReviewImageFallback(
+      icon: isNoAnswer
+          ? Icons.do_not_disturb_alt_rounded
+          : Icons.person_search_rounded,
+      isNoAnswer: isNoAnswer,
+      accentColor: accentColor,
     );
   }
 }
 
 class _ReviewImageFallback extends StatelessWidget {
-  const _ReviewImageFallback({required this.icon, required this.label});
+  const _ReviewImageFallback({
+    required this.icon,
+    required this.accentColor,
+    this.isNoAnswer = false,
+  });
 
   final IconData icon;
-  final String label;
+  final Color accentColor;
+  final bool isNoAnswer;
 
   @override
   Widget build(BuildContext context) {
@@ -471,20 +495,76 @@ class _ReviewImageFallback extends StatelessWidget {
         final bool compact = constraints.maxHeight < 80;
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
+            gradient: LinearGradient(
+              colors: isNoAnswer
+                  ? <Color>[
+                      Color.alphaBlend(
+                        accentColor.withValues(alpha: 0.12),
+                        const Color(0xFFF7F0F0),
+                      ),
+                      Color.alphaBlend(
+                        accentColor.withValues(alpha: 0.18),
+                        const Color(0xFFECDDDD),
+                      ),
+                      Color.alphaBlend(
+                        accentColor.withValues(alpha: 0.24),
+                        const Color(0xFFD9C1C1),
+                      ),
+                    ]
+                  : <Color>[
+                      theme.colorScheme.surfaceContainerHighest,
+                      theme.colorScheme.surfaceContainerHighest.withValues(
+                        alpha: 0.86,
+                      ),
+                    ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Center(
-            child: compact
-                ? Icon(icon, size: 28, color: theme.colorScheme.primary)
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Icon(icon, size: 40, color: theme.colorScheme.primary),
-                      const SizedBox(height: 8),
-                      Text(label, style: theme.textTheme.bodyMedium),
-                    ],
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              if (isNoAnswer) ...<Widget>[
+                Positioned(
+                  top: -18,
+                  right: -12,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.28),
+                    ),
+                    child: const SizedBox(width: 72, height: 72),
                   ),
+                ),
+                Positioned(
+                  left: -16,
+                  bottom: -24,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: accentColor.withValues(alpha: 0.14),
+                    ),
+                    child: const SizedBox(width: 92, height: 92),
+                  ),
+                ),
+              ],
+              Center(
+                child: isNoAnswer
+                    ? DecoratedBox(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.22),
+                        ),
+                        child: const SizedBox(width: 44, height: 44),
+                      )
+                    : Icon(
+                        icon,
+                        size: compact ? 28 : 40,
+                        color: theme.colorScheme.primary,
+                      ),
+              ),
+            ],
           ),
         );
       },
@@ -497,11 +577,73 @@ class _InlineDetailText extends StatelessWidget {
     required this.label,
     required this.value,
     this.valueScaleX = 1,
+    this.labelWidth = 48,
+    this.labelGap = 6,
   });
 
   final String label;
   final String value;
   final double valueScaleX;
+  final double labelWidth;
+  final double labelGap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final TextStyle? labelStyle = theme.textTheme.labelSmall?.copyWith(
+      fontSize: (theme.textTheme.labelSmall?.fontSize ?? 11) - 0.5,
+      color: theme.colorScheme.onSurface.withValues(alpha: 0.68),
+    );
+    final TextStyle? valueStyle = theme.textTheme.labelMedium?.copyWith(
+      fontSize: (theme.textTheme.labelMedium?.fontSize ?? 12) - 0.5,
+    );
+    final double rowHeight = (valueStyle?.fontSize ?? 11.5) * 1.35;
+
+    return Row(
+      children: <Widget>[
+        SizedBox(
+          width: labelWidth,
+          height: rowHeight,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              style: labelStyle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        SizedBox(width: labelGap),
+        Expanded(
+          child: SizedBox(
+            height: rowHeight,
+            child: Center(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Transform.scale(
+                    scaleX: valueScaleX,
+                    alignment: Alignment.centerLeft,
+                    child: Text(value, style: valueStyle),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StackedDetailText extends StatelessWidget {
+  const _StackedDetailText({required this.label, required this.value});
+
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
@@ -514,36 +656,30 @@ class _InlineDetailText extends StatelessWidget {
       fontSize: (theme.textTheme.labelMedium?.fontSize ?? 12) - 0.5,
     );
 
-    return Row(
-      children: <Widget>[
-        SizedBox(
-          width: 48,
-          child: Text(
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
             label,
             style: labelStyle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: SizedBox(
-            height: (valueStyle?.fontSize ?? 11.5) * 1.35,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Transform.scale(
-                  scaleX: valueScaleX,
-                  alignment: Alignment.centerLeft,
-                  child: Text(value, style: valueStyle),
-                ),
-              ),
+          const SizedBox(height: 2),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              value,
+              style: valueStyle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
