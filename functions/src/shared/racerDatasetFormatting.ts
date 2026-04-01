@@ -38,6 +38,7 @@ export function mapRacerResponse(id: string, data: Record<string, unknown>) {
     name: data.name ?? null,
     nameKana: data.nameKana ?? null,
     registrationNumber: data.registrationNumber ?? null,
+    registrationTerm: requirePositiveInteger(data.registrationTerm ?? data.term),
     class: data.class ?? null,
     gender: data.gender ?? null,
     imageUrl: data.imageUrl ?? null,

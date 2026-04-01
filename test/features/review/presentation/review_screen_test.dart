@@ -14,6 +14,8 @@ void main() {
   testWidgets('shows correct and selected racer cards', (
     WidgetTester tester,
   ) async {
+    _setMobileSurfaceSize(tester);
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: <Override>[
@@ -26,13 +28,14 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('正解レーサー'), findsWidgets);
-    expect(find.text('不正解レーサー'), findsWidgets);
+    expect(find.text('正解レーサーかな'), findsOneWidget);
+    expect(find.text('誤答レーサーかな'), findsOneWidget);
     expect(find.text('さくっと'), findsOneWidget);
     expect(find.text('顔 -> 選手名'), findsOneWidget);
-    expect(find.text('生年月日'), findsNWidgets(2));
-    expect(find.text('出身'), findsNWidgets(2));
-    expect(find.text('支部'), findsNWidgets(2));
+    expect(find.textContaining('生年月日'), findsNWidgets(2));
+    expect(find.textContaining('出身'), findsNWidgets(2));
+    expect(find.textContaining('支部'), findsNWidgets(2));
+    expect(find.textContaining('登録期'), findsNWidgets(2));
     expect(find.text('所属'), findsNothing);
     expect(find.text('問題のおさらい'), findsNothing);
     expect(find.textContaining('回答時間'), findsNothing);
@@ -41,6 +44,8 @@ void main() {
   testWidgets('can move to older mistakes with vertical swipe', (
     WidgetTester tester,
   ) async {
+    _setMobileSurfaceSize(tester);
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: <Override>[
@@ -213,6 +218,7 @@ RacerProfile _buildRacer({
     name: name,
     nameKana: '$nameかな',
     registrationNumber: 4321,
+    registrationTerm: 98,
     racerClass: 'A1',
     gender: gender,
     imageUrl: 'https://example.com/$id.png',
@@ -224,4 +230,9 @@ RacerProfile _buildRacer({
     homeBranch: '東京',
     affiliationBranch: '東京',
   );
+}
+
+void _setMobileSurfaceSize(WidgetTester tester) {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(430, 932);
 }

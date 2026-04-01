@@ -52,6 +52,7 @@ class MockRacerRepository implements RacerRepository {
         name: '選手${registration.toString()}',
         nameKana: 'センシュ${registration.toString()}',
         registrationNumber: registration,
+        registrationTerm: 80 + (i % 20),
         racerClass: switch (i % 4) {
           0 => 'A1',
           1 => 'A2',

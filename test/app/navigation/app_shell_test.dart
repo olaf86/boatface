@@ -18,6 +18,8 @@ void main() {
   testWidgets('switches between bottom navigation tabs', (
     WidgetTester tester,
   ) async {
+    _setMobileSurfaceSize(tester);
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: <Override>[
@@ -60,6 +62,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('SCORE'), findsOneWidget);
   });
+}
+
+void _setMobileSurfaceSize(WidgetTester tester) {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(430, 932);
 }
 
 class _FakeRacerRepository implements RacerRepository {
@@ -135,6 +142,7 @@ RacerProfile _buildRacer({required String id, required String name}) {
     name: name,
     nameKana: '$nameかな',
     registrationNumber: 1000,
+    registrationTerm: 99,
     racerClass: 'A1',
     gender: 'male',
     imageUrl: 'https://example.com/$id.png',

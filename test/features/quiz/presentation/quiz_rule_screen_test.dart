@@ -102,6 +102,7 @@ class _FakeRacerRepository implements RacerRepository {
         name: '選手$index',
         nameKana: 'センシュ$index',
         registrationNumber: 5000 + index,
+        registrationTerm: 90 + index,
         racerClass: index.isEven ? 'A1' : 'A2',
         gender: index.isEven ? 'male' : 'female',
         imageUrl: 'https://example.com/racer-$index.jpg',

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/navigation/app_shell.dart';
 import '../../../shared/format/date_time_formatters.dart';
 import '../../quiz/domain/quiz_models.dart';
+import '../../quiz/presentation/racer_name_text.dart';
 import '../application/review_providers.dart';
 import '../domain/review_models.dart';
 
@@ -99,7 +100,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                       options: CarouselOptions(
                         height: constraints.maxHeight,
                         scrollDirection: Axis.vertical,
-                        viewportFraction: 1,
+                        viewportFraction: mistakes.length == 1 ? 1 : 0.95,
                         enlargeCenterPage: false,
                         enableInfiniteScroll: false,
                         onPageChanged:
@@ -112,12 +113,17 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                       itemBuilder:
                           (BuildContext context, int index, int realIndex) {
                             final ReviewMistakeEntry mistake = mistakes[index];
-                            return _ReviewMistakeCard(
-                              mistake: mistake,
-                              correctRacer: racerLookup[mistake.correctRacerId],
-                              selectedRacer: mistake.selectedRacerId == null
-                                  ? null
-                                  : racerLookup[mistake.selectedRacerId!],
+                            return AnimatedScale(
+                              duration: const Duration(milliseconds: 180),
+                              scale: index == currentIndex ? 1 : 0.97,
+                              child: _ReviewMistakeCard(
+                                mistake: mistake,
+                                correctRacer:
+                                    racerLookup[mistake.correctRacerId],
+                                selectedRacer: mistake.selectedRacerId == null
+                                    ? null
+                                    : racerLookup[mistake.selectedRacerId!],
+                              ),
                             );
                           },
                     );
@@ -199,22 +205,20 @@ class _ReviewMistakeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final bool isSelectionMistake = mistake.selectedOption != null;
-    final Widget details = Row(
+    final Widget details = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Expanded(
           child: _RacerDetailCard(
-            title: '正解レーサー',
             accentColor: const Color(0xFF0A7A4A),
             racer: correctRacer,
             fallback: mistake.correctOption,
             emphasisLabel: 'CORRECT',
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(height: 12),
         Expanded(
           child: _RacerDetailCard(
-            title: isSelectionMistake ? '不正解レーサー' : '未回答',
             accentColor: const Color(0xFFD43D2C),
             racer: selectedRacer,
             fallback: mistake.selectedOption,
@@ -226,7 +230,7 @@ class _ReviewMistakeCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -255,14 +259,12 @@ class _ReviewMistakeCard extends StatelessWidget {
 
 class _RacerDetailCard extends StatelessWidget {
   const _RacerDetailCard({
-    required this.title,
     required this.accentColor,
     required this.racer,
     required this.fallback,
     required this.emphasisLabel,
   });
 
-  final String title;
   final Color accentColor;
   final RacerProfile? racer;
   final ReviewMistakeOption? fallback;
@@ -273,6 +275,7 @@ class _RacerDetailCard extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final ReviewMistakeOption? option = fallback;
     final String displayName = racer?.name ?? option?.label ?? '情報なし';
+    final String? nameKana = racer?.nameKana ?? option?.labelReading;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -285,128 +288,72 @@ class _RacerDetailCard extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Row(
-              children: <Widget>[
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    emphasisLabel,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: accentColor,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
             Expanded(
-              child: Row(
+              flex: 3,
+              child: _RacerImage(racer: racer, fallback: option),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 2,
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  SizedBox(
-                    width: 56,
-                    child: AspectRatio(
-                      aspectRatio: 3 / 4,
-                      child: _RacerImage(racer: racer, fallback: option),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      emphasisLabel,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: accentColor,
+                        letterSpacing: 0.4,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          displayName,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 6),
-                        Expanded(
-                          child: Column(
-                            children: <Widget>[
-                              Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: _DetailTile(
-                                      label: '登録番号',
-                                      value:
-                                          racer?.registrationNumber
-                                              .toString() ??
-                                          '---',
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: _DetailTile(
-                                      label: '級別',
-                                      value: racer?.racerClass ?? '---',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: _DetailTile(
-                                      label: '性別',
-                                      value: _genderLabel(racer?.gender),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: _DetailTile(
-                                      label: '生年月日',
-                                      value: _birthDateLabel(racer?.birthDate),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: _DetailTile(
-                                      label: '出身',
-                                      value: racer?.birthPlace ?? '---',
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: _DetailTile(
-                                      label: '支部',
-                                      value: racer?.homeBranch ?? '---',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                  const SizedBox(height: 8),
+                  RacerNameText(
+                    name: displayName,
+                    nameKana: nameKana,
+                    textAlign: TextAlign.left,
+                    style: theme.textTheme.headlineSmall,
+                    kanaStyle: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.textTheme.headlineSmall?.color?.withValues(
+                        alpha: 0.78,
+                      ),
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  _InlineDetailRow(
+                    leftLabel: '登録番号',
+                    leftValue: racer?.registrationNumber.toString() ?? '---',
+                    rightLabel: '登録期',
+                    rightValue: _registrationTermLabel(racer?.registrationTerm),
+                  ),
+                  const SizedBox(height: 4),
+                  _InlineDetailRow(
+                    leftLabel: '生年月日',
+                    leftValue: _birthDateLabel(racer?.birthDate),
+                  ),
+                  const SizedBox(height: 4),
+                  _InlineDetailRow(
+                    leftLabel: '級別',
+                    leftValue: racer?.racerClass ?? '---',
+                  ),
+                  const SizedBox(height: 4),
+                  _InlineDetailRow(
+                    leftLabel: '支部',
+                    leftValue: racer?.homeBranch ?? '---',
+                    rightLabel: '出身',
+                    rightValue: racer?.birthPlace ?? '---',
                   ),
                 ],
               ),
@@ -417,13 +364,11 @@ class _RacerDetailCard extends StatelessWidget {
     );
   }
 
-  String _genderLabel(String? gender) {
-    return switch (gender) {
-      'male' => '男子',
-      'female' => '女子',
-      null => '---',
-      _ => gender,
-    };
+  String _registrationTermLabel(int? registrationTerm) {
+    if (registrationTerm == null) {
+      return '---';
+    }
+    return '$registrationTerm期';
   }
 
   String _birthDateLabel(DateTime? birthDate) {
@@ -519,8 +464,39 @@ class _ReviewImageFallback extends StatelessWidget {
   }
 }
 
-class _DetailTile extends StatelessWidget {
-  const _DetailTile({required this.label, required this.value});
+class _InlineDetailRow extends StatelessWidget {
+  const _InlineDetailRow({
+    required this.leftLabel,
+    required this.leftValue,
+    this.rightLabel,
+    this.rightValue,
+  });
+
+  final String leftLabel;
+  final String leftValue;
+  final String? rightLabel;
+  final String? rightValue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: _InlineDetailText(label: leftLabel, value: leftValue),
+        ),
+        if (rightLabel != null && rightValue != null) ...<Widget>[
+          const SizedBox(width: 10),
+          Expanded(
+            child: _InlineDetailText(label: rightLabel!, value: rightValue!),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _InlineDetailText extends StatelessWidget {
+  const _InlineDetailText({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -529,35 +505,20 @@ class _DetailTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+    return Text.rich(
+      TextSpan(
+        children: <InlineSpan>[
+          TextSpan(
+            text: '$label ',
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.72),
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall,
-          ),
+          TextSpan(text: value, style: theme.textTheme.labelMedium),
         ],
       ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

@@ -147,6 +147,7 @@ class RacerProfile {
     required this.name,
     required this.nameKana,
     required this.registrationNumber,
+    required this.registrationTerm,
     required this.racerClass,
     required this.gender,
     required this.imageUrl,
@@ -165,6 +166,7 @@ class RacerProfile {
   final String name;
   final String nameKana;
   final int registrationNumber;
+  final int registrationTerm;
   final String racerClass;
   final String gender;
   final String imageUrl;
@@ -188,6 +190,7 @@ class RacerProfile {
     String? name,
     String? nameKana,
     int? registrationNumber,
+    int? registrationTerm,
     String? racerClass,
     String? gender,
     String? imageUrl,
@@ -212,6 +215,7 @@ class RacerProfile {
       name: name ?? this.name,
       nameKana: nameKana ?? this.nameKana,
       registrationNumber: registrationNumber ?? this.registrationNumber,
+      registrationTerm: registrationTerm ?? this.registrationTerm,
       racerClass: racerClass ?? this.racerClass,
       gender: gender ?? this.gender,
       imageUrl: imageUrl ?? this.imageUrl,
@@ -239,6 +243,7 @@ class RacerProfile {
       'name': name,
       'nameKana': nameKana,
       'registrationNumber': registrationNumber,
+      'registrationTerm': registrationTerm,
       'class': racerClass,
       'gender': gender,
       'imageUrl': imageUrl,
@@ -258,6 +263,7 @@ class RacerProfile {
     final Object? nameValue = json['name'];
     final Object? nameKanaValue = json['nameKana'];
     final Object? registrationNumberValue = json['registrationNumber'];
+    final Object? registrationTermValue = json['registrationTerm'];
     final Object? classValue = json['class'];
     final Object? genderValue = json['gender'];
     final Object? imageUrlValue = json['imageUrl'];
@@ -277,6 +283,7 @@ class RacerProfile {
         nameKanaValue is! String ||
         nameKanaValue.isEmpty ||
         registrationNumberValue is! int ||
+        registrationTermValue is! int ||
         classValue is! String ||
         classValue.isEmpty ||
         genderValue is! String ||
@@ -305,6 +312,7 @@ class RacerProfile {
       name: nameValue,
       nameKana: nameKanaValue,
       registrationNumber: registrationNumberValue,
+      registrationTerm: registrationTermValue,
       racerClass: classValue,
       gender: genderValue,
       imageUrl: imageUrlValue,
