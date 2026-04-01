@@ -1,6 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import {onRequest} from "firebase-functions/v2/https";
-import {FieldValue} from "firebase-admin/firestore";
+import {FieldValue, type Transaction} from "firebase-admin/firestore";
 
 import {appHttpOptions, db} from "./shared/firebase.js";
 import {handleOptions, sendError, setCorsHeaders} from "./shared/http.js";
@@ -21,6 +21,85 @@ import {
   requireNonNegativeInteger,
   requireString,
 } from "./shared/validation.js";
+
+function buildUserHighScoreDocId(modeId: string, termKey: string): string {
+  return `${modeId}_${termKey}`;
+}
+
+function buildUserQuizProgressUpdates({
+  modeId,
+  endReason,
+}: {
+  modeId: string;
+  endReason: string;
+}): Record<string, unknown> {
+  const updates: Record<string, unknown> = {
+    "quizProgress.totalAttempts": FieldValue.increment(1),
+    [`quizProgress.attemptCountsByMode.${modeId}`]: FieldValue.increment(1),
+    "quizProgress.lastAttemptAt": FieldValue.serverTimestamp(),
+    "quizProgress.lastAttemptModeId": modeId,
+    "quizProgress.updatedAt": FieldValue.serverTimestamp(),
+  };
+
+  if (modeId !== "custom" && endReason === "completed") {
+    updates["quizProgress.clearedModeIds"] = FieldValue.arrayUnion(modeId);
+    updates[`quizProgress.clearedAtByMode.${modeId}`] = FieldValue.serverTimestamp();
+    updates["quizProgress.lastClearedAt"] = FieldValue.serverTimestamp();
+    updates["quizProgress.lastClearedModeId"] = modeId;
+  }
+
+  return updates;
+}
+
+async function maybeUpdateUserHighScore({
+  transaction,
+  uid,
+  sessionId,
+  modeId,
+  score,
+  termKey,
+  resultId,
+}: {
+  transaction: Transaction;
+  uid: string;
+  sessionId: string;
+  modeId: string;
+  score: number;
+  termKey: string;
+  resultId: string;
+}) {
+  if (modeId === "custom") {
+    return;
+  }
+
+  const highScoreRef = db
+    .collection("users")
+    .doc(uid)
+    .collection("quiz_high_scores")
+    .doc(buildUserHighScoreDocId(modeId, termKey));
+  const highScoreSnapshot = await transaction.get(highScoreRef);
+  const existingBestScore = highScoreSnapshot.get("bestScore");
+
+  if (typeof existingBestScore === "number" && existingBestScore >= score) {
+    return;
+  }
+
+  const nextHighScore: Record<string, unknown> = {
+    uid,
+    modeId,
+    periodKeyTerm: termKey,
+    bestScore: score,
+    resultId,
+    sessionId,
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  if (!highScoreSnapshot.exists) {
+    nextHighScore.createdAt = FieldValue.serverTimestamp();
+  }
+
+  transaction.set(highScoreRef, nextHighScore, {merge: true});
+}
 
 export const submitQuizResult = onRequest(appHttpOptions, async (request, response) => {
   setCorsHeaders(response);
@@ -97,6 +176,7 @@ export const submitQuizResult = onRequest(appHttpOptions, async (request, respon
 
     await db.runTransaction(async (transaction) => {
       const sessionRef = db.collection("quiz_sessions").doc(sessionId);
+      const userRef = db.collection("users").doc(token.uid);
       const sessionSnapshot = await transaction.get(sessionRef);
 
       if (!sessionSnapshot.exists) {
@@ -121,11 +201,24 @@ export const submitQuizResult = onRequest(appHttpOptions, async (request, respon
         throw new Error("session_expired");
       }
 
-      if (recentMistakes.length > 0) {
-        const mistakesRef = quizMistakesCollection(token.uid);
-        const existingMistakesSnapshot = await transaction.get(
-          mistakesRef.orderBy("sortKey", "asc"),
-        );
+      const mistakesRef = quizMistakesCollection(token.uid);
+      const existingMistakesSnapshot = recentMistakes.length > 0 ?
+        await transaction.get(mistakesRef.orderBy("sortKey", "asc")) :
+        null;
+
+      await maybeUpdateUserHighScore({
+        transaction,
+        uid: token.uid,
+        sessionId,
+        modeId,
+        score,
+        termKey: periodKeys.term,
+        resultId: resultRef.id,
+      });
+
+      transaction.update(userRef, buildUserQuizProgressUpdates({modeId, endReason}));
+
+      if (existingMistakesSnapshot) {
         const overflowCount = Math.max(
           0,
           existingMistakesSnapshot.docs.length + recentMistakes.length - maxStoredQuizMistakes,

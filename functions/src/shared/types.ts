@@ -94,6 +94,29 @@ export type QuizMistakeStoredOption = {
   imageUrl: string | null;
 };
 
+export type UserQuizProgressRecord = {
+  totalAttempts: number;
+  attemptCountsByMode: Record<string, number>;
+  clearedModeIds: string[];
+  clearedAtByMode: Record<string, Timestamp>;
+  lastAttemptAt: Timestamp;
+  lastAttemptModeId: string;
+  lastClearedAt: Timestamp | null;
+  lastClearedModeId: string | null;
+  updatedAt: Timestamp;
+};
+
+export type UserQuizHighScoreRecord = {
+  uid: string;
+  modeId: string;
+  periodKeyTerm: string;
+  bestScore: number;
+  resultId: string;
+  sessionId: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+};
+
 export type RankingEntry = {
   rank: number;
   userId: string;
