@@ -1,11 +1,33 @@
 import 'package:boatface/features/home/presentation/home_screen.dart';
 import 'package:boatface/features/profile/data/user_profile_repository.dart';
 import 'package:boatface/features/profile/domain/user_profile.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('does not show locked labels before profile finishes loading', (
+    WidgetTester tester,
+  ) async {
+    final Completer<UserProfile> profileCompleter = Completer<UserProfile>();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          userProfileRepositoryProvider.overrideWithValue(
+            _DeferredUserProfileRepository(profileCompleter.future),
+          ),
+        ],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
+    );
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('未開放'), findsNothing);
+    expect(find.text('さくっと'), findsNothing);
+  });
+
   testWidgets('shows locked state for unavailable modes', (
     WidgetTester tester,
   ) async {
@@ -80,6 +102,23 @@ class _FakeUserProfileRepository implements UserProfileRepository {
 
   @override
   Future<UserProfile> fetchMyProfile() async => profile;
+
+  @override
+  Future<UserProfile> updateMyProfile({
+    required String nickname,
+    required UserRegion? region,
+  }) {
+    throw UnimplementedError();
+  }
+}
+
+class _DeferredUserProfileRepository implements UserProfileRepository {
+  const _DeferredUserProfileRepository(this.profileFuture);
+
+  final Future<UserProfile> profileFuture;
+
+  @override
+  Future<UserProfile> fetchMyProfile() => profileFuture;
 
   @override
   Future<UserProfile> updateMyProfile({

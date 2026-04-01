@@ -22,8 +22,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final AsyncValue<UserProfile> profileAsync = ref.watch(userProfileProvider);
-    final UserQuizProgress? quizProgress =
-        profileAsync.valueOrNull?.quizProgress;
 
     return Center(
       child: ConstrainedBox(
@@ -33,28 +31,61 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: <Widget>[
             const _HomeSummaryCard(),
             const SizedBox(height: 12),
-            ...kQuizModes.map((QuizModeConfig mode) {
-              final QuizModeAccess access = resolveQuizModeAccess(
-                mode,
-                quizProgress: quizProgress,
-              );
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: HomeScreen._modeButtonMaxWidth,
-                    ),
-                    child: _ModeListItem(
-                      access: access,
-                      onTap: access.canStart
-                          ? () => _startFlow(context, mode)
-                          : null,
-                    ),
-                  ),
-                ),
-              );
-            }),
+            ...profileAsync.when(
+              data: (UserProfile profile) {
+                return kQuizModes
+                    .map((QuizModeConfig mode) {
+                      final QuizModeAccess access = resolveQuizModeAccess(
+                        mode,
+                        quizProgress: profile.quizProgress,
+                      );
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: HomeScreen._modeButtonMaxWidth,
+                            ),
+                            child: _ModeListItem(
+                              access: access,
+                              onTap: access.canStart
+                                  ? () => _startFlow(context, mode)
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      );
+                    })
+                    .toList(growable: false);
+              },
+              loading: () => const <Widget>[_HomeLoadingCard()],
+              error: (Object error, StackTrace stackTrace) {
+                return kQuizModes
+                    .map((QuizModeConfig mode) {
+                      final QuizModeAccess access = resolveQuizModeAccess(
+                        mode,
+                        quizProgress: const UserQuizProgress.empty(),
+                      );
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              maxWidth: HomeScreen._modeButtonMaxWidth,
+                            ),
+                            child: _ModeListItem(
+                              access: access,
+                              onTap: access.canStart
+                                  ? () => _startFlow(context, mode)
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      );
+                    })
+                    .toList(growable: false);
+              },
+            ),
           ],
         ),
       ),
@@ -88,6 +119,26 @@ class _HomeSummaryCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text('モードを選んでクイズにチャレンジしよう！', style: theme.textTheme.bodyMedium),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeLoadingCard extends StatelessWidget {
+  const _HomeLoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2.4),
+          ),
         ),
       ),
     );
