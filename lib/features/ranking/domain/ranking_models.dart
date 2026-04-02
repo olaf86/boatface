@@ -136,3 +136,47 @@ class RankingSnapshot {
     );
   }
 }
+
+class RankingTermBestScore {
+  const RankingTermBestScore({
+    required this.modeId,
+    required this.periodKeyTerm,
+    required this.bestScore,
+  });
+
+  final String modeId;
+  final String periodKeyTerm;
+  final int? bestScore;
+
+  static RankingTermBestScore? tryParseJson(Map<String, Object?> json) {
+    final String? modeId = json['modeId'] as String?;
+    final String? periodKeyTerm = json['periodKeyTerm'] as String?;
+    final Object? bestScoreValue = json['bestScore'];
+    final int? bestScore = switch (bestScoreValue) {
+      null => null,
+      final int value => value,
+      _ => null,
+    };
+    if (modeId == null ||
+        periodKeyTerm == null ||
+        (bestScoreValue != null && bestScore == null)) {
+      return null;
+    }
+
+    return RankingTermBestScore(
+      modeId: modeId,
+      periodKeyTerm: periodKeyTerm,
+      bestScore: bestScore,
+    );
+  }
+}
+
+class RankingCurrentUserSummary {
+  const RankingCurrentUserSummary({
+    required this.currentUserEntry,
+    required this.termBestScore,
+  });
+
+  final RankingEntry? currentUserEntry;
+  final RankingTermBestScore termBestScore;
+}

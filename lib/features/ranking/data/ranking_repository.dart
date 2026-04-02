@@ -10,6 +10,8 @@ abstract class RankingRepository {
     required RankingPeriod period,
     int limit = 50,
   });
+
+  Future<RankingTermBestScore> fetchMyTermBestScore({required String modeId});
 }
 
 final Provider<RankingRepository> rankingRepositoryProvider =
@@ -46,6 +48,25 @@ class FirebaseRankingRepository implements RankingRepository {
     }
 
     return snapshot;
+  }
+
+  @override
+  Future<RankingTermBestScore> fetchMyTermBestScore({
+    required String modeId,
+  }) async {
+    final Map<String, Object?> json = await _functionsClient.getJsonObject(
+      '/getMyQuizHighScore',
+      queryParameters: <String, String>{'modeId': modeId},
+      defaultErrorMessage: 'ベストスコアの取得に失敗しました。',
+    );
+    final RankingTermBestScore? bestScore = RankingTermBestScore.tryParseJson(
+      json,
+    );
+    if (bestScore == null) {
+      throw const RankingRepositoryException('ベストスコアの形式が不正です。');
+    }
+
+    return bestScore;
   }
 }
 
