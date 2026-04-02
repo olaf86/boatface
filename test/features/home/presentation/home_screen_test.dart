@@ -53,7 +53,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('未開放'), findsNWidgets(2));
+    expect(find.text('未開放'), findsNWidgets(3));
     expect(find.text('クイズモードを選択'), findsOneWidget);
     expect(find.text('10問・A1級限定の顔 -> 選手名'), findsNothing);
   });
@@ -89,7 +89,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('未開放'), findsOneWidget);
+    expect(find.text('未開放'), findsNWidgets(2));
     expect(find.text('じっくり'), findsOneWidget);
     expect(find.text('30問・前半20問は顔 -> 選手名、後半10問は選手名 -> 顔'), findsNothing);
   });

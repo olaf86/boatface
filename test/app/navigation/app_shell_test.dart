@@ -145,6 +145,17 @@ class _FakeRankingRepository implements RankingRepository {
       ],
     );
   }
+
+  @override
+  Future<RankingTermBestScore> fetchMyTermBestScore({
+    required String modeId,
+  }) async {
+    return RankingTermBestScore(
+      modeId: modeId,
+      periodKeyTerm: '2026-H1',
+      bestScore: null,
+    );
+  }
 }
 
 class _FakeUserProfileRepository implements UserProfileRepository {

@@ -152,7 +152,6 @@ const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[
         count: kMasterQuestionCount,
       ),
     ],
-    availableInMvp: false,
   ),
   QuizModeConfig(
     id: 'custom',
