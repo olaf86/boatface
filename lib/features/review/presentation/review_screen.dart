@@ -573,22 +573,16 @@ class _ReviewImageFallback extends StatelessWidget {
 }
 
 class _InlineDetailText extends StatelessWidget {
-  const _InlineDetailText({
-    required this.label,
-    required this.value,
-    this.valueScaleX = 1,
-    this.labelWidth = 48,
-    this.labelGap = 6,
-  });
+  const _InlineDetailText({required this.label, required this.value});
 
   final String label;
   final String value;
-  final double valueScaleX;
-  final double labelWidth;
-  final double labelGap;
 
   @override
   Widget build(BuildContext context) {
+    const double valueScaleX = 1;
+    const double labelWidth = 48;
+    const double labelGap = 6;
     final ThemeData theme = Theme.of(context);
     final TextStyle? labelStyle = theme.textTheme.labelSmall?.copyWith(
       fontSize: (theme.textTheme.labelSmall?.fontSize ?? 11) - 0.5,
