@@ -52,6 +52,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   Widget build(BuildContext context) {
     final QuizResultSummary summary = widget.summary;
     final ThemeData theme = Theme.of(context);
+    final bool hasMistakes = widget.summary.mistakes.isNotEmpty;
     final String endReasonText = switch (summary.endReason) {
       QuizEndReason.completed => '全問クリア',
       QuizEndReason.wrongAnswer => '不正解で終了',
@@ -149,17 +150,21 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                     value: summary.rankingEligible ? '反映対象' : '反映対象外',
                   ),
                   const SizedBox(height: 24),
-                  if (_isSubmitting ||
-                      _submissionErrorMessage != null) ...<Widget>[
-                    _SubmissionStatusCard(
-                      isSubmitting: _isSubmitting,
-                      errorMessage: _submissionErrorMessage,
-                      onRetry: _isSubmitting ? null : _submitResult,
-                    ),
-                    const SizedBox(height: 28),
-                  ] else
-                    const SizedBox(height: 24),
+                  _SubmissionStatusCard(
+                    isSubmitting: _isSubmitting,
+                    errorMessage: _submissionErrorMessage,
+                    onRetry: _isSubmitting ? null : _submitResult,
+                  ),
+                  const SizedBox(height: 24),
                   FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: theme.colorScheme.secondary,
+                      foregroundColor: theme.colorScheme.onSecondary,
+                      disabledBackgroundColor: theme.colorScheme.secondary
+                          .withValues(alpha: 0.48),
+                      disabledForegroundColor: theme.colorScheme.onSecondary
+                          .withValues(alpha: 0.72),
+                    ),
                     onPressed: _isSubmitting
                         ? null
                         : () => navigateToAppShellTab(
@@ -168,13 +173,23 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                             AppShellTab.ranking,
                           ),
                     icon: const Icon(Icons.leaderboard_rounded),
-                    label: Text(_isSubmitting ? 'ランキングを準備中…' : 'ランキングを見る'),
+                    label: const Text('ランキングを見る'),
                   ),
                   const SizedBox(height: 16),
-                  if (!_isSubmitting &&
-                      widget.summary.mistakes.isNotEmpty) ...<Widget>[
+                  if (hasMistakes) ...<Widget>[
                     FilledButton.icon(
-                      onPressed: () => openLearningReviewFlow(context, ref),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF22B7E8),
+                        foregroundColor: theme.colorScheme.primary,
+                        disabledBackgroundColor: const Color(
+                          0xFF22B7E8,
+                        ).withValues(alpha: 0.42),
+                        disabledForegroundColor: theme.colorScheme.primary
+                            .withValues(alpha: 0.58),
+                      ),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => openLearningReviewFlow(context, ref),
                       icon: const Icon(Icons.history_edu_rounded),
                       label: const Text('ミスを振り返る'),
                     ),
@@ -330,37 +345,58 @@ class _SubmissionStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text('サーバー保存', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            if (isSubmitting)
-              Row(
-                children: const <Widget>[
-                  SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      child: errorMessage != null
+          ? Padding(
+              key: const ValueKey<String>('submission-error'),
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                children: <Widget>[
+                  Text(
+                    'サーバー保存',
+                    style: theme.textTheme.titleMedium,
+                    textAlign: TextAlign.center,
                   ),
-                  SizedBox(width: 12),
-                  Expanded(child: Text('クイズ結果を送信しています。')),
+                  const SizedBox(height: 8),
+                  Text(
+                    errorMessage!,
+                    style: TextStyle(color: theme.colorScheme.error),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton(onPressed: onRetry, child: const Text('再送信')),
                 ],
-              )
-            else if (errorMessage != null) ...<Widget>[
-              Text(
-                errorMessage!,
-                style: TextStyle(color: theme.colorScheme.error),
               ),
-              const SizedBox(height: 12),
-              OutlinedButton(onPressed: onRetry, child: const Text('再送信')),
-            ],
-          ],
-        ),
-      ),
+            )
+          : SizedBox(
+              key: ValueKey<String>(
+                isSubmitting ? 'submission-loading' : 'submission-success',
+              ),
+              height: 32,
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text('サーバー保存', style: theme.textTheme.titleMedium),
+                    const SizedBox(width: 10),
+                    if (isSubmitting)
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      const Icon(
+                        Icons.cloud_done_rounded,
+                        color: Color(0xFF0A7A4A),
+                      ),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 }

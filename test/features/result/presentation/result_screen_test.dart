@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:boatface/features/quiz/data/quiz_backend_repository.dart';
 import 'package:boatface/features/quiz/domain/quiz_backend_models.dart';
 import 'package:boatface/features/quiz/domain/quiz_models.dart';
@@ -8,7 +10,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  QuizResultSummary buildSummary({required QuizEndReason endReason}) {
+  QuizResultSummary buildSummary({
+    required QuizEndReason endReason,
+    List<QuizMistakeSnapshot> mistakes = const <QuizMistakeSnapshot>[],
+  }) {
     return QuizResultSummary(
       modeId: 'mode-1',
       modeLabel: 'テストモード',
@@ -20,7 +25,7 @@ void main() {
       rankingEligible: true,
       continuedByAd: false,
       clientFinishedAt: DateTime.utc(2026, 3, 22, 12),
-      mistakes: const <QuizMistakeSnapshot>[],
+      mistakes: mistakes,
     );
   }
 
@@ -198,6 +203,85 @@ void main() {
     expect(find.text('保存しました。'), findsOneWidget);
     expect(find.text('クイズ結果を保存しました。'), findsNothing);
   });
+
+  testWidgets('保存中でも結果画面のボタン位置が変わらない', (WidgetTester tester) async {
+    _setResultSurfaceSize(tester);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final Completer<QuizResultSubmissionReceipt> completer =
+        Completer<QuizResultSubmissionReceipt>();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          quizBackendRepositoryProvider.overrideWithValue(
+            _PendingQuizBackendRepository(completer),
+          ),
+        ],
+        child: MaterialApp(
+          home: ResultScreen(
+            summary: buildSummary(
+              endReason: QuizEndReason.completed,
+              mistakes: const <QuizMistakeSnapshot>[
+                QuizMistakeSnapshot(
+                  questionIndex: 0,
+                  mistakeSequence: 0,
+                  promptType: QuizPromptType.nameToFace,
+                  prompt: '誰でしょう',
+                  options: <QuizMistakeOptionSnapshot>[
+                    QuizMistakeOptionSnapshot(
+                      racerId: 'r1',
+                      label: '正解',
+                      labelReading: null,
+                      imageUrl: null,
+                    ),
+                    QuizMistakeOptionSnapshot(
+                      racerId: 'r2',
+                      label: '不正解',
+                      labelReading: null,
+                      imageUrl: null,
+                    ),
+                  ],
+                  correctIndex: 0,
+                  selectedIndex: 1,
+                  correctRacerId: 'r1',
+                  selectedRacerId: 'r2',
+                  elapsed: Duration(seconds: 2),
+                  outcome: QuizMistakeOutcome.wrongAnswer,
+                ),
+              ],
+            ),
+            sessionId: 'session-1',
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+
+    final Finder rankingButton = find.widgetWithText(FilledButton, 'ランキングを見る');
+    final Finder reviewButton = find.widgetWithText(FilledButton, 'ミスを振り返る');
+    final Finder homeButton = find.widgetWithText(OutlinedButton, 'ホームに戻る');
+
+    final Offset rankingPositionBefore = tester.getTopLeft(rankingButton);
+    final Offset reviewPositionBefore = tester.getTopLeft(reviewButton);
+    final Offset homePositionBefore = tester.getTopLeft(homeButton);
+
+    completer.complete(
+      const QuizResultSubmissionReceipt(
+        resultId: 'result-1',
+        rankingEligible: true,
+        periodKeyDaily: '2026-03-22',
+        periodKeyTerm: '2026-03',
+      ),
+    );
+
+    await _pumpResultScreen(tester);
+
+    expect(tester.getTopLeft(rankingButton), rankingPositionBefore);
+    expect(tester.getTopLeft(reviewButton), reviewPositionBefore);
+    expect(tester.getTopLeft(homeButton), homePositionBefore);
+  });
 }
 
 class _ShellProbeScreen extends ConsumerWidget {
@@ -240,5 +324,27 @@ class _FakeQuizBackendRepository implements QuizBackendRepository {
       periodKeyDaily: '2026-03-22',
       periodKeyTerm: '2026-03',
     );
+  }
+}
+
+class _PendingQuizBackendRepository implements QuizBackendRepository {
+  _PendingQuizBackendRepository(this.completer);
+
+  final Completer<QuizResultSubmissionReceipt> completer;
+
+  @override
+  Future<QuizSessionLease> createQuizSession({required String modeId}) async {
+    return QuizSessionLease(
+      sessionId: 'session-1',
+      expiresAt: DateTime.utc(2026, 3, 24, 12),
+    );
+  }
+
+  @override
+  Future<QuizResultSubmissionReceipt> submitQuizResult({
+    required String sessionId,
+    required QuizResultSummary summary,
+  }) {
+    return completer.future;
   }
 }

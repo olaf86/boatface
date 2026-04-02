@@ -25,6 +25,7 @@ void main() {
 
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.text('未開放'), findsNothing);
+    expect(find.byIcon(Icons.lock_rounded), findsNothing);
     expect(find.text('さくっと'), findsNothing);
   });
 
@@ -53,7 +54,8 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('未開放'), findsNWidgets(3));
+    expect(find.text('未開放'), findsNothing);
+    expect(find.byIcon(Icons.lock_rounded), findsNWidgets(3));
     expect(find.text('クイズモードを選択'), findsOneWidget);
     expect(find.text('10問・A1級限定の顔 -> 選手名'), findsNothing);
   });
@@ -89,10 +91,62 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('未開放'), findsNWidgets(2));
+    expect(find.text('未開放'), findsNothing);
+    expect(find.byIcon(Icons.lock_rounded), findsNWidgets(2));
     expect(find.text('じっくり'), findsOneWidget);
     expect(find.text('30問・前半20問は顔 -> 選手名、後半10問は選手名 -> 顔'), findsNothing);
   });
+
+  testWidgets(
+    'tapping a locked mode shakes and swaps title to unlock condition temporarily',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: <Override>[
+            userProfileRepositoryProvider.overrideWithValue(
+              _FakeUserProfileRepository(
+                profile: const UserProfile(
+                  uid: 'user-1',
+                  displayName: 'テストユーザー',
+                  nickname: null,
+                  rankingDisplayName: 'テストユーザー',
+                  region: null,
+                  quizProgress: UserQuizProgress.empty(),
+                ),
+              ),
+            ),
+          ],
+          child: const MaterialApp(home: HomeScreen()),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('「さくっと」を全問クリアで開放'), findsNothing);
+
+      final Finder lockedCard = find.byKey(
+        const ValueKey<String>('mode-card-careful'),
+      );
+      final double xBeforeTap = tester.getTopLeft(lockedCard).dx;
+
+      await tester.tap(find.text('じっくり'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 80));
+
+      expect(find.text('「さくっと」を全問クリアで開放'), findsOneWidget);
+      expect(tester.getTopLeft(lockedCard).dx, isNot(xBeforeTap));
+
+      await tester.pump(const Duration(milliseconds: 260));
+
+      expect(find.text('じっくり'), findsNothing);
+
+      await tester.pump(const Duration(milliseconds: 2500));
+      await tester.pumpAndSettle();
+
+      expect(find.text('「さくっと」を全問クリアで開放'), findsNothing);
+      expect(find.text('じっくり'), findsOneWidget);
+    },
+  );
 }
 
 class _FakeUserProfileRepository implements UserProfileRepository {

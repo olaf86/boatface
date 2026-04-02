@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -145,105 +148,242 @@ class _HomeLoadingCard extends StatelessWidget {
   }
 }
 
-class _ModeListItem extends StatelessWidget {
+class _ModeListItem extends StatefulWidget {
   const _ModeListItem({required this.access, this.onTap});
 
   final QuizModeAccess access;
   final VoidCallback? onTap;
 
   @override
+  State<_ModeListItem> createState() => _ModeListItemState();
+}
+
+class _ModeListItemState extends State<_ModeListItem>
+    with SingleTickerProviderStateMixin {
+  static const Duration _lockedHintDuration = Duration(milliseconds: 2200);
+
+  late final AnimationController _shakeController;
+  Timer? _lockedHintTimer;
+  bool _showLockedHint = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
+  }
+
+  @override
+  void dispose() {
+    _lockedHintTimer?.cancel();
+    _shakeController.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    final QuizModeAccess access = widget.access;
+    if (access.canStart) {
+      widget.onTap?.call();
+      return;
+    }
+    if (!access.isImplemented || access.lockedReason == null) {
+      return;
+    }
+
+    _shakeController.forward(from: 0);
+    _lockedHintTimer?.cancel();
+    setState(() {
+      _showLockedHint = true;
+    });
+    _lockedHintTimer = Timer(_lockedHintDuration, () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _showLockedHint = false;
+      });
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final QuizModeAccess access = widget.access;
     final QuizModeConfig mode = access.mode;
     final _DifficultyBadgeStyle? badge = _difficultyBadgeFor(mode.id);
     final bool enabled = access.canStart;
-    final String? statusText = access.isImplemented
-        ? (access.isUnlocked ? null : '未開放')
-        : '準備中';
+    final Widget? statusWidget = access.isImplemented
+        ? (access.isUnlocked ? null : _ModeLockStatus(theme: theme))
+        : _ModePreparingStatus(theme: theme);
+    final bool showLockedHint = _showLockedHint && access.lockedReason != null;
+    final String centerText = showLockedHint
+        ? access.lockedReason!
+        : mode.label;
+    final TextStyle? centerTextStyle =
+        (showLockedHint
+                ? theme.textTheme.labelLarge
+                : theme.textTheme.titleLarge)
+            ?.copyWith(
+              color: enabled
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+              fontSize: showLockedHint ? 12 : null,
+              height: showLockedHint ? 1.15 : null,
+            );
 
-    return Card(
-      elevation: enabled ? 4 : 0,
-      shadowColor: theme.colorScheme.primary.withValues(alpha: 0.12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            gradient: enabled
-                ? LinearGradient(
-                    colors: <Color>[
-                      Colors.white,
-                      theme.colorScheme.surfaceContainerHighest,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : null,
-          ),
-          child: SizedBox(
-            height: 32,
-            child: Stack(
-              alignment: Alignment.center,
-              children: <Widget>[
-                if (badge != null)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
+    return AnimatedBuilder(
+      animation: _shakeController,
+      builder: (BuildContext context, Widget? child) {
+        final double shakeOffset =
+            math.sin(_shakeController.value * math.pi * 5) *
+            8 *
+            (1 - _shakeController.value);
+        return Transform.translate(
+          offset: Offset(shakeOffset, 0),
+          child: child,
+        );
+      },
+      child: Card(
+        key: ValueKey<String>('mode-card-${mode.id}'),
+        elevation: enabled ? 4 : 0,
+        shadowColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: access.isImplemented ? _handleTap : null,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: enabled
+                  ? LinearGradient(
+                      colors: <Color>[
+                        Colors.white,
+                        theme.colorScheme.surfaceContainerHighest,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+            ),
+            child: SizedBox(
+              height: 40,
+              child: Stack(
+                alignment: Alignment.center,
+                children: <Widget>[
+                  if (badge != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: badge.backgroundColor,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          badge.label,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            fontSize: 12,
+                            color: badge.foregroundColor,
+                          ),
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: badge.backgroundColor,
-                        borderRadius: BorderRadius.circular(999),
+                    ),
+                  Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: badge != null || statusWidget != null
+                            ? 66
+                            : 0,
                       ),
-                      child: Text(
-                        badge.label,
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          fontSize: 12,
-                          color: badge.foregroundColor,
+                      child: ClipRect(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 280),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder:
+                              (Widget child, Animation<double> animation) {
+                                final Animation<Offset> slideAnimation =
+                                    Tween<Offset>(
+                                      begin: const Offset(0, 0.35),
+                                      end: Offset.zero,
+                                    ).animate(animation);
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: SlideTransition(
+                                    position: slideAnimation,
+                                    child: child,
+                                  ),
+                                );
+                              },
+                          child: Text(
+                            centerText,
+                            key: ValueKey<String>(
+                              '${mode.id}-${showLockedHint ? 'hint' : 'label'}',
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: centerTextStyle,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: badge != null || statusText != null ? 72 : 0,
+                  if (statusWidget != null)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: statusWidget,
                     ),
-                    child: Text(
-                      mode.label,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        color: enabled
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurface.withValues(
-                                alpha: 0.5,
-                              ),
-                      ),
-                    ),
-                  ),
-                ),
-                if (statusText != null)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      statusText,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: access.isImplemented
-                            ? theme.colorScheme.tertiary
-                            : theme.colorScheme.onSurface.withValues(
-                                alpha: 0.55,
-                              ),
-                      ),
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeLockStatus extends StatelessWidget {
+  const _ModeLockStatus({required this.theme});
+
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 28,
+      child: Center(
+        child: Icon(
+          Icons.lock_rounded,
+          size: 18,
+          color: theme.colorScheme.tertiary,
+        ),
+      ),
+    );
+  }
+}
+
+class _ModePreparingStatus extends StatelessWidget {
+  const _ModePreparingStatus({required this.theme});
+
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 54,
+      child: Text(
+        '準備中',
+        textAlign: TextAlign.center,
+        style: theme.textTheme.labelLarge?.copyWith(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
         ),
       ),
     );
