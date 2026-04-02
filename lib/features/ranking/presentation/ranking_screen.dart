@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../shared/format/date_time_formatters.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../quiz/domain/quiz_models.dart';
 import '../../quiz/domain/quiz_modes.dart';
@@ -136,15 +135,6 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
                             Text(
                               '${mode.label} / ${_period.label}',
                               style: theme.textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              rankingAsync.valueOrNull == null
-                                  ? 'ランキングを読み込み中です。'
-                                  : '更新 ${formatDateTimeYmdHm(rankingAsync.valueOrNull!.generatedAt)}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
                             ),
                           ],
                         ),
@@ -316,13 +306,13 @@ class _RankingListRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final Color? crownColor = _crownColorForRank(entry.rank);
-    final Color scoreColor = isCurrentUser
-        ? theme.colorScheme.onPrimaryContainer
-        : theme.colorScheme.primary;
+    const Color currentUserHighlight = Color(0xFFFFD54F);
+    const Color currentUserAccent = Color(0xFF6B4F00);
+    final Color scoreColor = isCurrentUser ? currentUserAccent : theme.colorScheme.primary;
 
     return ColoredBox(
       color: isCurrentUser
-          ? theme.colorScheme.primaryContainer
+          ? currentUserHighlight.withValues(alpha: 0.34)
           : Colors.transparent,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -457,96 +447,36 @@ class _CurrentUserCard extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('あなたの成績', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 12),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          '当期ベストスコア',
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          summary.termBestScore.bestScore?.toString() ?? '---',
-                          style: theme.textTheme.displaySmall?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          summary.termBestScore.bestScore == null
-                              ? 'このモードの記録はまだありません。'
-                              : '$questionCount問モードで出した今期の自己ベストです。',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text('現在の順位', style: theme.textTheme.titleSmall),
-                const SizedBox(height: 8),
-                Text(
-                  currentUserEntry == null
-                      ? 'ランキング圏外'
-                      : '${currentUserEntry.rank}位 / Score ${currentUserEntry.score}',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  currentUserEntry == null
-                      ? '${period.label}のトップ50圏外の場合はここに表示されません。'
-                      : '${period.label}での総回答時間 ${_formatSeconds(currentUserEntry.totalAnswerTimeMs)}',
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                Row(
                   children: <Widget>[
-                    Chip(
-                      label: Text(period.label),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    Chip(
-                      label: Text('$questionCount問モード'),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    if (currentUserEntry?.region != null)
-                      Chip(
-                        label: Text(currentUserEntry!.region!.label),
-                        visualDensity: VisualDensity.compact,
+                    Expanded(
+                      child: _CurrentUserMetricCard(
+                        label: '当期ベストスコア',
+                        value: summary.termBestScore.bestScore?.toString() ?? '---',
                       ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _CurrentUserMetricCard(
+                        label: '現在の順位',
+                        value: currentUserEntry == null
+                            ? '圏外'
+                            : '${currentUserEntry.rank}位',
+                      ),
+                    ),
                   ],
                 ),
               ],
             );
           },
           loading: () => const SizedBox(
-            height: 180,
+            height: 112,
             child: Center(child: CircularProgressIndicator()),
           ),
           error: (Object error, StackTrace stackTrace) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('あなたの成績', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 8),
                 Text(
                   _messageForError(error),
                   style: TextStyle(color: theme.colorScheme.error),
@@ -559,15 +489,76 @@ class _CurrentUserCard extends StatelessWidget {
     );
   }
 
-  String _formatSeconds(int totalTimeMs) {
-    return '${(totalTimeMs / 1000).toStringAsFixed(1)}秒';
-  }
-
   String _messageForError(Object error) {
     return switch (error) {
       final Exception exception => exception.toString(),
       _ => 'ランキングの取得に失敗しました。',
     };
+  }
+}
+
+class _CurrentUserMetricCard extends StatelessWidget {
+  const _CurrentUserMetricCard({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Expanded(
+              flex: 7,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 3,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    textAlign: TextAlign.end,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
