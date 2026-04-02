@@ -45,53 +45,65 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Column(
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text('表示条件', style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _modeId,
-                      decoration: const InputDecoration(
-                        labelText: 'モード',
-                        border: OutlineInputBorder(),
+                    Expanded(
+                      flex: 4,
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _modeId,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'モード',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: kQuizModes
+                            .where((QuizModeConfig mode) => mode.availableInMvp)
+                            .map(
+                              (QuizModeConfig mode) => DropdownMenuItem<String>(
+                                value: mode.id,
+                                child: Text(mode.label),
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: (String? value) {
+                          if (value == null) {
+                            return;
+                          }
+                          setState(() {
+                            _modeId = value;
+                          });
+                        },
                       ),
-                      items: kQuizModes
-                          .where((QuizModeConfig mode) => mode.availableInMvp)
-                          .map(
-                            (QuizModeConfig mode) => DropdownMenuItem<String>(
-                              value: mode.id,
-                              child: Text(mode.label),
-                            ),
-                          )
-                          .toList(growable: false),
-                      onChanged: (String? value) {
-                        if (value == null) {
-                          return;
-                        }
-                        setState(() {
-                          _modeId = value;
-                        });
-                      },
                     ),
-                    const SizedBox(height: 12),
-                    SegmentedButton<RankingPeriod>(
-                      segments: const <ButtonSegment<RankingPeriod>>[
-                        ButtonSegment<RankingPeriod>(
-                          value: RankingPeriod.today,
-                          label: Text('本日'),
-                        ),
-                        ButtonSegment<RankingPeriod>(
-                          value: RankingPeriod.term,
-                          label: Text('期別'),
-                        ),
-                      ],
-                      selected: <RankingPeriod>{_period},
-                      onSelectionChanged: (Set<RankingPeriod> value) {
-                        setState(() {
-                          _period = value.first;
-                        });
-                      },
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 5,
+                      child: SegmentedButton<RankingPeriod>(
+                        showSelectedIcon: false,
+                        segments: <ButtonSegment<RankingPeriod>>[
+                          ButtonSegment<RankingPeriod>(
+                            value: RankingPeriod.today,
+                            label: _PeriodSegmentLabel(
+                              text: '本日',
+                              selected: _period == RankingPeriod.today,
+                            ),
+                          ),
+                          ButtonSegment<RankingPeriod>(
+                            value: RankingPeriod.term,
+                            label: _PeriodSegmentLabel(
+                              text: '期別',
+                              selected: _period == RankingPeriod.term,
+                            ),
+                          ),
+                        ],
+                        selected: <RankingPeriod>{_period},
+                        onSelectionChanged: (Set<RankingPeriod> value) {
+                          setState(() {
+                            _period = value.first;
+                          });
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -226,7 +238,7 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
         if (!twoColumn) {
           return Column(
             children: <Widget>[
-              SizedBox(height: 272, child: filters),
+              SizedBox(height: 220, child: filters),
               Expanded(child: leaderboard),
             ],
           );
@@ -556,5 +568,40 @@ class _CurrentUserCard extends StatelessWidget {
       final Exception exception => exception.toString(),
       _ => 'ランキングの取得に失敗しました。',
     };
+  }
+}
+
+class _PeriodSegmentLabel extends StatelessWidget {
+  const _PeriodSegmentLabel({required this.text, required this.selected});
+
+  final String text;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+
+    return SizedBox(
+      width: 72,
+      height: 20,
+      child: Stack(
+        alignment: Alignment.center,
+        children: <Widget>[
+          Positioned(
+            left: -2,
+            child: AnimatedOpacity(
+              opacity: selected ? 1 : 0,
+              duration: const Duration(milliseconds: 140),
+              child: Icon(
+                Icons.check_rounded,
+                size: 16,
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+            ),
+          ),
+          Center(child: Text(text)),
+        ],
+      ),
+    );
   }
 }

@@ -39,6 +39,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('10問・A1級限定の顔 -> 選手名'), findsNothing);
+    expect(find.text('表示条件'), findsNothing);
     expect(find.text('SCORE'), findsOneWidget);
     expect(find.byIcon(Icons.workspace_premium_rounded), findsNWidgets(3));
     expect(find.text('1200'), findsOneWidget);
