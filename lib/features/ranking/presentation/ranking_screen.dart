@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -111,8 +113,6 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
             const SizedBox(height: 16),
             _CurrentUserCard(
               summaryAsync: currentUserSummaryAsync,
-              period: _period,
-              questionCount: mode.questionCount,
             ),
           ],
         );
@@ -424,15 +424,9 @@ class _RankingListRow extends StatelessWidget {
 }
 
 class _CurrentUserCard extends StatelessWidget {
-  const _CurrentUserCard({
-    required this.summaryAsync,
-    required this.period,
-    required this.questionCount,
-  });
+  const _CurrentUserCard({required this.summaryAsync});
 
   final AsyncValue<RankingCurrentUserSummary> summaryAsync;
-  final RankingPeriod period;
-  final int questionCount;
 
   @override
   Widget build(BuildContext context) {
@@ -453,6 +447,8 @@ class _CurrentUserCard extends StatelessWidget {
                       child: _CurrentUserMetricCard(
                         label: '当期ベストスコア',
                         value: summary.termBestScore.bestScore?.toString() ?? '---',
+                        enableShine: summary.termBestScore.bestScore != null,
+                        shineDelayFraction: 0,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -462,6 +458,8 @@ class _CurrentUserCard extends StatelessWidget {
                         value: currentUserEntry == null
                             ? '圏外'
                             : '${currentUserEntry.rank}位',
+                        enableShine: currentUserEntry != null,
+                        shineDelayFraction: 0.1,
                       ),
                     ),
                   ],
@@ -497,66 +495,174 @@ class _CurrentUserCard extends StatelessWidget {
   }
 }
 
-class _CurrentUserMetricCard extends StatelessWidget {
-  const _CurrentUserMetricCard({required this.label, required this.value});
+class _CurrentUserMetricCard extends StatefulWidget {
+  const _CurrentUserMetricCard({
+    required this.label,
+    required this.value,
+    required this.enableShine,
+    required this.shineDelayFraction,
+  });
 
   final String label;
   final String value;
+  final bool enableShine;
+  final double shineDelayFraction;
+
+  @override
+  State<_CurrentUserMetricCard> createState() => _CurrentUserMetricCardState();
+}
+
+class _CurrentUserMetricCardState extends State<_CurrentUserMetricCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shineController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 6700),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _syncAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CurrentUserMetricCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.enableShine != widget.enableShine) {
+      _syncAnimation();
+    }
+  }
+
+  @override
+  void dispose() {
+    _shineController.dispose();
+    super.dispose();
+  }
+
+  void _syncAnimation() {
+    if (widget.enableShine) {
+      _shineController.repeat();
+    } else {
+      _shineController
+        ..stop()
+        ..value = 0;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final BorderRadius borderRadius = BorderRadius.circular(20);
+    final Color backgroundColor = widget.enableShine
+        ? const Color(0xFFFFD54F)
+        : theme.colorScheme.primaryContainer;
+    final Color foregroundColor = widget.enableShine
+        ? const Color(0xFF6B4F00)
+        : theme.colorScheme.onPrimaryContainer;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            Expanded(
-              flex: 7,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w700,
+    return ClipRRect(
+      borderRadius: borderRadius,
+      child: Stack(
+        children: <Widget>[
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: borderRadius,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  Expanded(
+                    flex: 7,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          widget.label,
+                          maxLines: 1,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: foregroundColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 3,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          widget.value,
+                          maxLines: 1,
+                          textAlign: TextAlign.end,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: foregroundColor,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (widget.enableShine)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _shineController,
+                  builder: (BuildContext context, Widget? child) {
+                    const double shineStart = 0.72;
+                    const double shineEnd = 0.98;
+                    final double shiftedValue =
+                        (_shineController.value - widget.shineDelayFraction) % 1;
+                    final double progress =
+                        ((shiftedValue - shineStart) / (shineEnd - shineStart))
+                            .clamp(0.0, 1.0);
+                    final bool isActive =
+                        shiftedValue >= shineStart && shiftedValue <= shineEnd;
+                    final double left = lerpDouble(-1.25, 1.25, progress)!;
+                    return Opacity(
+                      opacity: isActive ? 1 : 0,
+                      child: FractionalTranslation(
+                        translation: Offset(left, 0),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Transform.rotate(
+                      angle: -0.22,
+                      child: Container(
+                        width: 36,
+                        height: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: <Color>[
+                              Colors.white.withValues(alpha: 0),
+                              Colors.white.withValues(alpha: 0.46),
+                              Colors.white.withValues(alpha: 0),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 3,
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    value,
-                    maxLines: 1,
-                    textAlign: TextAlign.end,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
