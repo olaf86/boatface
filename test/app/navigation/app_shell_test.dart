@@ -47,12 +47,16 @@ void main() {
 
     await tester.pumpAndSettle();
 
+    expect(find.text('遊ぶ'), findsNWidgets(2));
     expect(find.text('クイズモードを選択'), findsOneWidget);
     expect(find.text('モードを選んでクイズにチャレンジしよう！'), findsOneWidget);
+    expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
 
-    await tester.tap(find.text('学習'));
+    await tester.tap(find.text('学ぶ'));
     await tester.pumpAndSettle();
+    expect(find.text('学ぶ'), findsNWidgets(2));
     expect(find.text('振り返りを開く'), findsOneWidget);
+    expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
 
     await tester.tap(find.text('振り返りを開く'));
     await tester.pumpAndSettle();
@@ -61,10 +65,13 @@ void main() {
     await tester.tap(find.text('ホームへ戻る'));
     await tester.pumpAndSettle();
     expect(find.text('クイズモードを選択'), findsOneWidget);
+    expect(find.text('遊ぶ'), findsNWidgets(2));
 
     await tester.tap(find.text('ランキング'));
     await tester.pumpAndSettle();
+    expect(find.text('ランキング'), findsNWidgets(2));
     expect(find.text('SCORE'), findsOneWidget);
+    expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
   });
 }
 

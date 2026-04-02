@@ -12,8 +12,8 @@ enum AppShellTab { learning, home, ranking }
 
 extension AppShellTabX on AppShellTab {
   String get label => switch (this) {
-    AppShellTab.home => 'ホーム',
-    AppShellTab.learning => '学習',
+    AppShellTab.home => '遊ぶ',
+    AppShellTab.learning => '学ぶ',
     AppShellTab.ranking => 'ランキング',
   };
 
@@ -67,22 +67,20 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(currentTab.label),
-        actions: currentTab == AppShellTab.home
-            ? <Widget>[
-                IconButton(
-                  tooltip: '設定',
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      buildAppRoute<void>(
-                        page: const SettingsScreen(),
-                        transition: AppRouteTransition.sharedAxisHorizontal,
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.settings_outlined),
+        actions: <Widget>[
+          IconButton(
+            tooltip: '設定',
+            onPressed: () {
+              Navigator.of(context).push(
+                buildAppRoute<void>(
+                  page: const SettingsScreen(),
+                  transition: AppRouteTransition.sharedAxisHorizontal,
                 ),
-              ]
-            : null,
+              );
+            },
+            icon: const Icon(Icons.settings_outlined),
+          ),
+        ],
       ),
       body: IndexedStack(
         index: currentTab.index,
