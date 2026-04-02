@@ -8,7 +8,7 @@ const Color _poolAqua = Color(0xFF4AD8F7);
 const Color _lagoon = Color(0xFF22B7E8);
 const Color _raceBlue = Color(0xFF1456C9);
 const Color _deepBlue = Color(0xFF0A2F7A);
-const double _iconArtworkScale = 1.1;
+const double _iconArtworkScale = 1.22;
 const double _iconDesignSize = 1024;
 const double _iconDesignCenter = _iconDesignSize / 2;
 
