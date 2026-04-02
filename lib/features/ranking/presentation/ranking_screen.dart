@@ -28,6 +28,8 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
     final AsyncValue<RankingSnapshot> rankingAsync = ref.watch(
       rankingSnapshotProvider(request),
     );
+    final AsyncValue<RankingCurrentUserSummary> currentUserSummaryAsync = ref
+        .watch(rankingCurrentUserSummaryProvider(request));
     final String? currentUserId = ref.watch(authStateProvider).valueOrNull?.uid;
     final QuizModeConfig mode = kQuizModes.firstWhere(
       (QuizModeConfig item) => item.id == _modeId,
@@ -97,28 +99,9 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
             ),
             const SizedBox(height: 16),
             _CurrentUserCard(
-              rankingAsync: rankingAsync,
-              currentUserId: currentUserId,
+              summaryAsync: currentUserSummaryAsync,
               period: _period,
               questionCount: mode.questionCount,
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const <Widget>[
-                    Text('集計メモ'),
-                    SizedBox(height: 8),
-                    Text('本日ランキングは JST 00:00 区切りです。'),
-                    SizedBox(height: 4),
-                    Text('期別ランキングは 1月1日 / 7月1日 開始です。'),
-                    SizedBox(height: 4),
-                    Text('表示名と地域は設定画面のプロフィール設定を使います。'),
-                  ],
-                ),
-              ),
             ),
           ],
         );
@@ -146,16 +129,23 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
                             Text(
                               rankingAsync.valueOrNull == null
                                   ? 'ランキングを読み込み中です。'
-                                  : '更新日時: ${formatDateTimeYmdHm(rankingAsync.valueOrNull!.generatedAt)}',
-                              style: theme.textTheme.bodyMedium,
+                                  : '更新 ${formatDateTimeYmdHm(rankingAsync.valueOrNull!.generatedAt)}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ],
                         ),
                       ),
                       IconButton(
                         tooltip: '再読み込み',
-                        onPressed: () =>
-                            ref.invalidate(rankingSnapshotProvider(request)),
+                        onPressed: () {
+                          ref.invalidate(rankingSnapshotProvider(request));
+                          ref.invalidate(rankingTermBestScoreProvider(_modeId));
+                          ref.invalidate(
+                            rankingCurrentUserSummaryProvider(request),
+                          );
+                        },
                         icon: const Icon(Icons.refresh),
                       ),
                     ],
@@ -433,14 +423,12 @@ class _RankingListRow extends StatelessWidget {
 
 class _CurrentUserCard extends StatelessWidget {
   const _CurrentUserCard({
-    required this.rankingAsync,
-    required this.currentUserId,
+    required this.summaryAsync,
     required this.period,
     required this.questionCount,
   });
 
-  final AsyncValue<RankingSnapshot> rankingAsync;
-  final String? currentUserId;
+  final AsyncValue<RankingCurrentUserSummary> summaryAsync;
   final RankingPeriod period;
   final int questionCount;
 
@@ -451,33 +439,68 @@ class _CurrentUserCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: rankingAsync.when(
-          data: (RankingSnapshot snapshot) {
-            RankingEntry? currentUserEntry;
-            if (currentUserId != null) {
-              for (final RankingEntry entry in snapshot.entries) {
-                if (entry.userId == currentUserId) {
-                  currentUserEntry = entry;
-                  break;
-                }
-              }
-            }
+        child: summaryAsync.when(
+          data: (RankingCurrentUserSummary summary) {
+            final RankingEntry? currentUserEntry = summary.currentUserEntry;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('あなたの現在位置', style: theme.textTheme.titleMedium),
+                Text('あなたの成績', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 12),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          '当期ベストスコア',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: theme.colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          summary.termBestScore.bestScore?.toString() ?? '---',
+                          style: theme.textTheme.displaySmall?.copyWith(
+                            color: theme.colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          summary.termBestScore.bestScore == null
+                              ? 'このモードの記録はまだありません。'
+                              : '$questionCount問モードで出した今期の自己ベストです。',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text('現在の順位', style: theme.textTheme.titleSmall),
                 const SizedBox(height: 8),
                 Text(
                   currentUserEntry == null
                       ? 'ランキング圏外'
                       : '${currentUserEntry.rank}位 / Score ${currentUserEntry.score}',
-                  style: theme.textTheme.headlineSmall,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   currentUserEntry == null
-                      ? 'トップ50圏外の場合はここに表示されません。'
-                      : '総回答時間 ${_formatSeconds(currentUserEntry.totalAnswerTimeMs)}',
+                      ? '${period.label}のトップ50圏外の場合はここに表示されません。'
+                      : '${period.label}での総回答時間 ${_formatSeconds(currentUserEntry.totalAnswerTimeMs)}',
                 ),
                 const SizedBox(height: 12),
                 Wrap(
@@ -503,14 +526,14 @@ class _CurrentUserCard extends StatelessWidget {
             );
           },
           loading: () => const SizedBox(
-            height: 110,
+            height: 180,
             child: Center(child: CircularProgressIndicator()),
           ),
           error: (Object error, StackTrace stackTrace) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('あなたの現在位置', style: theme.textTheme.titleMedium),
+                Text('あなたの成績', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Text(
                   _messageForError(error),

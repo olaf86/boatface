@@ -42,6 +42,8 @@ void main() {
     expect(find.text('SCORE'), findsOneWidget);
     expect(find.byIcon(Icons.workspace_premium_rounded), findsNWidgets(3));
     expect(find.text('1200'), findsOneWidget);
+    expect(find.text('当期ベストスコア'), findsOneWidget);
+    expect(find.text('1185'), findsOneWidget);
   });
 }
 
@@ -90,6 +92,17 @@ class _FakeRankingRepository implements RankingRepository {
           totalAnswerTimeMs: 40100,
         ),
       ],
+    );
+  }
+
+  @override
+  Future<RankingTermBestScore> fetchMyTermBestScore({
+    required String modeId,
+  }) async {
+    return const RankingTermBestScore(
+      modeId: 'quick',
+      periodKeyTerm: '2026-H1',
+      bestScore: 1185,
     );
   }
 }
