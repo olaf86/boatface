@@ -6,7 +6,6 @@ import '../../../app/navigation/app_shell.dart';
 import '../../learn/navigation/learning_navigation.dart';
 import '../../profile/application/user_profile_controller.dart';
 import '../../quiz/data/quiz_backend_repository.dart';
-import '../../quiz/domain/quiz_backend_models.dart';
 import '../../quiz/domain/quiz_models.dart';
 
 class ResultScreen extends ConsumerStatefulWidget {
@@ -27,7 +26,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   late final ConfettiController _confettiController;
   bool _isSubmitting = true;
   String? _submissionErrorMessage;
-  QuizResultSubmissionReceipt? _submissionReceipt;
 
   bool get _showCelebration =>
       widget.summary.endReason == QuizEndReason.completed;
@@ -63,15 +61,11 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leadingWidth: 112,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 4),
-          child: TextButton.icon(
-            onPressed: () =>
-                navigateToAppShellTab(context, ref, AppShellTab.home),
-            icon: const Icon(Icons.home_rounded),
-            label: const Text('Home'),
-          ),
+        leading: IconButton(
+          tooltip: '遊ぶ',
+          onPressed: () =>
+              navigateToAppShellTab(context, ref, AppShellTab.home),
+          icon: const Icon(Icons.home_rounded),
         ),
         title: const Text('リザルト'),
         automaticallyImplyLeading: false,
@@ -155,13 +149,16 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                     value: summary.rankingEligible ? '反映対象' : '反映対象外',
                   ),
                   const SizedBox(height: 24),
-                  _SubmissionStatusCard(
-                    isSubmitting: _isSubmitting,
-                    errorMessage: _submissionErrorMessage,
-                    submissionReceipt: _submissionReceipt,
-                    onRetry: _isSubmitting ? null : _submitResult,
-                  ),
-                  const SizedBox(height: 28),
+                  if (_isSubmitting ||
+                      _submissionErrorMessage != null) ...<Widget>[
+                    _SubmissionStatusCard(
+                      isSubmitting: _isSubmitting,
+                      errorMessage: _submissionErrorMessage,
+                      onRetry: _isSubmitting ? null : _submitResult,
+                    ),
+                    const SizedBox(height: 28),
+                  ] else
+                    const SizedBox(height: 24),
                   FilledButton.icon(
                     onPressed: _isSubmitting
                         ? null
@@ -173,16 +170,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                     icon: const Icon(Icons.leaderboard_rounded),
                     label: Text(_isSubmitting ? 'ランキングを準備中…' : 'ランキングを見る'),
                   ),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: theme.colorScheme.secondary,
-                      foregroundColor: theme.colorScheme.onSecondary,
-                    ),
-                    onPressed: () =>
-                        navigateToAppShellTab(context, ref, AppShellTab.home),
-                    child: const Text('ホームに戻る'),
-                  ),
                   const SizedBox(height: 16),
                   if (!_isSubmitting &&
                       widget.summary.mistakes.isNotEmpty) ...<Widget>[
@@ -193,6 +180,20 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                     ),
                     const SizedBox(height: 12),
                   ],
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.76,
+                      ),
+                      backgroundColor: theme.colorScheme.surface.withValues(
+                        alpha: 0.72,
+                      ),
+                      side: BorderSide(color: theme.colorScheme.outlineVariant),
+                    ),
+                    onPressed: () =>
+                        navigateToAppShellTab(context, ref, AppShellTab.home),
+                    child: const Text('ホームに戻る'),
+                  ),
                 ],
               ),
             ),
@@ -262,7 +263,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     });
 
     try {
-      final QuizResultSubmissionReceipt receipt = await ref
+      await ref
           .read(quizBackendRepositoryProvider)
           .submitQuizResult(
             sessionId: widget.sessionId,
@@ -272,9 +273,11 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
         return;
       }
       ref.invalidate(userProfileProvider);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('保存しました。')));
       setState(() {
         _isSubmitting = false;
-        _submissionReceipt = receipt;
       });
     } catch (error) {
       if (!mounted) {
@@ -287,7 +290,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       setState(() {
         _isSubmitting = false;
         _submissionErrorMessage = message;
-        _submissionReceipt = null;
       });
     }
   }
@@ -317,13 +319,11 @@ class _SubmissionStatusCard extends StatelessWidget {
   const _SubmissionStatusCard({
     required this.isSubmitting,
     required this.errorMessage,
-    required this.submissionReceipt,
     required this.onRetry,
   });
 
   final bool isSubmitting;
   final String? errorMessage;
-  final QuizResultSubmissionReceipt? submissionReceipt;
   final VoidCallback? onRetry;
 
   @override
@@ -357,14 +357,6 @@ class _SubmissionStatusCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               OutlinedButton(onPressed: onRetry, child: const Text('再送信')),
-            ] else ...<Widget>[
-              const Text('クイズ結果を保存しました。'),
-              if (submissionReceipt != null) ...<Widget>[
-                const SizedBox(height: 8),
-                Text('結果ID: ${submissionReceipt!.resultId}'),
-                Text('日次キー: ${submissionReceipt!.periodKeyDaily}'),
-                Text('期別キー: ${submissionReceipt!.periodKeyTerm}'),
-              ],
             ],
           ],
         ),
