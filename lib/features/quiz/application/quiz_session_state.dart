@@ -20,6 +20,7 @@ class QuizSessionState {
     required this.endReason,
     required this.availableHints,
     required this.hintStockCapacity,
+    required this.disabledHintTypes,
     required this.removedOptionIndexes,
     required this.timeFreezeActive,
     required this.isProcessing,
@@ -42,6 +43,7 @@ class QuizSessionState {
   final QuizEndReason? endReason;
   final List<QuizHintItem> availableHints;
   final int hintStockCapacity;
+  final Set<QuizHintType> disabledHintTypes;
   final Set<int> removedOptionIndexes;
   final bool timeFreezeActive;
   final bool isProcessing;
@@ -66,6 +68,7 @@ class QuizSessionState {
     bool replaceEndReason = false,
     List<QuizHintItem>? availableHints,
     int? hintStockCapacity,
+    Set<QuizHintType>? disabledHintTypes,
     Set<int>? removedOptionIndexes,
     bool? timeFreezeActive,
     bool? isProcessing,
@@ -93,6 +96,7 @@ class QuizSessionState {
       endReason: replaceEndReason ? endReason : (endReason ?? this.endReason),
       availableHints: availableHints ?? this.availableHints,
       hintStockCapacity: hintStockCapacity ?? this.hintStockCapacity,
+      disabledHintTypes: disabledHintTypes ?? this.disabledHintTypes,
       removedOptionIndexes: removedOptionIndexes ?? this.removedOptionIndexes,
       timeFreezeActive: timeFreezeActive ?? this.timeFreezeActive,
       isProcessing: isProcessing ?? this.isProcessing,

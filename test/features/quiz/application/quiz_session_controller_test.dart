@@ -204,6 +204,7 @@ void main() {
         hintedState.availableHints.map((QuizHintItem item) => item.type),
         isNot(contains(QuizHintType.fiftyFifty)),
       );
+      expect(hintedState.disabledHintTypes, contains(QuizHintType.fiftyFifty));
       expect(hintedState.removedOptionIndexes, hasLength(2));
 
       controller.completeAnswerFeedback();
@@ -357,6 +358,7 @@ void main() {
         frozenState.availableHints.map((QuizHintItem item) => item.type),
         isNot(contains(QuizHintType.timeFreeze)),
       );
+      expect(frozenState.disabledHintTypes, contains(QuizHintType.timeFreeze));
       expect(frozenState.timeFreezeActive, true);
 
       controller.submitAnswer(firstQuestion.correctIndex);
@@ -366,6 +368,10 @@ void main() {
         quizSessionControllerProvider(mode),
       );
       expect(advancedState.currentQuestionIndex, 1);
+      expect(
+        advancedState.disabledHintTypes,
+        isNot(contains(QuizHintType.timeFreeze)),
+      );
       expect(advancedState.timeFreezeActive, false);
       expect(
         advancedState.availableHints.map((QuizHintItem item) => item.type),

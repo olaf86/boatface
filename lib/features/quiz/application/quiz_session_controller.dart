@@ -201,6 +201,11 @@ class QuizSessionController
       endReason: _session.endReason,
       availableHints: _session.hintStock,
       hintStockCapacity: kQuizHintStockCapacity,
+      disabledHintTypes: Set<QuizHintType>.unmodifiable(<QuizHintType>{
+        if (_session.removedOptionIndexes.isNotEmpty)
+          QuizHintType.fiftyFifty,
+        if (_session.timeFreezeActive) QuizHintType.timeFreeze,
+      }),
       removedOptionIndexes: Set<int>.unmodifiable(
         _session.removedOptionIndexes,
       ),

@@ -290,6 +290,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                           inputsEnabled: inputsEnabled,
                           hintStock: state.availableHints,
                           hintStockCapacity: state.hintStockCapacity,
+                          disabledHintTypes: state.disabledHintTypes,
                           onUseHint: _handleUseHint,
                         ),
                         const SizedBox(height: 10),
@@ -1348,12 +1349,14 @@ class _QuizHintPanel extends StatelessWidget {
     required this.inputsEnabled,
     required this.hintStock,
     required this.hintStockCapacity,
+    required this.disabledHintTypes,
     required this.onUseHint,
   });
 
   final bool inputsEnabled;
   final List<QuizHintItem> hintStock;
   final int hintStockCapacity;
+  final Set<QuizHintType> disabledHintTypes;
   final bool Function(String hintId) onUseHint;
 
   @override
@@ -1455,7 +1458,12 @@ class _QuizHintPanel extends StatelessWidget {
                                 hint: index < hintStock.length
                                     ? hintStock[index]
                                     : null,
-                                enabled: inputsEnabled,
+                                enabled:
+                                    inputsEnabled &&
+                                    (index >= hintStock.length ||
+                                        !disabledHintTypes.contains(
+                                          hintStock[index].type,
+                                        )),
                                 onPressed: switch (index < hintStock.length
                                     ? hintStock[index]
                                     : null) {
@@ -1505,14 +1513,7 @@ class _QuizHintStockSlot extends StatelessWidget {
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (Widget child, Animation<double> animation) {
-          final Animation<double> scale = Tween<double>(begin: 0.72, end: 1.0)
-              .animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
-              );
-          return FadeTransition(
-            opacity: animation,
-            child: ScaleTransition(scale: scale, child: child),
-          );
+          return FadeTransition(opacity: animation, child: child);
         },
         child: hint == null
             ? const SizedBox.shrink(key: ValueKey<String>('quiz-hint-empty'))
@@ -1555,10 +1556,12 @@ class _QuizHintStockButton extends StatefulWidget {
 }
 
 class _QuizHintStockButtonState extends State<_QuizHintStockButton>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const double _kConsumePeakProgress = 0.42;
   static const Duration _kPressExpandDuration = Duration(milliseconds: 300);
 
+  late final AnimationController _appearController;
+  late final Animation<double> _appearScaleAnimation;
   late final AnimationController _tapController;
   late final Animation<double> _scaleAnimation;
   bool _isConsuming = false;
@@ -1566,6 +1569,33 @@ class _QuizHintStockButtonState extends State<_QuizHintStockButton>
   @override
   void initState() {
     super.initState();
+    _appearController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 440),
+    );
+    _appearScaleAnimation = TweenSequence<double>(<TweenSequenceItem<double>>[
+      TweenSequenceItem<double>(
+        tween: Tween<double>(
+          begin: 0.84,
+          end: 1.25,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 38,
+      ),
+      TweenSequenceItem<double>(
+        tween: Tween<double>(
+          begin: 1.25,
+          end: 0.92,
+        ).chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 34,
+      ),
+      TweenSequenceItem<double>(
+        tween: Tween<double>(
+          begin: 0.92,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeOutBack)),
+        weight: 28,
+      ),
+    ]).animate(_appearController);
     _tapController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 220),
@@ -1593,10 +1623,17 @@ class _QuizHintStockButtonState extends State<_QuizHintStockButton>
         weight: 24,
       ),
     ]).animate(_tapController);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _appearController.forward();
+    });
   }
 
   @override
   void dispose() {
+    _appearController.dispose();
     _tapController.dispose();
     super.dispose();
   }
@@ -1659,43 +1696,62 @@ class _QuizHintStockButtonState extends State<_QuizHintStockButton>
   @override
   Widget build(BuildContext context) {
     final _QuizHintVisualSpec spec = _hintSpecFor(widget.hint.type);
+    final bool isEnabled = widget.enabled;
     return Tooltip(
       message: spec.tooltip,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: spec.colors,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: spec.colors.first.withValues(alpha: 0.24),
-                blurRadius: 14,
-                offset: const Offset(0, 8),
+      child: KeyedSubtree(
+        key: ValueKey<String>('quiz-hint-item-${widget.hint.id}'),
+        child: AnimatedBuilder(
+          animation: Listenable.merge(<Listenable>[
+            _appearController,
+            _tapController,
+          ]),
+          builder: (BuildContext context, Widget? child) {
+            return Transform.scale(
+              scale: _appearScaleAnimation.value * _scaleAnimation.value,
+              child: child,
+            );
+          },
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 140),
+            opacity: isEnabled ? 1 : 0.45,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: spec.colors,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: spec.colors.first.withValues(
+                      alpha: isEnabled ? 0.24 : 0.08,
+                    ),
+                    blurRadius: 14,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            shape: const CircleBorder(),
-            child: InkWell(
-              key: ValueKey<String>('quiz-hint-${spec.id}'),
-              customBorder: const CircleBorder(),
-              onTapDown: widget.enabled ? _handleTapDown : null,
-              onTapCancel: widget.enabled ? _handleTapCancel : null,
-              onTap: widget.enabled ? _handleTap : null,
-              child: Center(
-                child: Icon(
-                  spec.icon,
-                  size: 20,
-                  color: widget.enabled
-                      ? Colors.white
-                      : Colors.white.withValues(alpha: 0.42),
+              child: Material(
+                color: Colors.transparent,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  key: ValueKey<String>('quiz-hint-${spec.id}'),
+                  customBorder: const CircleBorder(),
+                  onTapDown: isEnabled ? _handleTapDown : null,
+                  onTapCancel: isEnabled ? _handleTapCancel : null,
+                  onTap: isEnabled ? _handleTap : null,
+                  child: Center(
+                    child: Icon(
+                      spec.icon,
+                      size: 20,
+                      color: isEnabled
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.42),
+                    ),
+                  ),
                 ),
               ),
             ),

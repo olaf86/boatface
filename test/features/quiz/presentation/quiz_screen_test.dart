@@ -98,6 +98,77 @@ void main() {
     expect(find.byTooltip('時間を停止する'), findsNothing);
   });
 
+  testWidgets(
+    'disables remaining same-type hint buttons while the hint effect is active',
+    (WidgetTester tester) async {
+      final QuizModeConfig mode = _buildMode(
+        modeId: 'careful',
+        questionCount: 2,
+        timeLimitSeconds: null,
+      );
+      final ProviderContainer container = ProviderContainer(
+        overrides: <Override>[
+          racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+        ],
+      );
+      try {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              home: QuizScreen(
+                mode: mode,
+                sessionId: 'session-1',
+                sessionExpiresAt: DateTime.utc(2026, 3, 25),
+              ),
+            ),
+          ),
+        );
+
+        final Finder fiftyFiftyButtons = find.byKey(
+          const ValueKey<String>('quiz-hint-fifty-fifty'),
+        );
+        expect(fiftyFiftyButtons, findsNWidgets(3));
+
+        await tester.tap(fiftyFiftyButtons.first);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 360));
+
+        final Iterable<String> disabledIds = container
+            .read(quizSessionControllerProvider(mode))
+            .availableHints
+            .map((QuizHintItem item) => item.id);
+        expect(disabledIds, hasLength(2));
+        expect(
+          container.read(quizSessionControllerProvider(mode)).disabledHintTypes,
+          contains(QuizHintType.fiftyFifty),
+        );
+
+        final QuizSessionController controller = container.read(
+          quizSessionControllerProvider(mode).notifier,
+        );
+        final QuizQuestion currentQuestion = container
+            .read(quizSessionControllerProvider(mode))
+            .currentQuestion!;
+        controller.submitAnswer(currentQuestion.correctIndex);
+        controller.completeAnswerFeedback();
+        await tester.pump();
+
+        final Iterable<String> reenabledIds = container
+            .read(quizSessionControllerProvider(mode))
+            .availableHints
+            .map((QuizHintItem item) => item.id);
+        expect(
+          container.read(quizSessionControllerProvider(mode)).disabledHintTypes,
+          isNot(contains(QuizHintType.fiftyFifty)),
+        );
+        expect(reenabledIds, hasLength(2));
+      } finally {
+        container.dispose();
+      }
+    },
+  );
+
   testWidgets('shows game-over dialog after a wrong answer', (
     WidgetTester tester,
   ) async {
@@ -213,15 +284,19 @@ Widget _buildApp({required QuizModeConfig mode, DateTime? sessionExpiresAt}) {
 }
 
 QuizModeConfig _buildMode({
+  String modeId = 'test',
   QuizPromptType promptType = QuizPromptType.faceToName,
+  int questionCount = 1,
   required int? timeLimitSeconds,
 }) {
   return QuizModeConfig(
-    id: 'test',
+    id: modeId,
     label: 'テスト',
     description: 'screen test mode',
     timeLimitSeconds: timeLimitSeconds,
-    segments: <QuizSegment>[QuizSegment(promptType: promptType, count: 1)],
+    segments: <QuizSegment>[
+      QuizSegment(promptType: promptType, count: questionCount),
+    ],
   );
 }
 
