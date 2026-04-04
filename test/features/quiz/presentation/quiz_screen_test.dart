@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:boatface/features/quiz/data/quiz_data_providers.dart';
 import 'package:boatface/features/quiz/data/racer_master_models.dart';
 import 'package:boatface/features/quiz/data/racer_repository.dart';
@@ -6,6 +8,7 @@ import 'package:boatface/features/quiz/application/quiz_session_controller.dart'
 import 'package:boatface/features/quiz/domain/quiz_models.dart';
 import 'package:boatface/features/quiz/presentation/racer_name_text.dart';
 import 'package:boatface/features/quiz/presentation/quiz_screen.dart';
+import 'package:boatface/shared/ads/rewarded_continue_ad_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -216,6 +219,121 @@ void main() {
     }
   });
 
+  testWidgets('continues when rewarded ad fallback grants a retry', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
+    final Completer<RewardedContinueAdResult> adCompleter =
+        Completer<RewardedContinueAdResult>();
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+        rewardedContinueAdServiceProvider.overrideWithValue(
+          _FakeRewardedContinueAdService(() => adCompleter.future),
+        ),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await _triggerGameOver(tester, container, mode);
+
+      await tester.tap(find.text('広告を見て続行'));
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey<String>('rewarded-continue-loading')),
+        findsOneWidget,
+      );
+
+      adCompleter.complete(
+        const RewardedContinueAdResult.granted(
+          RewardedContinueAdOutcome.loadFailedFallback,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final state = container.read(quizSessionControllerProvider(mode));
+      expect(state.gameOver, isFalse);
+      expect(state.continuedByAd, isTrue);
+      expect(
+        find.byKey(const ValueKey<String>('rewarded-continue-loading')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('game-over-dialog')),
+        findsNothing,
+      );
+    } finally {
+      container.dispose();
+    }
+  });
+
+  testWidgets('requires reward completion when rewarded ad closes early', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+        rewardedContinueAdServiceProvider.overrideWithValue(
+          _FakeRewardedContinueAdService(
+            () async => const RewardedContinueAdResult.denied(
+              RewardedContinueAdOutcome.dismissedWithoutReward,
+            ),
+          ),
+        ),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await _triggerGameOver(tester, container, mode);
+
+      await tester.tap(find.text('広告を見て続行'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final state = container.read(quizSessionControllerProvider(mode));
+      expect(state.gameOver, isTrue);
+      expect(state.continuedByAd, isFalse);
+      expect(find.text('広告視聴が完了しなかったため続行できません。'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('game-over-dialog')),
+        findsOneWidget,
+      );
+    } finally {
+      container.dispose();
+    }
+  });
+
   testWidgets('shows furigana for racer names when available', (
     WidgetTester tester,
   ) async {
@@ -280,6 +398,28 @@ Widget _buildApp({required QuizModeConfig mode, DateTime? sessionExpiresAt}) {
         sessionExpiresAt: sessionExpiresAt ?? DateTime.utc(2026, 3, 25),
       ),
     ),
+  );
+}
+
+Future<void> _triggerGameOver(
+  WidgetTester tester,
+  ProviderContainer container,
+  QuizModeConfig mode,
+) async {
+  final QuizSessionController controller = container.read(
+    quizSessionControllerProvider(mode).notifier,
+  );
+  final state = container.read(quizSessionControllerProvider(mode));
+  final int wrongIndex = (state.currentQuestion!.correctIndex + 1) % 4;
+
+  controller.submitAnswer(wrongIndex);
+  controller.completeAnswerFeedback();
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+
+  expect(
+    find.byKey(const ValueKey<String>('game-over-dialog')),
+    findsOneWidget,
   );
 }
 
@@ -349,5 +489,16 @@ class _FakeRacerRepository implements RacerRepository {
       downloadedImagePack: false,
       usedLocalSnapshot: true,
     );
+  }
+}
+
+class _FakeRewardedContinueAdService implements RewardedContinueAdService {
+  _FakeRewardedContinueAdService(this._onShowContinueAd);
+
+  final Future<RewardedContinueAdResult> Function() _onShowContinueAd;
+
+  @override
+  Future<RewardedContinueAdResult> showContinueAd() {
+    return _onShowContinueAd();
   }
 }

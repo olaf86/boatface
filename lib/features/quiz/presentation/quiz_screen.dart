@@ -7,6 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_route.dart';
+import '../../../shared/ads/rewarded_continue_ad_service.dart';
 import '../application/quiz_answer_feedback.dart';
 import '../application/quiz_hint.dart';
 import '../application/quiz_session_controller.dart';
@@ -18,6 +19,8 @@ import 'quiz_start_countdown.dart';
 
 const Duration _kCorrectFeedbackDuration = Duration(milliseconds: 780);
 const Duration _kIncorrectFeedbackDuration = Duration(milliseconds: 980);
+
+enum _GameOverDialogAction { continueWithAd, goToResult }
 
 class QuizScreen extends ConsumerStatefulWidget {
   const QuizScreen({
@@ -46,6 +49,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   late final AnimationController _backgroundFlowController;
   QuizAnswerFeedback? _activeFeedback;
   bool _isFeedbackOverlayVisible = false;
+  bool _rewardedContinueInProgress = false;
 
   @override
   void initState() {
@@ -325,6 +329,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                           onCompleted: _completeAnswerFeedback,
                         ),
                       ),
+                    if (_rewardedContinueInProgress)
+                      const Positioned.fill(
+                        child: _RewardedContinueLoadingOverlay(),
+                      ),
                   ],
                 ),
               );
@@ -337,39 +345,38 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
   Future<void> _showGameOverDialog({required bool canContinue}) async {
     _dialogVisible = true;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) => AlertDialog(
-        key: const ValueKey<String>('game-over-dialog'),
-        title: const Text('ゲームオーバー'),
-        content: Text(canContinue ? '広告を見て1回だけ続行できます。' : 'セッションを終了します。'),
-        actions: <Widget>[
-          if (canContinue)
-            TextButton(
-              onPressed: () {
-                if (mounted) {
-                  setState(() {
-                    _activeFeedback = null;
-                  });
-                }
-                ref
-                    .read(quizSessionControllerProvider(widget.mode).notifier)
-                    .continueAfterAd();
-                Navigator.of(context).pop();
-              },
-              child: const Text('広告を見て続行'),
-            ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('結果へ'),
+    final _GameOverDialogAction? action =
+        await showDialog<_GameOverDialogAction>(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) => AlertDialog(
+            key: const ValueKey<String>('game-over-dialog'),
+            title: const Text('ゲームオーバー'),
+            content: Text(canContinue ? '広告を見て1回だけ続行できます。' : 'セッションを終了します。'),
+            actions: <Widget>[
+              if (canContinue)
+                TextButton(
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).pop(_GameOverDialogAction.continueWithAd),
+                  child: const Text('広告を見て続行'),
+                ),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(_GameOverDialogAction.goToResult),
+                child: const Text('結果へ'),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        );
     _dialogVisible = false;
 
     if (!mounted || _didPop) {
+      return;
+    }
+
+    if (action == _GameOverDialogAction.continueWithAd) {
+      await _continueAfterRewardedAd();
       return;
     }
 
@@ -386,6 +393,41 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         _activeFeedback = null;
       });
     }
+  }
+
+  Future<void> _continueAfterRewardedAd() async {
+    if (_rewardedContinueInProgress) {
+      return;
+    }
+
+    setState(() {
+      _activeFeedback = null;
+      _rewardedContinueInProgress = true;
+    });
+
+    final RewardedContinueAdResult adResult = await ref
+        .read(rewardedContinueAdServiceProvider)
+        .showContinueAd();
+
+    if (!mounted || _didPop) {
+      return;
+    }
+
+    setState(() {
+      _rewardedContinueInProgress = false;
+    });
+
+    if (adResult.granted) {
+      ref
+          .read(quizSessionControllerProvider(widget.mode).notifier)
+          .continueAfterAd();
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('広告視聴が完了しなかったため続行できません。')));
+    await _showGameOverDialog(canContinue: true);
   }
 
   void _goToResult() {
@@ -499,6 +541,38 @@ class _QuizPromptCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _RewardedContinueLoadingOverlay extends StatelessWidget {
+  const _RewardedContinueLoadingOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.34),
+      child: Center(
+        child: Card(
+          key: const ValueKey<String>('rewarded-continue-loading'),
+          color: Colors.white.withValues(alpha: 0.94),
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                ),
+                SizedBox(width: 14),
+                Text('広告を準備しています…'),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

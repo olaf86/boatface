@@ -69,11 +69,13 @@ android {
             dimension = "environment"
             applicationId = "dev.asobo.boatface.stg"
             manifestPlaceholders["appName"] = "BoatFace Stg"
+            manifestPlaceholders["admobApplicationId"] = "ca-app-pub-3940256099942544~3347511713"
         }
         create("prod") {
             dimension = "environment"
             applicationId = "dev.asobo.boatface"
             manifestPlaceholders["appName"] = "BoatFace"
+            manifestPlaceholders["admobApplicationId"] = "ca-app-pub-3940256099942544~3347511713"
         }
     }
 

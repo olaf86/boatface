@@ -2,3 +2,4 @@
 #include "Generated.xcconfig"
 GOOGLE_CLIENT_ID=883308790468-u8ob8r3oblu6hcliphf6v33gbc5a6o54.apps.googleusercontent.com
 GOOGLE_REVERSED_CLIENT_ID=com.googleusercontent.apps.883308790468-u8ob8r3oblu6hcliphf6v33gbc5a6o54
+ADMOB_APPLICATION_ID=ca-app-pub-3940256099942544~1458002511
