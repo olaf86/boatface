@@ -115,6 +115,7 @@ class QuizSession {
 
     score += 1;
     correctAnswers += 1;
+    _awardHintForMilestone();
     _advance();
   }
 
@@ -225,7 +226,40 @@ class QuizSession {
     }
   }
 
+  void _awardHintForMilestone() {
+    if (!_supportsMilestoneHintReward ||
+        correctAnswers == 0 ||
+        correctAnswers % 10 != 0 ||
+        _hintStock.length >= kQuizHintStockCapacity) {
+      return;
+    }
+
+    final List<QuizHintType> rewardCandidates = _buildRewardHintCandidates();
+    if (rewardCandidates.isEmpty) {
+      return;
+    }
+
+    _hintStock.add(rewardCandidates[_random.nextInt(rewardCandidates.length)]);
+  }
+
+  bool get _supportsMilestoneHintReward =>
+      mode.id == 'challenge' || mode.id == 'master';
+
+  List<QuizHintType> _buildRewardHintCandidates() {
+    return <QuizHintType>[
+      QuizHintType.fiftyFifty,
+      if (mode.timeLimitSeconds != null) QuizHintType.timeFreeze,
+    ];
+  }
+
   static List<QuizHintType> _buildInitialHintStock(QuizModeConfig mode) {
+    if (mode.id == 'careful') {
+      return <QuizHintType>[
+        QuizHintType.fiftyFifty,
+        QuizHintType.fiftyFifty,
+        QuizHintType.fiftyFifty,
+      ];
+    }
     return <QuizHintType>[
       QuizHintType.fiftyFifty,
       if (mode.timeLimitSeconds != null) QuizHintType.timeFreeze,

@@ -210,6 +210,129 @@ void main() {
       expect(controller.useFiftyFiftyHint(), false);
     });
 
+    test('starts careful mode with three fifty-fifty hints', () {
+      final QuizModeConfig mode = _buildMode(
+        modeId: 'careful',
+        questionCount: 2,
+        timeLimitSeconds: null,
+      );
+      final ProviderContainer container = _createContainer();
+      addTearDown(container.dispose);
+
+      final QuizSessionState state = container.read(
+        quizSessionControllerProvider(mode),
+      );
+
+      expect(state.availableHints, <QuizHintType>[
+        QuizHintType.fiftyFifty,
+        QuizHintType.fiftyFifty,
+        QuizHintType.fiftyFifty,
+      ]);
+    });
+
+    test(
+      'awards one random hint every 10 correct answers in challenge mode',
+      () {
+        final QuizModeConfig mode = _buildMode(
+          modeId: 'challenge',
+          questionCount: 21,
+          timeLimitSeconds: 10,
+        );
+        final ProviderContainer container = _createContainer();
+        addTearDown(container.dispose);
+
+        final QuizSessionController controller = container.read(
+          quizSessionControllerProvider(mode).notifier,
+        );
+
+        for (int i = 0; i < 10; i += 1) {
+          final QuizQuestion question = container
+              .read(quizSessionControllerProvider(mode))
+              .currentQuestion!;
+          controller.submitAnswer(question.correctIndex);
+          controller.completeAnswerFeedback();
+        }
+
+        final QuizSessionState state = container.read(
+          quizSessionControllerProvider(mode),
+        );
+        expect(state.correctAnswers, 10);
+        expect(state.availableHints, hasLength(3));
+        expect(
+          state.availableHints.every(
+            (QuizHintType hint) =>
+                hint == QuizHintType.fiftyFifty ||
+                hint == QuizHintType.timeFreeze,
+          ),
+          true,
+        );
+      },
+    );
+
+    test('awards one random hint every 10 correct answers in master mode', () {
+      final QuizModeConfig mode = _buildMode(
+        modeId: 'master',
+        questionCount: 21,
+        timeLimitSeconds: 10,
+      );
+      final ProviderContainer container = _createContainer();
+      addTearDown(container.dispose);
+
+      final QuizSessionController controller = container.read(
+        quizSessionControllerProvider(mode).notifier,
+      );
+
+      for (int i = 0; i < 10; i += 1) {
+        final QuizQuestion question = container
+            .read(quizSessionControllerProvider(mode))
+            .currentQuestion!;
+        controller.submitAnswer(question.correctIndex);
+        controller.completeAnswerFeedback();
+      }
+
+      final QuizSessionState state = container.read(
+        quizSessionControllerProvider(mode),
+      );
+      expect(state.correctAnswers, 10);
+      expect(state.availableHints, hasLength(3));
+      expect(
+        state.availableHints.every(
+          (QuizHintType hint) =>
+              hint == QuizHintType.fiftyFifty ||
+              hint == QuizHintType.timeFreeze,
+        ),
+        true,
+      );
+    });
+
+    test('caps milestone hint rewards at the stock capacity', () {
+      final QuizModeConfig mode = _buildMode(
+        modeId: 'challenge',
+        questionCount: 31,
+        timeLimitSeconds: 10,
+      );
+      final ProviderContainer container = _createContainer();
+      addTearDown(container.dispose);
+
+      final QuizSessionController controller = container.read(
+        quizSessionControllerProvider(mode).notifier,
+      );
+
+      for (int i = 0; i < 30; i += 1) {
+        final QuizQuestion question = container
+            .read(quizSessionControllerProvider(mode))
+            .currentQuestion!;
+        controller.submitAnswer(question.correctIndex);
+        controller.completeAnswerFeedback();
+      }
+
+      final QuizSessionState state = container.read(
+        quizSessionControllerProvider(mode),
+      );
+      expect(state.correctAnswers, 30);
+      expect(state.availableHints, hasLength(kQuizHintStockCapacity));
+    });
+
     test('resets time freeze after advancing and allows it only once', () {
       final QuizModeConfig mode = _buildMode(questionCount: 2);
       final ProviderContainer container = _createContainer();
@@ -331,11 +454,12 @@ ProviderContainer _createContainer() {
 }
 
 QuizModeConfig _buildMode({
+  String modeId = 'test',
   required int questionCount,
   int? timeLimitSeconds = 10,
 }) {
   return QuizModeConfig(
-    id: 'test',
+    id: modeId,
     label: 'テスト',
     description: 'controller test mode',
     timeLimitSeconds: timeLimitSeconds,
