@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 final Provider<RewardedContinueAdService> rewardedContinueAdServiceProvider =
     Provider<RewardedContinueAdService>((Ref ref) {
-      final service = AdMobRewardedContinueAdService();
+      final service = AdMobRewardedContinueAdService(
+        isProduction: Firebase.app().options.projectId == 'boatface-prod',
+      );
       ref.onDispose(service.dispose);
       return service;
     });
@@ -36,9 +39,20 @@ abstract class RewardedContinueAdService {
 }
 
 class AdMobRewardedContinueAdService implements RewardedContinueAdService {
-  AdMobRewardedContinueAdService();
+  AdMobRewardedContinueAdService({required bool isProduction})
+    : _isProduction = isProduction;
 
   static const Duration _kAdLoadTimeout = Duration(seconds: 3);
+  static const String _kAndroidTestRewardedAdUnitId =
+      'ca-app-pub-3940256099942544/5224354917';
+  static const String _kIosTestRewardedAdUnitId =
+      'ca-app-pub-3940256099942544/1712485313';
+  static const String _kAndroidProdRewardedAdUnitId = String.fromEnvironment(
+    'ADMOB_ANDROID_REWARDED_AD_UNIT_ID_PROD',
+  );
+  static const String _kIosProdRewardedAdUnitId = String.fromEnvironment(
+    'ADMOB_IOS_REWARDED_AD_UNIT_ID_PROD',
+  );
   static const List<String> _kRewardedAdKeywords = <String>[
     'memory game',
     'puzzle game',
@@ -58,12 +72,14 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
   Timer? _loadTimeoutTimer;
   RewardedContinueAdOutcome? _lastPreloadFallbackOutcome;
   bool _disposed = false;
+  final bool _isProduction;
 
   @override
   Future<void> preloadContinueAd() async {
     if (_disposed || !_supportsRewardedAds || _cachedAd != null) {
       return;
     }
+    final String adUnitId = _rewardedAdUnitId;
     final Completer<void>? inFlight = _preloadCompleter;
     if (inFlight != null) {
       return inFlight.future;
@@ -79,7 +95,7 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
 
     try {
       RewardedAd.load(
-        adUnitId: _rewardedAdUnitId,
+        adUnitId: adUnitId,
         request: const AdRequest(keywords: _kRewardedAdKeywords),
         rewardedAdLoadCallback: RewardedAdLoadCallback(
           onAdLoaded: (RewardedAd rewardedAd) {
@@ -202,10 +218,24 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
 
   String get _rewardedAdUnitId {
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/5224354917';
+      if (_isProduction) {
+        return _requireRewardedAdUnitId(
+          platformLabel: 'Android',
+          value: _kAndroidProdRewardedAdUnitId,
+          defineName: 'ADMOB_ANDROID_REWARDED_AD_UNIT_ID_PROD',
+        );
+      }
+      return _kAndroidTestRewardedAdUnitId;
     }
     if (Platform.isIOS) {
-      return 'ca-app-pub-3940256099942544/1712485313';
+      if (_isProduction) {
+        return _requireRewardedAdUnitId(
+          platformLabel: 'iOS',
+          value: _kIosProdRewardedAdUnitId,
+          defineName: 'ADMOB_IOS_REWARDED_AD_UNIT_ID_PROD',
+        );
+      }
+      return _kIosTestRewardedAdUnitId;
     }
     throw UnsupportedError(
       'Rewarded ads are only supported on iOS and Android.',
@@ -220,5 +250,25 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
     if (completer != null && !completer.isCompleted) {
       completer.complete();
     }
+  }
+
+  String _requireRewardedAdUnitId({
+    required String platformLabel,
+    required String value,
+    required String defineName,
+  }) {
+    if (value.isNotEmpty) {
+      if (value == _kAndroidTestRewardedAdUnitId ||
+          value == _kIosTestRewardedAdUnitId) {
+        throw StateError(
+          '$platformLabel prod build must not use the Google test rewarded ad unit ID.',
+        );
+      }
+      return value;
+    }
+    throw StateError(
+      'Missing required $platformLabel AdMob rewarded ad unit ID. '
+      'Pass --dart-define=$defineName=...',
+    );
   }
 }

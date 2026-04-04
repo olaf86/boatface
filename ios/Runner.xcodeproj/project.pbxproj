@@ -232,6 +232,7 @@
 				5107A08C1E1D85E458F9D319 /* [CP] Check Pods Manifest.lock */,
 				9740EEB61CF901F6004384FC /* Run Script */,
 				B01E8F10000000000000000A /* [Firebase] Copy GoogleService-Info.plist */,
+				C0D3AD000000000000000001 /* [AdMob] Validate Prod App ID */,
 				97C146EA1CF9000F007C117D /* Sources */,
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
@@ -457,6 +458,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "set -e\nif [ -z \"$FIREBASE_CONFIG_PATH\" ]; then\n  echo \"error: FIREBASE_CONFIG_PATH is not set\" >&2\n  exit 1\nfi\nSOURCE_PLIST=\"${PROJECT_DIR}/${FIREBASE_CONFIG_PATH}\"\nif [ ! -f \"$SOURCE_PLIST\" ]; then\n  echo \"error: Missing Firebase plist at $SOURCE_PLIST. Run ./scripts/configure_firebase.sh for this environment.\" >&2\n  exit 1\nfi\nDEST_PLIST=\"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/GoogleService-Info.plist\"\ncp \"$SOURCE_PLIST\" \"$DEST_PLIST\"\n";
+			showEnvVarsInLog = 0;
+		};
+		C0D3AD000000000000000001 /* [AdMob] Validate Prod App ID */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "[AdMob] Validate Prod App ID";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"$PRODUCT_BUNDLE_IDENTIFIER\" != \"dev.asobo.boatface\" ]; then\n  exit 0\nfi\nif [ -z \"$ADMOB_APPLICATION_ID\" ]; then\n  echo \"error: Missing ADMOB_APPLICATION_ID for prod build. Create ios/Flutter/AdMob-prod.local.xcconfig.\" >&2\n  exit 1\nfi\nif [ \"$ADMOB_APPLICATION_ID\" = \"ca-app-pub-3940256099942544~1458002511\" ]; then\n  echo \"error: Prod build must not use the Google test AdMob App ID.\" >&2\n  exit 1\nfi\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */

@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.gradle.api.GradleException
 
 plugins {
     id("com.android.application")
@@ -14,6 +15,29 @@ val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use(keystoreProperties::load)
+}
+
+val admobProperties = Properties()
+val admobPropertiesFile = rootProject.file("admob.properties")
+if (admobPropertiesFile.exists()) {
+    admobPropertiesFile.inputStream().use(admobProperties::load)
+}
+
+val admobAndroidTestAppId = "ca-app-pub-3940256099942544~3347511713"
+
+fun admobProperty(name: String, fallback: String): String {
+    return admobProperties.getProperty(name) ?: System.getenv(name) ?: fallback
+}
+
+fun requiredAdmobProperty(name: String): String {
+    val value = admobProperties.getProperty(name) ?: System.getenv(name)
+    if (value.isNullOrBlank()) {
+        throw GradleException("Missing required AdMob property: $name")
+    }
+    if (value == admobAndroidTestAppId) {
+        throw GradleException("AdMob property $name must not use the Google test App ID in prod")
+    }
+    return value
 }
 
 dependencies {
@@ -69,13 +93,15 @@ android {
             dimension = "environment"
             applicationId = "dev.asobo.boatface.stg"
             manifestPlaceholders["appName"] = "BoatFace Stg"
-            manifestPlaceholders["admobApplicationId"] = "ca-app-pub-3940256099942544~3347511713"
+            manifestPlaceholders["admobApplicationId"] = admobAndroidTestAppId
         }
         create("prod") {
             dimension = "environment"
             applicationId = "dev.asobo.boatface"
             manifestPlaceholders["appName"] = "BoatFace"
-            manifestPlaceholders["admobApplicationId"] = "ca-app-pub-3940256099942544~3347511713"
+            manifestPlaceholders["admobApplicationId"] = requiredAdmobProperty(
+                "ADMOB_ANDROID_APP_ID_PROD",
+            )
         }
     }
 

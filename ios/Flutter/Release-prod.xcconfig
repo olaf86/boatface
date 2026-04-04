@@ -1,5 +1,5 @@
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release-prod.xcconfig"
 #include "Generated.xcconfig"
+#include "AdMob-prod.local.xcconfig"
 GOOGLE_CLIENT_ID=423886235510-uvi48tlsc3g9o4mor3ar7hftets03gp5.apps.googleusercontent.com
 GOOGLE_REVERSED_CLIENT_ID=com.googleusercontent.apps.423886235510-uvi48tlsc3g9o4mor3ar7hftets03gp5
-ADMOB_APPLICATION_ID=ca-app-pub-3940256099942544~1458002511

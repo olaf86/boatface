@@ -44,6 +44,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android/key.properties
+/android/admob.properties
 *.jks
 *.keystore
 
@@ -53,3 +54,6 @@ app.*.map.json
 **/google-services.json
 **/firebase_app_id_file.json
 lib/firebase_options*.dart
+
+# AdMob production IDs
+ios/Flutter/AdMob-prod.local.xcconfig
