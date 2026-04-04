@@ -55,10 +55,11 @@ void main() {
     await tester.tap(find.text('学ぶ'));
     await tester.pumpAndSettle();
     expect(find.text('学ぶ'), findsNWidgets(2));
-    expect(find.text('振り返りを開く'), findsOneWidget);
+    expect(find.text('学習メニュー'), findsOneWidget);
+    expect(find.text('ミスを振り返る'), findsOneWidget);
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
 
-    await tester.tap(find.text('振り返りを開く'));
+    await tester.tap(find.text('ミスを振り返る'));
     await tester.pumpAndSettle();
     expect(find.text('まだ振り返りデータがありません'), findsOneWidget);
 

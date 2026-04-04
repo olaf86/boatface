@@ -8,11 +8,19 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 final Provider<RewardedContinueAdService> rewardedContinueAdServiceProvider =
     Provider<RewardedContinueAdService>((Ref ref) {
       final service = AdMobRewardedContinueAdService(
-        isProduction: Firebase.app().options.projectId == 'boatface-prod',
+        isProduction: _isProductionFirebaseProject(),
       );
       ref.onDispose(service.dispose);
       return service;
     });
+
+bool _isProductionFirebaseProject() {
+  try {
+    return Firebase.app().options.projectId == 'boatface-prod';
+  } on FirebaseException {
+    return false;
+  }
+}
 
 enum RewardedContinueAdOutcome {
   earnedReward,
