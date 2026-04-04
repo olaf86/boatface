@@ -1,6 +1,7 @@
 import 'package:boatface/features/quiz/data/quiz_data_providers.dart';
 import 'package:boatface/features/quiz/data/racer_master_models.dart';
 import 'package:boatface/features/quiz/data/racer_repository.dart';
+import 'package:boatface/features/quiz/application/quiz_hint.dart';
 import 'package:boatface/features/quiz/application/quiz_session_controller.dart';
 import 'package:boatface/features/quiz/domain/quiz_models.dart';
 import 'package:boatface/features/quiz/presentation/racer_name_text.dart';
@@ -28,31 +29,50 @@ void main() {
   testWidgets('shows hint buttons and freezes time in timed mode', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(_buildApp(mode: _buildMode(timeLimitSeconds: 10)));
+    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
 
-    expect(
-      find.byKey(const ValueKey<String>('quiz-hint-fifty-fifty')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey<String>('quiz-hint-time-freeze')),
-      findsOneWidget,
-    );
-    expect(find.text('HINT'), findsOneWidget);
-    expect(find.byTooltip('2択に絞る'), findsOneWidget);
-    expect(find.byTooltip('時間を停止する'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('quiz-hint-fifty-fifty')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('quiz-hint-time-freeze')),
+        findsOneWidget,
+      );
+      expect(find.text('HINT'), findsOneWidget);
+      expect(find.byTooltip('2択に絞る'), findsOneWidget);
+      expect(find.byTooltip('時間を停止する'), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('quiz-hint-time-freeze')),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(
+        find.byKey(const ValueKey<String>('quiz-hint-time-freeze')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 360));
 
-    expect(
-      find.byKey(const ValueKey<String>('quiz-hint-time-freeze')),
-      findsNothing,
-    );
-    expect(find.byTooltip('時間を停止する'), findsNothing);
+      final state = container.read(quizSessionControllerProvider(mode));
+      expect(state.timeFreezeActive, true);
+      expect(state.availableHints, isNot(contains(QuizHintType.timeFreeze)));
+    } finally {
+      container.dispose();
+    }
   });
 
   testWidgets('hides time-freeze hint in unlimited mode', (
