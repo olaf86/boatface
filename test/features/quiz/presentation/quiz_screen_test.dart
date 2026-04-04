@@ -38,6 +38,7 @@ void main() {
       find.byKey(const ValueKey<String>('quiz-hint-time-freeze')),
       findsOneWidget,
     );
+    expect(find.text('HINT'), findsOneWidget);
     expect(find.byTooltip('2択に絞る'), findsOneWidget);
     expect(find.byTooltip('時間を停止する'), findsOneWidget);
 
@@ -45,9 +46,13 @@ void main() {
       find.byKey(const ValueKey<String>('quiz-hint-time-freeze')),
     );
     await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.byTooltip('時間停止ヒントは使用済み'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('quiz-hint-time-freeze')),
+      findsNothing,
+    );
+    expect(find.byTooltip('時間を停止する'), findsNothing);
   });
 
   testWidgets('hides time-freeze hint in unlimited mode', (
@@ -65,6 +70,7 @@ void main() {
       find.byKey(const ValueKey<String>('quiz-hint-time-freeze')),
       findsNothing,
     );
+    expect(find.text('HINT'), findsOneWidget);
     expect(find.byTooltip('2択に絞る'), findsOneWidget);
     expect(find.byTooltip('時間を停止する'), findsNothing);
   });

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:boatface/features/quiz/application/quiz_session_controller.dart';
+import 'package:boatface/features/quiz/application/quiz_hint.dart';
 import 'package:boatface/features/quiz/application/quiz_session.dart';
 import 'package:boatface/features/quiz/application/quiz_session_state.dart';
 import 'package:boatface/features/quiz/data/quiz_data_providers.dart';
@@ -199,8 +200,10 @@ void main() {
       final QuizSessionState hintedState = container.read(
         quizSessionControllerProvider(mode),
       );
-      expect(hintedState.fiftyFiftyHintUsed, true);
-      expect(hintedState.canUseFiftyFiftyHint, false);
+      expect(
+        hintedState.availableHints,
+        isNot(contains(QuizHintType.fiftyFifty)),
+      );
       expect(hintedState.removedOptionIndexes, hasLength(2));
 
       controller.completeAnswerFeedback();
@@ -224,9 +227,11 @@ void main() {
       final QuizSessionState frozenState = container.read(
         quizSessionControllerProvider(mode),
       );
-      expect(frozenState.timeFreezeHintUsed, true);
+      expect(
+        frozenState.availableHints,
+        isNot(contains(QuizHintType.timeFreeze)),
+      );
       expect(frozenState.timeFreezeActive, true);
-      expect(frozenState.canUseTimeFreezeHint, false);
 
       controller.submitAnswer(firstQuestion.correctIndex);
       controller.completeAnswerFeedback();
@@ -236,8 +241,10 @@ void main() {
       );
       expect(advancedState.currentQuestionIndex, 1);
       expect(advancedState.timeFreezeActive, false);
-      expect(advancedState.timeFreezeHintUsed, true);
-      expect(advancedState.canUseTimeFreezeHint, false);
+      expect(
+        advancedState.availableHints,
+        isNot(contains(QuizHintType.timeFreeze)),
+      );
       expect(controller.useTimeFreezeHint(), false);
     });
 
@@ -256,7 +263,7 @@ void main() {
         quizSessionControllerProvider(mode),
       );
 
-      expect(state.canUseTimeFreezeHint, false);
+      expect(state.availableHints, isNot(contains(QuizHintType.timeFreeze)));
       expect(controller.useTimeFreezeHint(), false);
     });
 

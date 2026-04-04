@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/quiz_data_providers.dart';
 import '../domain/quiz_models.dart';
 import 'quiz_answer_feedback.dart';
+import 'quiz_hint.dart';
 import 'quiz_session.dart';
 import 'quiz_session_state.dart';
 
@@ -186,13 +187,11 @@ class QuizSessionController
       continuedByAd: _session.continuedByAd,
       rankingEligible: _session.rankingEligible,
       endReason: _session.endReason,
-      fiftyFiftyHintUsed: _session.fiftyFiftyHintUsed,
-      canUseFiftyFiftyHint: _session.canUseFiftyFiftyHint,
+      availableHints: _session.hintStock,
+      hintStockCapacity: kQuizHintStockCapacity,
       removedOptionIndexes: Set<int>.unmodifiable(
         _session.removedOptionIndexes,
       ),
-      timeFreezeHintUsed: _session.timeFreezeHintUsed,
-      canUseTimeFreezeHint: _session.canUseTimeFreezeHint,
       timeFreezeActive: _session.timeFreezeActive,
       isProcessing: isProcessing,
     );

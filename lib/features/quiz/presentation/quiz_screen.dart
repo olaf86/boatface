@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_route.dart';
 import '../application/quiz_answer_feedback.dart';
+import '../application/quiz_hint.dart';
 import '../application/quiz_session_controller.dart';
 import '../application/quiz_session_state.dart';
 import '../domain/quiz_models.dart';
@@ -45,9 +46,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   late final AnimationController _backgroundFlowController;
   QuizAnswerFeedback? _activeFeedback;
   bool _isFeedbackOverlayVisible = false;
-  int _hintConsumptionTick = 0;
-  String? _lastConsumedHintLabel;
-  String? _lastConsumedHintId;
 
   @override
   void initState() {
@@ -289,15 +287,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                         ),
                         const SizedBox(height: 10),
                         _QuizHintPanel(
-                          showTimeFreeze: isTimedMode,
                           inputsEnabled: inputsEnabled,
-                          fiftyFiftyHintUsed: state.fiftyFiftyHintUsed,
-                          canUseFiftyFiftyHint: state.canUseFiftyFiftyHint,
-                          timeFreezeHintUsed: state.timeFreezeHintUsed,
-                          canUseTimeFreezeHint: state.canUseTimeFreezeHint,
-                          hintConsumptionTick: _hintConsumptionTick,
-                          consumedHintLabel: _lastConsumedHintLabel,
-                          consumedHintId: _lastConsumedHintId,
+                          hintStock: state.availableHints,
+                          hintStockCapacity: state.hintStockCapacity,
                           onUseFiftyFiftyHint: _handleUseFiftyFiftyHint,
                           onUseTimeFreezeHint: _handleUseTimeFreezeHint,
                         ),
@@ -438,12 +430,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         .read(quizSessionControllerProvider(widget.mode).notifier)
         .useFiftyFiftyHint();
     if (used && mounted) {
-      setState(() {
-        _hintConsumptionTick += 1;
-        _lastConsumedHintLabel = '2択ヒント';
-        _lastConsumedHintId = 'fifty-fifty';
-      });
-      _clearHintConsumptionEffectAfterDelay(_hintConsumptionTick);
+      setState(() {});
     }
   }
 
@@ -455,25 +442,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         .read(quizSessionControllerProvider(widget.mode).notifier)
         .useTimeFreezeHint();
     if (used && mounted) {
-      setState(() {
-        _hintConsumptionTick += 1;
-        _lastConsumedHintLabel = '時間停止';
-        _lastConsumedHintId = 'time-freeze';
-      });
-      _clearHintConsumptionEffectAfterDelay(_hintConsumptionTick);
+      setState(() {});
     }
-  }
-
-  void _clearHintConsumptionEffectAfterDelay(int tick) {
-    Future<void>.delayed(const Duration(milliseconds: 900), () {
-      if (!mounted || _hintConsumptionTick != tick) {
-        return;
-      }
-      setState(() {
-        _lastConsumedHintLabel = null;
-        _lastConsumedHintId = null;
-      });
-    });
   }
 
   void _completeAnswerFeedback() {
@@ -1387,33 +1357,30 @@ class _QuizMeterStrip extends StatelessWidget {
 
 class _QuizHintPanel extends StatelessWidget {
   const _QuizHintPanel({
-    required this.showTimeFreeze,
     required this.inputsEnabled,
-    required this.fiftyFiftyHintUsed,
-    required this.canUseFiftyFiftyHint,
-    required this.timeFreezeHintUsed,
-    required this.canUseTimeFreezeHint,
-    required this.hintConsumptionTick,
-    required this.consumedHintLabel,
-    required this.consumedHintId,
+    required this.hintStock,
+    required this.hintStockCapacity,
     required this.onUseFiftyFiftyHint,
     required this.onUseTimeFreezeHint,
   });
 
-  final bool showTimeFreeze;
   final bool inputsEnabled;
-  final bool fiftyFiftyHintUsed;
-  final bool canUseFiftyFiftyHint;
-  final bool timeFreezeHintUsed;
-  final bool canUseTimeFreezeHint;
-  final int hintConsumptionTick;
-  final String? consumedHintLabel;
-  final String? consumedHintId;
+  final List<QuizHintType> hintStock;
+  final int hintStockCapacity;
   final VoidCallback onUseFiftyFiftyHint;
   final VoidCallback onUseTimeFreezeHint;
 
   @override
   Widget build(BuildContext context) {
+    final int safeCapacity = hintStockCapacity < 1
+        ? 1
+        : (hintStockCapacity > kQuizHintStockCapacity
+              ? kQuizHintStockCapacity
+              : hintStockCapacity);
+    final int leadingEmptyCount = safeCapacity > hintStock.length
+        ? safeCapacity - hintStock.length
+        : 0;
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.2),
@@ -1421,34 +1388,44 @@ class _QuizHintPanel extends StatelessWidget {
         border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: <Widget>[
-            _QuizHintButton(
-              buttonKey: const ValueKey<String>('quiz-hint-fifty-fifty'),
-              hintId: 'fifty-fifty',
-              icon: Icons.filter_2_rounded,
-              tooltip: fiftyFiftyHintUsed ? '2択ヒントは使用済み' : '2択に絞る',
-              isUsed: fiftyFiftyHintUsed,
-              enabled: inputsEnabled && canUseFiftyFiftyHint,
-              justConsumed: consumedHintId == 'fifty-fifty',
-              consumptionTick: hintConsumptionTick,
-              onPressed: onUseFiftyFiftyHint,
-            ),
-            if (showTimeFreeze) ...<Widget>[
-              const SizedBox(width: 8),
-              _QuizHintButton(
-                buttonKey: const ValueKey<String>('quiz-hint-time-freeze'),
-                hintId: 'time-freeze',
-                icon: Icons.pause_rounded,
-                tooltip: timeFreezeHintUsed ? '時間停止ヒントは使用済み' : '時間を停止する',
-                isUsed: timeFreezeHintUsed,
-                enabled: inputsEnabled && canUseTimeFreezeHint,
-                justConsumed: consumedHintId == 'time-freeze',
-                consumptionTick: hintConsumptionTick,
-                onPressed: onUseTimeFreezeHint,
+            Text(
+              'HINT',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.4,
               ),
-            ],
+            ),
+            const Spacer(),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                for (
+                  int index = 0;
+                  index < safeCapacity;
+                  index += 1
+                ) ...<Widget>[
+                  _QuizHintStockSlot(
+                    slotKey: ValueKey<String>('quiz-hint-slot-$index'),
+                    hint: index < leadingEmptyCount
+                        ? null
+                        : hintStock[index - leadingEmptyCount],
+                    enabled: inputsEnabled,
+                    onPressed: switch (index < leadingEmptyCount
+                        ? null
+                        : hintStock[index - leadingEmptyCount]) {
+                      QuizHintType.fiftyFifty => onUseFiftyFiftyHint,
+                      QuizHintType.timeFreeze => onUseTimeFreezeHint,
+                      null => null,
+                    },
+                  ),
+                  if (index < safeCapacity - 1) const SizedBox(width: 8),
+                ],
+              ],
+            ),
           ],
         ),
       ),
@@ -1456,146 +1433,133 @@ class _QuizHintPanel extends StatelessWidget {
   }
 }
 
-class _QuizHintButton extends StatelessWidget {
-  const _QuizHintButton({
-    required this.buttonKey,
-    required this.hintId,
-    required this.icon,
-    required this.tooltip,
-    required this.isUsed,
+class _QuizHintStockSlot extends StatelessWidget {
+  const _QuizHintStockSlot({
+    required this.slotKey,
+    required this.hint,
     required this.enabled,
-    required this.justConsumed,
-    required this.consumptionTick,
     required this.onPressed,
   });
 
-  final Key buttonKey;
-  final String hintId;
-  final IconData icon;
-  final String tooltip;
-  final bool isUsed;
+  final Key slotKey;
+  final QuizHintType? hint;
   final bool enabled;
-  final bool justConsumed;
-  final int consumptionTick;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      key: slotKey,
+      width: 44,
+      height: 44,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: ScaleTransition(scale: animation, child: child),
+          );
+        },
+        child: hint == null
+            ? const SizedBox.shrink(key: ValueKey<String>('quiz-hint-empty'))
+            : _QuizHintStockButton(
+                key: ValueKey<String>('quiz-hint-${hint!.name}'),
+                hint: hint!,
+                enabled: enabled,
+                onPressed: onPressed!,
+              ),
+      ),
+    );
+  }
+}
+
+class _QuizHintStockButton extends StatelessWidget {
+  const _QuizHintStockButton({
+    required this.hint,
+    required this.enabled,
+    required this.onPressed,
+    super.key,
+  });
+
+  final QuizHintType hint;
+  final bool enabled;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-    final List<Color> buttonColors = isUsed
-        ? <Color>[
-            colorScheme.surfaceContainerHighest,
-            colorScheme.surfaceContainerHighest.withValues(alpha: 0.92),
-          ]
-        : <Color>[const Color(0xFF145E9C), const Color(0xFF22B7E8)];
-
+    final _QuizHintVisualSpec spec = _hintSpecFor(hint);
     return Tooltip(
-      message: tooltip,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: <Widget>[
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: buttonColors,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isUsed
-                    ? colorScheme.outlineVariant.withValues(alpha: 0.42)
-                    : Colors.white.withValues(alpha: 0.18),
-              ),
-              boxShadow: isUsed
-                  ? null
-                  : <BoxShadow>[
-                      BoxShadow(
-                        color: const Color(0xFF145E9C).withValues(alpha: 0.26),
-                        blurRadius: 18,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+      message: spec.tooltip,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: spec.colors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: spec.colors.first.withValues(alpha: 0.24),
+              blurRadius: 14,
+              offset: const Offset(0, 8),
             ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                key: buttonKey,
-                borderRadius: BorderRadius.circular(16),
-                onTap: enabled ? onPressed : null,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 10,
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: isUsed
-                        ? colorScheme.onSurface.withValues(alpha: 0.36)
-                        : Colors.white,
-                  ),
-                ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: ValueKey<String>('quiz-hint-${spec.id}'),
+            borderRadius: BorderRadius.circular(16),
+            onTap: enabled ? onPressed : null,
+            child: Center(
+              child: Icon(
+                spec.icon,
+                size: 20,
+                color: enabled
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.42),
               ),
             ),
           ),
-          if (justConsumed)
-            Positioned.fill(
-              child: IgnorePointer(
-                child:
-                    DecoratedBox(
-                          key: ValueKey<String>(
-                            'hint-burst-$hintId-$consumptionTick',
-                          ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: const Color(0xFFFFE082),
-                              width: 2,
-                            ),
-                          ),
-                        )
-                        .animate()
-                        .fadeOut(duration: 420.ms)
-                        .scaleXY(begin: 0.96, end: 1.12),
-              ),
-            ),
-          if (justConsumed)
-            Positioned(
-              top: -10,
-              right: -6,
-              child: DecoratedBox(
-                key: ValueKey<String>('hint-stamp-$hintId-$consumptionTick'),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFE082),
-                  borderRadius: BorderRadius.circular(999),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: const Color(0xFFFFE082).withValues(alpha: 0.32),
-                      blurRadius: 14,
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  child: Text(
-                    'USED!',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: const Color(0xFF4F2F00),
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                ),
-              ).animate().fadeIn(duration: 90.ms).scaleXY(begin: 1.4, end: 1),
-            ),
-        ],
+        ),
       ),
     );
   }
+}
+
+class _QuizHintVisualSpec {
+  const _QuizHintVisualSpec({
+    required this.id,
+    required this.tooltip,
+    required this.icon,
+    required this.colors,
+  });
+
+  final String id;
+  final String tooltip;
+  final IconData icon;
+  final List<Color> colors;
+}
+
+_QuizHintVisualSpec _hintSpecFor(QuizHintType hint) {
+  return switch (hint) {
+    QuizHintType.fiftyFifty => const _QuizHintVisualSpec(
+      id: 'fifty-fifty',
+      tooltip: '2択に絞る',
+      icon: Icons.filter_2_rounded,
+      colors: <Color>[Color(0xFF145E9C), Color(0xFF22B7E8)],
+    ),
+    QuizHintType.timeFreeze => const _QuizHintVisualSpec(
+      id: 'time-freeze',
+      tooltip: '時間を停止する',
+      icon: Icons.pause_rounded,
+      colors: <Color>[Color(0xFF28603A), Color(0xFF62B36E)],
+    ),
+  };
 }
 
 double? _buildRemainingRatio({
