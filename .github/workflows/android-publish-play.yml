@@ -1,11 +1,25 @@
-name: Android Publish to Play Console
+name: Android Release Builds
 
 on:
   push:
     branches:
       - main
+      - develop
   workflow_dispatch:
     inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: stg
+        type: choice
+        options:
+          - stg
+          - prod
+      publish_to_play:
+        description: Upload to Play Console
+        required: true
+        default: false
+        type: boolean
       track:
         description: Play Console track
         required: true
@@ -28,15 +42,18 @@ on:
           - halted
 
 concurrency:
-  group: android-publish-play-stg-${{ github.ref }}
+  group: android-release-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  publish-play-stg:
+  build-android-stg:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
       contents: read
+    if: |
+      github.event_name == 'push' && github.ref_name == 'develop' ||
+      github.event_name == 'workflow_dispatch' && inputs.environment == 'stg'
 
     steps:
       - name: Checkout
@@ -81,7 +98,10 @@ jobs:
           path: build/app/outputs/bundle/stgRelease/app-stg-release.aab
           if-no-files-found: error
 
-      - name: Upload to Play Console internal testing
+      - name: Upload staging build to Play Console
+        if: |
+          github.event_name == 'push' && github.ref_name == 'develop' ||
+          github.event_name == 'workflow_dispatch' && inputs.publish_to_play
         uses: r0adkll/upload-google-play@v1
         env:
           PLAY_STG_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_STG_SERVICE_ACCOUNT_JSON }}
@@ -89,8 +109,8 @@ jobs:
           serviceAccountJsonPlainText: ${{ env.PLAY_STG_SERVICE_ACCOUNT_JSON }}
           packageName: dev.asobo.boatface.stg
           releaseFiles: build/app/outputs/bundle/stgRelease/app-stg-release.aab
-          track: ${{ github.event_name == 'workflow_dispatch' && inputs.track || 'internal' }}
-          status: ${{ github.event_name == 'workflow_dispatch' && inputs.release_status || 'completed' }}
+          track: ${{ github.event_name == 'push' && 'internal' || inputs.track }}
+          status: ${{ github.event_name == 'push' && 'completed' || inputs.release_status }}
 
       - name: Cleanup staging secrets
         if: always()
@@ -99,3 +119,86 @@ jobs:
           rm -f android/key.properties
           rm -f android/boat-face-stg-upload-keystore.jks
           rm -f android/app/src/stg/google-services.json
+
+  build-android-prod:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    if: |
+      github.event_name == 'push' && github.ref_name == 'main' ||
+      github.event_name == 'workflow_dispatch' && inputs.environment == 'prod'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore Android production secrets
+        shell: bash
+        run: |
+          mkdir -p android/app/src/prod
+          echo "${{ secrets.ANDROID_PROD_GOOGLE_SERVICES_JSON_BASE64 }}" | base64 --decode > android/app/src/prod/google-services.json
+          echo "${{ secrets.ANDROID_PROD_KEY_PROPERTIES_BASE64 }}" | base64 --decode > android/key.properties
+          echo "${{ secrets.ANDROID_PROD_UPLOAD_KEYSTORE_BASE64 }}" | base64 --decode > android/boat-face-prod-upload-keystore.jks
+          cat > android/admob.properties <<EOF
+          ADMOB_ANDROID_APP_ID_PROD=${{ secrets.ADMOB_ANDROID_APP_ID_PROD }}
+          EOF
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Compute build number
+        shell: bash
+        run: |
+          BUILD_NUMBER=$((GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))
+          echo "BUILD_NUMBER=${BUILD_NUMBER}" >> "$GITHUB_ENV"
+
+      - name: Build production AAB
+        run: |
+          flutter build appbundle \
+            --flavor prod \
+            --release \
+            --build-number="${BUILD_NUMBER}" \
+            --dart-define=ADMOB_ANDROID_REWARDED_AD_UNIT_ID_PROD=${{ secrets.ADMOB_ANDROID_REWARDED_AD_UNIT_ID_PROD }}
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-prod-release-aab-${{ env.BUILD_NUMBER }}
+          path: build/app/outputs/bundle/prodRelease/app-prod-release.aab
+          if-no-files-found: error
+
+      - name: Upload production build to Play Console
+        if: |
+          github.event_name == 'push' && github.ref_name == 'main' ||
+          github.event_name == 'workflow_dispatch' && inputs.publish_to_play
+        uses: r0adkll/upload-google-play@v1
+        env:
+          PLAY_PROD_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_PROD_SERVICE_ACCOUNT_JSON }}
+        with:
+          serviceAccountJsonPlainText: ${{ env.PLAY_PROD_SERVICE_ACCOUNT_JSON }}
+          packageName: dev.asobo.boatface
+          releaseFiles: build/app/outputs/bundle/prodRelease/app-prod-release.aab
+          track: ${{ github.event_name == 'push' && 'internal' || inputs.track }}
+          status: ${{ github.event_name == 'push' && 'completed' || inputs.release_status }}
+
+      - name: Cleanup production secrets
+        if: always()
+        shell: bash
+        run: |
+          rm -f android/key.properties
+          rm -f android/admob.properties
+          rm -f android/boat-face-prod-upload-keystore.jks
+          rm -f android/app/src/prod/google-services.json
