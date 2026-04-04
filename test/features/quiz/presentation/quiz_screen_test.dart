@@ -69,7 +69,10 @@ void main() {
 
       final state = container.read(quizSessionControllerProvider(mode));
       expect(state.timeFreezeActive, true);
-      expect(state.availableHints, isNot(contains(QuizHintType.timeFreeze)));
+      expect(
+        state.availableHints.map((QuizHintItem item) => item.type),
+        isNot(contains(QuizHintType.timeFreeze)),
+      );
     } finally {
       container.dispose();
     }

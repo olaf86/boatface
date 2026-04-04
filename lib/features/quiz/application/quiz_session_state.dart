@@ -40,7 +40,7 @@ class QuizSessionState {
   final bool continuedByAd;
   final bool rankingEligible;
   final QuizEndReason? endReason;
-  final List<QuizHintType> availableHints;
+  final List<QuizHintItem> availableHints;
   final int hintStockCapacity;
   final Set<int> removedOptionIndexes;
   final bool timeFreezeActive;
@@ -64,7 +64,7 @@ class QuizSessionState {
     bool? rankingEligible,
     QuizEndReason? endReason,
     bool replaceEndReason = false,
-    List<QuizHintType>? availableHints,
+    List<QuizHintItem>? availableHints,
     int? hintStockCapacity,
     Set<int>? removedOptionIndexes,
     bool? timeFreezeActive,

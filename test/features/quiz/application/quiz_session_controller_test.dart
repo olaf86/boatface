@@ -201,7 +201,7 @@ void main() {
         quizSessionControllerProvider(mode),
       );
       expect(
-        hintedState.availableHints,
+        hintedState.availableHints.map((QuizHintItem item) => item.type),
         isNot(contains(QuizHintType.fiftyFifty)),
       );
       expect(hintedState.removedOptionIndexes, hasLength(2));
@@ -223,11 +223,14 @@ void main() {
         quizSessionControllerProvider(mode),
       );
 
-      expect(state.availableHints, <QuizHintType>[
-        QuizHintType.fiftyFifty,
-        QuizHintType.fiftyFifty,
-        QuizHintType.fiftyFifty,
-      ]);
+      expect(
+        state.availableHints.map((QuizHintItem item) => item.type),
+        <QuizHintType>[
+          QuizHintType.fiftyFifty,
+          QuizHintType.fiftyFifty,
+          QuizHintType.fiftyFifty,
+        ],
+      );
     });
 
     test(
@@ -260,9 +263,9 @@ void main() {
         expect(state.availableHints, hasLength(3));
         expect(
           state.availableHints.every(
-            (QuizHintType hint) =>
-                hint == QuizHintType.fiftyFifty ||
-                hint == QuizHintType.timeFreeze,
+            (QuizHintItem hint) =>
+                hint.type == QuizHintType.fiftyFifty ||
+                hint.type == QuizHintType.timeFreeze,
           ),
           true,
         );
@@ -297,9 +300,9 @@ void main() {
       expect(state.availableHints, hasLength(3));
       expect(
         state.availableHints.every(
-          (QuizHintType hint) =>
-              hint == QuizHintType.fiftyFifty ||
-              hint == QuizHintType.timeFreeze,
+          (QuizHintItem hint) =>
+              hint.type == QuizHintType.fiftyFifty ||
+              hint.type == QuizHintType.timeFreeze,
         ),
         true,
       );
@@ -351,7 +354,7 @@ void main() {
         quizSessionControllerProvider(mode),
       );
       expect(
-        frozenState.availableHints,
+        frozenState.availableHints.map((QuizHintItem item) => item.type),
         isNot(contains(QuizHintType.timeFreeze)),
       );
       expect(frozenState.timeFreezeActive, true);
@@ -365,7 +368,7 @@ void main() {
       expect(advancedState.currentQuestionIndex, 1);
       expect(advancedState.timeFreezeActive, false);
       expect(
-        advancedState.availableHints,
+        advancedState.availableHints.map((QuizHintItem item) => item.type),
         isNot(contains(QuizHintType.timeFreeze)),
       );
       expect(controller.useTimeFreezeHint(), false);
@@ -386,9 +389,48 @@ void main() {
         quizSessionControllerProvider(mode),
       );
 
-      expect(state.availableHints, isNot(contains(QuizHintType.timeFreeze)));
+      expect(
+        state.availableHints.map((QuizHintItem item) => item.type),
+        isNot(contains(QuizHintType.timeFreeze)),
+      );
       expect(controller.useTimeFreezeHint(), false);
     });
+
+    test(
+      'consumes the tapped hint item instance instead of the first same-type item',
+      () {
+        final QuizModeConfig mode = _buildMode(
+          modeId: 'careful',
+          questionCount: 2,
+          timeLimitSeconds: null,
+        );
+        final ProviderContainer container = _createContainer();
+        addTearDown(container.dispose);
+
+        final QuizSessionController controller = container.read(
+          quizSessionControllerProvider(mode).notifier,
+        );
+        final QuizSessionState initialState = container.read(
+          quizSessionControllerProvider(mode),
+        );
+        final String firstId = initialState.availableHints[0].id;
+        final String secondId = initialState.availableHints[1].id;
+
+        expect(controller.useHint(secondId), true);
+
+        final QuizSessionState consumedState = container.read(
+          quizSessionControllerProvider(mode),
+        );
+        expect(
+          consumedState.availableHints.map((QuizHintItem item) => item.id),
+          contains(firstId),
+        );
+        expect(
+          consumedState.availableHints.map((QuizHintItem item) => item.id),
+          isNot(contains(secondId)),
+        );
+      },
+    );
 
     test('does not fail immediately when app lifecycle pauses', () async {
       final QuizModeConfig mode = _buildMode(questionCount: 1);

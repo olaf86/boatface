@@ -290,8 +290,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                           inputsEnabled: inputsEnabled,
                           hintStock: state.availableHints,
                           hintStockCapacity: state.hintStockCapacity,
-                          onUseFiftyFiftyHint: _handleUseFiftyFiftyHint,
-                          onUseTimeFreezeHint: _handleUseTimeFreezeHint,
+                          onUseHint: _handleUseHint,
                         ),
                         const SizedBox(height: 10),
                         Expanded(
@@ -422,26 +421,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     });
   }
 
-  bool _handleUseFiftyFiftyHint() {
+  bool _handleUseHint(String hintId) {
     if (_activeFeedback != null) {
       return false;
     }
     final bool used = ref
         .read(quizSessionControllerProvider(widget.mode).notifier)
-        .useFiftyFiftyHint();
-    if (used && mounted) {
-      setState(() {});
-    }
-    return used;
-  }
-
-  bool _handleUseTimeFreezeHint() {
-    if (_activeFeedback != null) {
-      return false;
-    }
-    final bool used = ref
-        .read(quizSessionControllerProvider(widget.mode).notifier)
-        .useTimeFreezeHint();
+        .useHint(hintId);
     if (used && mounted) {
       setState(() {});
     }
@@ -1362,15 +1348,13 @@ class _QuizHintPanel extends StatelessWidget {
     required this.inputsEnabled,
     required this.hintStock,
     required this.hintStockCapacity,
-    required this.onUseFiftyFiftyHint,
-    required this.onUseTimeFreezeHint,
+    required this.onUseHint,
   });
 
   final bool inputsEnabled;
-  final List<QuizHintType> hintStock;
+  final List<QuizHintItem> hintStock;
   final int hintStockCapacity;
-  final bool Function() onUseFiftyFiftyHint;
-  final bool Function() onUseTimeFreezeHint;
+  final bool Function(String hintId) onUseHint;
 
   @override
   Widget build(BuildContext context) {
@@ -1475,10 +1459,7 @@ class _QuizHintPanel extends StatelessWidget {
                                 onPressed: switch (index < hintStock.length
                                     ? hintStock[index]
                                     : null) {
-                                  QuizHintType.fiftyFifty =>
-                                    onUseFiftyFiftyHint,
-                                  QuizHintType.timeFreeze =>
-                                    onUseTimeFreezeHint,
+                                  QuizHintItem item => () => onUseHint(item.id),
                                   null => null,
                                 },
                               ),
@@ -1509,7 +1490,7 @@ class _QuizHintStockSlot extends StatelessWidget {
   });
 
   final Key slotKey;
-  final QuizHintType? hint;
+  final QuizHintItem? hint;
   final bool enabled;
   final bool Function()? onPressed;
 
@@ -1524,15 +1505,19 @@ class _QuizHintStockSlot extends StatelessWidget {
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (Widget child, Animation<double> animation) {
+          final Animation<double> scale = Tween<double>(begin: 0.72, end: 1.0)
+              .animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
+              );
           return FadeTransition(
             opacity: animation,
-            child: ScaleTransition(scale: animation, child: child),
+            child: ScaleTransition(scale: scale, child: child),
           );
         },
         child: hint == null
             ? const SizedBox.shrink(key: ValueKey<String>('quiz-hint-empty'))
             : _QuizHintStockButton(
-                key: ValueKey<String>('quiz-hint-${hint!.name}'),
+                key: ValueKey<String>('quiz-hint-${hint!.id}'),
                 hint: hint!,
                 enabled: enabled,
                 onPressed: onPressed!,
@@ -1561,7 +1546,7 @@ class _QuizHintStockButton extends StatefulWidget {
     super.key,
   });
 
-  final QuizHintType hint;
+  final QuizHintItem hint;
   final bool enabled;
   final bool Function() onPressed;
 
@@ -1673,7 +1658,7 @@ class _QuizHintStockButtonState extends State<_QuizHintStockButton>
 
   @override
   Widget build(BuildContext context) {
-    final _QuizHintVisualSpec spec = _hintSpecFor(widget.hint);
+    final _QuizHintVisualSpec spec = _hintSpecFor(widget.hint.type);
     return Tooltip(
       message: spec.tooltip,
       child: ScaleTransition(

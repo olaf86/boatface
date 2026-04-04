@@ -25,7 +25,8 @@ class QuizSession {
   final Random _random;
   final List<QuizQuestionRecord> _questionHistory = <QuizQuestionRecord>[];
   final Set<String> _usedTargetIds = <String>{};
-  final List<QuizHintType> _hintStock = <QuizHintType>[];
+  final List<QuizHintItem> _hintStock = <QuizHintItem>[];
+  int _nextHintId = 0;
 
   int currentIndex = 0;
   int score = 0;
@@ -43,8 +44,8 @@ class QuizSession {
 
   int get totalQuestions => _planSlots.length;
   QuizQuestion? get currentQuestion => _currentQuestion;
-  List<QuizHintType> get hintStock =>
-      List<QuizHintType>.unmodifiable(_hintStock);
+  List<QuizHintItem> get hintStock =>
+      List<QuizHintItem>.unmodifiable(_hintStock);
   List<QuizQuestionRecord> get questionHistory =>
       List<QuizQuestionRecord>.unmodifiable(_questionHistory);
 
@@ -52,7 +53,9 @@ class QuizSession {
   bool get canContinueWithAd =>
       gameOver && !continuedByAd && currentIndex < totalQuestions;
   bool get canUseFiftyFiftyHint =>
-      _hintStock.contains(QuizHintType.fiftyFifty) &&
+      _hintStock.any(
+        (QuizHintItem item) => item.type == QuizHintType.fiftyFifty,
+      ) &&
       !gameOver &&
       !isCompleted &&
       pendingAnswerFeedback == null &&
@@ -60,7 +63,9 @@ class QuizSession {
       removedOptionIndexes.isEmpty;
   bool get canUseTimeFreezeHint =>
       mode.timeLimitSeconds != null &&
-      _hintStock.contains(QuizHintType.timeFreeze) &&
+      _hintStock.any(
+        (QuizHintItem item) => item.type == QuizHintType.timeFreeze,
+      ) &&
       !timeFreezeActive &&
       !gameOver &&
       !isCompleted &&
@@ -120,6 +125,33 @@ class QuizSession {
   }
 
   bool useFiftyFiftyHint() {
+    final QuizHintItem? item = _firstHintOfType(QuizHintType.fiftyFifty);
+    if (item == null) {
+      return false;
+    }
+    return useHint(item.id);
+  }
+
+  bool useTimeFreezeHint() {
+    final QuizHintItem? item = _firstHintOfType(QuizHintType.timeFreeze);
+    if (item == null) {
+      return false;
+    }
+    return useHint(item.id);
+  }
+
+  bool useHint(String hintId) {
+    final QuizHintItem? hint = _hintById(hintId);
+    if (hint == null) {
+      return false;
+    }
+    return switch (hint.type) {
+      QuizHintType.fiftyFifty => _useFiftyFiftyHint(hint.id),
+      QuizHintType.timeFreeze => _useTimeFreezeHint(hint.id),
+    };
+  }
+
+  bool _useFiftyFiftyHint(String hintId) {
     if (!canUseFiftyFiftyHint) {
       return false;
     }
@@ -133,15 +165,15 @@ class QuizSession {
     }
 
     removedOptionIndexes = wrongIndexes.skip(1).toSet();
-    _consumeHint(QuizHintType.fiftyFifty);
+    _consumeHint(hintId);
     return true;
   }
 
-  bool useTimeFreezeHint() {
+  bool _useTimeFreezeHint(String hintId) {
     if (!canUseTimeFreezeHint) {
       return false;
     }
-    _consumeHint(QuizHintType.timeFreeze);
+    _consumeHint(hintId);
     timeFreezeActive = true;
     return true;
   }
@@ -219,8 +251,28 @@ class QuizSession {
     timeFreezeActive = false;
   }
 
-  void _consumeHint(QuizHintType type) {
-    final int index = _hintStock.indexOf(type);
+  QuizHintItem? _firstHintOfType(QuizHintType type) {
+    for (final QuizHintItem item in _hintStock) {
+      if (item.type == type) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  QuizHintItem? _hintById(String hintId) {
+    for (final QuizHintItem item in _hintStock) {
+      if (item.id == hintId) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  void _consumeHint(String hintId) {
+    final int index = _hintStock.indexWhere(
+      (QuizHintItem item) => item.id == hintId,
+    );
     if (index >= 0) {
       _hintStock.removeAt(index);
     }
@@ -239,7 +291,11 @@ class QuizSession {
       return;
     }
 
-    _hintStock.add(rewardCandidates[_random.nextInt(rewardCandidates.length)]);
+    _hintStock.add(
+      _createHintItem(
+        rewardCandidates[_random.nextInt(rewardCandidates.length)],
+      ),
+    );
   }
 
   bool get _supportsMilestoneHintReward =>
@@ -252,18 +308,23 @@ class QuizSession {
     ];
   }
 
-  static List<QuizHintType> _buildInitialHintStock(QuizModeConfig mode) {
+  List<QuizHintItem> _buildInitialHintStock(QuizModeConfig mode) {
     if (mode.id == 'careful') {
       return <QuizHintType>[
         QuizHintType.fiftyFifty,
         QuizHintType.fiftyFifty,
         QuizHintType.fiftyFifty,
-      ];
+      ].map(_createHintItem).toList(growable: false);
     }
     return <QuizHintType>[
       QuizHintType.fiftyFifty,
       if (mode.timeLimitSeconds != null) QuizHintType.timeFreeze,
-    ].take(kQuizHintStockCapacity).toList(growable: false);
+    ].take(kQuizHintStockCapacity).map(_createHintItem).toList(growable: false);
+  }
+
+  QuizHintItem _createHintItem(QuizHintType type) {
+    final String id = 'hint-${_nextHintId++}';
+    return QuizHintItem(id: id, type: type);
   }
 
   QuizQuestionRecord? get _currentRecord =>

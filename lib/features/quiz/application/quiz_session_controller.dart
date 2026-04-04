@@ -87,6 +87,18 @@ class QuizSessionController
     return true;
   }
 
+  bool useHint(String hintId) {
+    final bool used = _session.useHint(hintId);
+    if (!used) {
+      return false;
+    }
+    if (_session.timeFreezeActive) {
+      _stopwatch.stop();
+    }
+    state = _toState();
+    return true;
+  }
+
   void completeAnswerFeedback() {
     if (_session.pendingAnswerFeedback == null) {
       return;
