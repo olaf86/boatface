@@ -287,14 +287,8 @@ class _RacerDetailCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         color: Color.alphaBlend(
-          accentColor.withValues(alpha: 0.08),
+          accentColor.withValues(alpha: 0.1),
           theme.colorScheme.surfaceContainerLow,
-        ),
-        border: Border.all(
-          color: Color.alphaBlend(
-            accentColor.withValues(alpha: 0.12),
-            theme.colorScheme.outlineVariant,
-          ),
         ),
       ),
       child: Padding(
