@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/quiz_data_providers.dart';
 import '../domain/quiz_models.dart';
 import 'quiz_answer_feedback.dart';
+import 'quiz_hint.dart';
 import 'quiz_session.dart';
 import 'quiz_session_state.dart';
 
@@ -82,6 +83,18 @@ class QuizSessionController
       return false;
     }
     _stopwatch.stop();
+    state = _toState();
+    return true;
+  }
+
+  bool useHint(String hintId) {
+    final bool used = _session.useHint(hintId);
+    if (!used) {
+      return false;
+    }
+    if (_session.timeFreezeActive) {
+      _stopwatch.stop();
+    }
     state = _toState();
     return true;
   }
@@ -186,13 +199,16 @@ class QuizSessionController
       continuedByAd: _session.continuedByAd,
       rankingEligible: _session.rankingEligible,
       endReason: _session.endReason,
-      fiftyFiftyHintUsed: _session.fiftyFiftyHintUsed,
-      canUseFiftyFiftyHint: _session.canUseFiftyFiftyHint,
+      availableHints: _session.hintStock,
+      hintStockCapacity: kQuizHintStockCapacity,
+      disabledHintTypes: Set<QuizHintType>.unmodifiable(<QuizHintType>{
+        if (_session.removedOptionIndexes.isNotEmpty)
+          QuizHintType.fiftyFifty,
+        if (_session.timeFreezeActive) QuizHintType.timeFreeze,
+      }),
       removedOptionIndexes: Set<int>.unmodifiable(
         _session.removedOptionIndexes,
       ),
-      timeFreezeHintUsed: _session.timeFreezeHintUsed,
-      canUseTimeFreezeHint: _session.canUseTimeFreezeHint,
       timeFreezeActive: _session.timeFreezeActive,
       isProcessing: isProcessing,
     );

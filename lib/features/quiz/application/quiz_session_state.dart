@@ -1,3 +1,4 @@
+import 'quiz_hint.dart';
 import '../domain/quiz_models.dart';
 
 class QuizSessionState {
@@ -17,11 +18,10 @@ class QuizSessionState {
     required this.continuedByAd,
     required this.rankingEligible,
     required this.endReason,
-    required this.fiftyFiftyHintUsed,
-    required this.canUseFiftyFiftyHint,
+    required this.availableHints,
+    required this.hintStockCapacity,
+    required this.disabledHintTypes,
     required this.removedOptionIndexes,
-    required this.timeFreezeHintUsed,
-    required this.canUseTimeFreezeHint,
     required this.timeFreezeActive,
     required this.isProcessing,
   });
@@ -41,11 +41,10 @@ class QuizSessionState {
   final bool continuedByAd;
   final bool rankingEligible;
   final QuizEndReason? endReason;
-  final bool fiftyFiftyHintUsed;
-  final bool canUseFiftyFiftyHint;
+  final List<QuizHintItem> availableHints;
+  final int hintStockCapacity;
+  final Set<QuizHintType> disabledHintTypes;
   final Set<int> removedOptionIndexes;
-  final bool timeFreezeHintUsed;
-  final bool canUseTimeFreezeHint;
   final bool timeFreezeActive;
   final bool isProcessing;
 
@@ -67,11 +66,10 @@ class QuizSessionState {
     bool? rankingEligible,
     QuizEndReason? endReason,
     bool replaceEndReason = false,
-    bool? fiftyFiftyHintUsed,
-    bool? canUseFiftyFiftyHint,
+    List<QuizHintItem>? availableHints,
+    int? hintStockCapacity,
+    Set<QuizHintType>? disabledHintTypes,
     Set<int>? removedOptionIndexes,
-    bool? timeFreezeHintUsed,
-    bool? canUseTimeFreezeHint,
     bool? timeFreezeActive,
     bool? isProcessing,
   }) {
@@ -96,11 +94,10 @@ class QuizSessionState {
       continuedByAd: continuedByAd ?? this.continuedByAd,
       rankingEligible: rankingEligible ?? this.rankingEligible,
       endReason: replaceEndReason ? endReason : (endReason ?? this.endReason),
-      fiftyFiftyHintUsed: fiftyFiftyHintUsed ?? this.fiftyFiftyHintUsed,
-      canUseFiftyFiftyHint: canUseFiftyFiftyHint ?? this.canUseFiftyFiftyHint,
+      availableHints: availableHints ?? this.availableHints,
+      hintStockCapacity: hintStockCapacity ?? this.hintStockCapacity,
+      disabledHintTypes: disabledHintTypes ?? this.disabledHintTypes,
       removedOptionIndexes: removedOptionIndexes ?? this.removedOptionIndexes,
-      timeFreezeHintUsed: timeFreezeHintUsed ?? this.timeFreezeHintUsed,
-      canUseTimeFreezeHint: canUseTimeFreezeHint ?? this.canUseTimeFreezeHint,
       timeFreezeActive: timeFreezeActive ?? this.timeFreezeActive,
       isProcessing: isProcessing ?? this.isProcessing,
     );
