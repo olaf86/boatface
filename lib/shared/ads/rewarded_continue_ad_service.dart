@@ -39,6 +39,14 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
     'memory game',
     'puzzle game',
     'sports game',
+    'boatrace',
+    'boat racing',
+    'motorsports',
+    '記憶ゲーム',
+    'パズルゲーム',
+    'スポーツゲーム',
+    'ボートレース',
+    'モータースポーツ',
   ];
 
   @override

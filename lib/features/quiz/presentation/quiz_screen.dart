@@ -254,90 +254,93 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
             child: child!,
           );
         },
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            surfaceTintColor: Colors.transparent,
-            foregroundColor: headerForegroundColor,
-            title: Text(
-              '${widget.mode.label}  $questionNumber/${state.totalQuestions}',
-            ),
-          ),
-          body: LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints constraints) {
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                child: Stack(
-                  children: <Widget>[
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                surfaceTintColor: Colors.transparent,
+                foregroundColor: headerForegroundColor,
+                title: Text(
+                  '${widget.mode.label}  $questionNumber/${state.totalQuestions}',
+                ),
+              ),
+              body: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                    child: Stack(
                       children: <Widget>[
-                        _QuizSessionHudBar(
-                          timerText: timerText,
-                          remainingRatio: remainingRatio,
-                          isTimeFrozen: state.timeFreezeActive,
-                          totalSeconds: widget.mode.timeLimitSeconds,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: <Widget>[
+                            _QuizSessionHudBar(
+                              timerText: timerText,
+                              remainingRatio: remainingRatio,
+                              isTimeFrozen: state.timeFreezeActive,
+                              totalSeconds: widget.mode.timeLimitSeconds,
+                            ),
+                            const SizedBox(height: 10),
+                            Card(
+                              color: Colors.white.withValues(alpha: 0.92),
+                              child: _QuizPromptCard(
+                                question: question,
+                                availableHeight: constraints.maxHeight,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            _QuizHintPanel(
+                              inputsEnabled: inputsEnabled,
+                              hintStock: state.availableHints,
+                              hintStockCapacity: state.hintStockCapacity,
+                              disabledHintTypes: state.disabledHintTypes,
+                              onUseHint: _handleUseHint,
+                            ),
+                            const SizedBox(height: 10),
+                            Expanded(
+                              child: question.hasImageOptions
+                                  ? _QuizImageOptionGrid(
+                                      options: question.options,
+                                      enabled: inputsEnabled,
+                                      feedback: activeFeedback,
+                                      removedOptionIndexes:
+                                          state.removedOptionIndexes,
+                                      onSelected: _handleAnswerSelected,
+                                    )
+                                  : _QuizTextOptionList(
+                                      options: question.options,
+                                      enabled: inputsEnabled,
+                                      feedback: activeFeedback,
+                                      removedOptionIndexes:
+                                          state.removedOptionIndexes,
+                                      onSelected: _handleAnswerSelected,
+                                    ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 10),
-                        Card(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          child: _QuizPromptCard(
-                            question: question,
-                            availableHeight: constraints.maxHeight,
+                        if (activeFeedback != null && _isFeedbackOverlayVisible)
+                          Positioned.fill(
+                            child: _QuizAnswerFeedbackOverlay(
+                              key: ValueKey<String>(
+                                'answer-feedback-${activeFeedback.questionIndex}-${activeFeedback.selectedIndex}-${activeFeedback.isCorrect}',
+                              ),
+                              feedback: activeFeedback,
+                              onCompleted: _completeAnswerFeedback,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        _QuizHintPanel(
-                          inputsEnabled: inputsEnabled,
-                          hintStock: state.availableHints,
-                          hintStockCapacity: state.hintStockCapacity,
-                          disabledHintTypes: state.disabledHintTypes,
-                          onUseHint: _handleUseHint,
-                        ),
-                        const SizedBox(height: 10),
-                        Expanded(
-                          child: question.hasImageOptions
-                              ? _QuizImageOptionGrid(
-                                  options: question.options,
-                                  enabled: inputsEnabled,
-                                  feedback: activeFeedback,
-                                  removedOptionIndexes:
-                                      state.removedOptionIndexes,
-                                  onSelected: _handleAnswerSelected,
-                                )
-                              : _QuizTextOptionList(
-                                  options: question.options,
-                                  enabled: inputsEnabled,
-                                  feedback: activeFeedback,
-                                  removedOptionIndexes:
-                                      state.removedOptionIndexes,
-                                  onSelected: _handleAnswerSelected,
-                                ),
-                        ),
                       ],
                     ),
-                    if (activeFeedback != null && _isFeedbackOverlayVisible)
-                      Positioned.fill(
-                        child: _QuizAnswerFeedbackOverlay(
-                          key: ValueKey<String>(
-                            'answer-feedback-${activeFeedback.questionIndex}-${activeFeedback.selectedIndex}-${activeFeedback.isCorrect}',
-                          ),
-                          feedback: activeFeedback,
-                          onCompleted: _completeAnswerFeedback,
-                        ),
-                      ),
-                    if (_rewardedContinueInProgress)
-                      const Positioned.fill(
-                        child: _RewardedContinueLoadingOverlay(),
-                      ),
-                  ],
-                ),
-              );
-            },
-          ),
+                  );
+                },
+              ),
+            ),
+            if (_rewardedContinueInProgress)
+              const Positioned.fill(child: _RewardedContinueLoadingOverlay()),
+          ],
         ),
       ),
     );
