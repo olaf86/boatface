@@ -286,11 +286,9 @@ class _RacerDetailCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: accentColor.withValues(alpha: 0.3)),
-        gradient: LinearGradient(
-          colors: <Color>[Colors.white, accentColor.withValues(alpha: 0.08)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        color: Color.alphaBlend(
+          accentColor.withValues(alpha: 0.1),
+          theme.colorScheme.surfaceContainerLow,
         ),
       ),
       child: Padding(
@@ -318,7 +316,10 @@ class _RacerDetailCard extends StatelessWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: accentColor.withValues(alpha: 0.14),
+                      color: Color.alphaBlend(
+                        accentColor.withValues(alpha: 0.12),
+                        theme.colorScheme.surface,
+                      ),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
@@ -495,31 +496,12 @@ class _ReviewImageFallback extends StatelessWidget {
         final bool compact = constraints.maxHeight < 80;
         return DecoratedBox(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isNoAnswer
-                  ? <Color>[
-                      Color.alphaBlend(
-                        accentColor.withValues(alpha: 0.12),
-                        const Color(0xFFF7F0F0),
-                      ),
-                      Color.alphaBlend(
-                        accentColor.withValues(alpha: 0.18),
-                        const Color(0xFFECDDDD),
-                      ),
-                      Color.alphaBlend(
-                        accentColor.withValues(alpha: 0.24),
-                        const Color(0xFFD9C1C1),
-                      ),
-                    ]
-                  : <Color>[
-                      theme.colorScheme.surfaceContainerHighest,
-                      theme.colorScheme.surfaceContainerHighest.withValues(
-                        alpha: 0.86,
-                      ),
-                    ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: isNoAnswer
+                ? Color.alphaBlend(
+                    accentColor.withValues(alpha: 0.14),
+                    theme.colorScheme.surfaceContainerHighest,
+                  )
+                : theme.colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Stack(
@@ -532,7 +514,7 @@ class _ReviewImageFallback extends StatelessWidget {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.28),
+                      color: Colors.white.withValues(alpha: 0.18),
                     ),
                     child: const SizedBox(width: 72, height: 72),
                   ),
@@ -543,7 +525,7 @@ class _ReviewImageFallback extends StatelessWidget {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: accentColor.withValues(alpha: 0.14),
+                      color: accentColor.withValues(alpha: 0.08),
                     ),
                     child: const SizedBox(width: 92, height: 92),
                   ),
