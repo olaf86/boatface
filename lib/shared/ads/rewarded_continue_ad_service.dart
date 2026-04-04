@@ -6,7 +6,9 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 final Provider<RewardedContinueAdService> rewardedContinueAdServiceProvider =
     Provider<RewardedContinueAdService>((Ref ref) {
-      return const AdMobRewardedContinueAdService();
+      final service = AdMobRewardedContinueAdService();
+      ref.onDispose(service.dispose);
+      return service;
     });
 
 enum RewardedContinueAdOutcome {
@@ -28,11 +30,13 @@ class RewardedContinueAdResult {
 }
 
 abstract class RewardedContinueAdService {
+  Future<void> preloadContinueAd();
   Future<RewardedContinueAdResult> showContinueAd();
+  void dispose();
 }
 
 class AdMobRewardedContinueAdService implements RewardedContinueAdService {
-  const AdMobRewardedContinueAdService();
+  AdMobRewardedContinueAdService();
 
   static const Duration _kAdLoadTimeout = Duration(seconds: 3);
   static const List<String> _kRewardedAdKeywords = <String>[
@@ -49,6 +53,62 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
     'モータースポーツ',
   ];
 
+  RewardedAd? _cachedAd;
+  Completer<void>? _preloadCompleter;
+  Timer? _loadTimeoutTimer;
+  RewardedContinueAdOutcome? _lastPreloadFallbackOutcome;
+  bool _disposed = false;
+
+  @override
+  Future<void> preloadContinueAd() async {
+    if (_disposed || !_supportsRewardedAds || _cachedAd != null) {
+      return;
+    }
+    final Completer<void>? inFlight = _preloadCompleter;
+    if (inFlight != null) {
+      return inFlight.future;
+    }
+
+    final Completer<void> completer = Completer<void>();
+    _preloadCompleter = completer;
+    _loadTimeoutTimer?.cancel();
+    _loadTimeoutTimer = Timer(_kAdLoadTimeout, () {
+      _lastPreloadFallbackOutcome = RewardedContinueAdOutcome.timeoutFallback;
+      _finishPreload();
+    });
+
+    try {
+      RewardedAd.load(
+        adUnitId: _rewardedAdUnitId,
+        request: const AdRequest(keywords: _kRewardedAdKeywords),
+        rewardedAdLoadCallback: RewardedAdLoadCallback(
+          onAdLoaded: (RewardedAd rewardedAd) {
+            if (_disposed) {
+              rewardedAd.dispose();
+              _finishPreload();
+              return;
+            }
+            _cachedAd?.dispose();
+            _cachedAd = rewardedAd;
+            _lastPreloadFallbackOutcome = null;
+            _finishPreload();
+          },
+          onAdFailedToLoad: (LoadAdError error) {
+            _lastPreloadFallbackOutcome =
+                RewardedContinueAdOutcome.loadFailedFallback;
+            _finishPreload();
+          },
+        ),
+      );
+    } catch (_) {
+      _lastPreloadFallbackOutcome =
+          RewardedContinueAdOutcome.unavailableFallback;
+      _finishPreload();
+    }
+
+    return completer.future;
+  }
+
   @override
   Future<RewardedContinueAdResult> showContinueAd() async {
     if (!_supportsRewardedAds) {
@@ -57,9 +117,18 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
       );
     }
 
+    await preloadContinueAd();
+    final RewardedAd? rewardedAd = _cachedAd;
+    if (rewardedAd == null) {
+      return RewardedContinueAdResult.granted(
+        _lastPreloadFallbackOutcome ??
+            RewardedContinueAdOutcome.timeoutFallback,
+      );
+    }
+    _cachedAd = null;
+
     final Completer<RewardedContinueAdResult> completer =
         Completer<RewardedContinueAdResult>();
-    Timer? loadTimeoutTimer;
     bool settled = false;
 
     void complete(RewardedContinueAdResult result) {
@@ -67,93 +136,66 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
         return;
       }
       settled = true;
-      loadTimeoutTimer?.cancel();
       if (!completer.isCompleted) {
         completer.complete(result);
       }
+      unawaited(preloadContinueAd());
     }
 
     try {
-      loadTimeoutTimer = Timer(_kAdLoadTimeout, () {
-        complete(
-          const RewardedContinueAdResult.granted(
-            RewardedContinueAdOutcome.timeoutFallback,
-          ),
-        );
-      });
+      bool rewardEarned = false;
 
-      RewardedAd.load(
-        adUnitId: _rewardedAdUnitId,
-        request: const AdRequest(keywords: _kRewardedAdKeywords),
-        rewardedAdLoadCallback: RewardedAdLoadCallback(
-          onAdLoaded: (RewardedAd rewardedAd) {
-            if (settled) {
-              rewardedAd.dispose();
-              return;
-            }
-            loadTimeoutTimer?.cancel();
-            bool rewardEarned = false;
-
-            rewardedAd.fullScreenContentCallback = FullScreenContentCallback(
-              onAdDismissedFullScreenContent: (Ad ad) {
-                ad.dispose();
-                if (rewardEarned) {
-                  complete(
-                    const RewardedContinueAdResult.granted(
-                      RewardedContinueAdOutcome.earnedReward,
-                    ),
-                  );
-                  return;
-                }
-                complete(
-                  const RewardedContinueAdResult.denied(
-                    RewardedContinueAdOutcome.dismissedWithoutReward,
-                  ),
-                );
-              },
-              onAdFailedToShowFullScreenContent: (Ad ad, AdError error) {
-                ad.dispose();
-                complete(
-                  const RewardedContinueAdResult.granted(
-                    RewardedContinueAdOutcome.showFailedFallback,
-                  ),
-                );
-              },
-            );
-
-            try {
-              rewardedAd.show(
-                onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
-                  rewardEarned = true;
-                },
-              );
-            } catch (_) {
-              rewardedAd.dispose();
-              complete(
-                const RewardedContinueAdResult.granted(
-                  RewardedContinueAdOutcome.showFailedFallback,
-                ),
-              );
-            }
-          },
-          onAdFailedToLoad: (LoadAdError error) {
+      rewardedAd.fullScreenContentCallback = FullScreenContentCallback(
+        onAdDismissedFullScreenContent: (Ad ad) {
+          ad.dispose();
+          if (rewardEarned) {
             complete(
               const RewardedContinueAdResult.granted(
-                RewardedContinueAdOutcome.loadFailedFallback,
+                RewardedContinueAdOutcome.earnedReward,
               ),
             );
-          },
-        ),
+            return;
+          }
+          complete(
+            const RewardedContinueAdResult.denied(
+              RewardedContinueAdOutcome.dismissedWithoutReward,
+            ),
+          );
+        },
+        onAdFailedToShowFullScreenContent: (Ad ad, AdError error) {
+          ad.dispose();
+          complete(
+            const RewardedContinueAdResult.granted(
+              RewardedContinueAdOutcome.showFailedFallback,
+            ),
+          );
+        },
+      );
+
+      rewardedAd.show(
+        onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
+          rewardEarned = true;
+        },
       );
     } catch (_) {
+      rewardedAd.dispose();
       complete(
         const RewardedContinueAdResult.granted(
-          RewardedContinueAdOutcome.unavailableFallback,
+          RewardedContinueAdOutcome.showFailedFallback,
         ),
       );
     }
 
     return completer.future;
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _loadTimeoutTimer?.cancel();
+    _cachedAd?.dispose();
+    _cachedAd = null;
+    _finishPreload();
   }
 
   bool get _supportsRewardedAds => Platform.isAndroid || Platform.isIOS;
@@ -168,5 +210,15 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
     throw UnsupportedError(
       'Rewarded ads are only supported on iOS and Android.',
     );
+  }
+
+  void _finishPreload() {
+    _loadTimeoutTimer?.cancel();
+    _loadTimeoutTimer = null;
+    final Completer<void>? completer = _preloadCompleter;
+    _preloadCompleter = null;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete();
+    }
   }
 }

@@ -60,6 +60,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       vsync: this,
       duration: const Duration(seconds: 18),
     )..repeat(reverse: true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ref.read(rewardedContinueAdServiceProvider).preloadContinueAd();
+    });
   }
 
   @override

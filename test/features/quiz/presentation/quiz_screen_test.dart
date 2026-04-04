@@ -219,6 +219,37 @@ void main() {
     }
   });
 
+  testWidgets('preloads rewarded ad when quiz screen appears', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
+    final _FakeRewardedContinueAdService adService =
+        _FakeRewardedContinueAdService(
+          () async => const RewardedContinueAdResult.granted(
+            RewardedContinueAdOutcome.loadFailedFallback,
+          ),
+        );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+          rewardedContinueAdServiceProvider.overrideWithValue(adService),
+        ],
+        child: MaterialApp(
+          home: QuizScreen(
+            mode: mode,
+            sessionId: 'session-1',
+            sessionExpiresAt: DateTime.utc(2026, 3, 25),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(adService.preloadCallCount, 1);
+  });
+
   testWidgets('continues when rewarded ad fallback grants a retry', (
     WidgetTester tester,
   ) async {
@@ -496,9 +527,18 @@ class _FakeRewardedContinueAdService implements RewardedContinueAdService {
   _FakeRewardedContinueAdService(this._onShowContinueAd);
 
   final Future<RewardedContinueAdResult> Function() _onShowContinueAd;
+  int preloadCallCount = 0;
+
+  @override
+  Future<void> preloadContinueAd() async {
+    preloadCallCount += 1;
+  }
 
   @override
   Future<RewardedContinueAdResult> showContinueAd() {
     return _onShowContinueAd();
   }
+
+  @override
+  void dispose() {}
 }
