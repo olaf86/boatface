@@ -54,6 +54,12 @@ trackingTransparencyServiceProvider = Provider<TrackingTransparencyService>((
   return PlatformTrackingTransparencyService();
 });
 
+final Provider<bool> trackingTransparencySupportedProvider = Provider<bool>((
+  Ref ref,
+) {
+  return Platform.isIOS;
+});
+
 class PlatformTrackingTransparencyService
     implements TrackingTransparencyService {
   PlatformTrackingTransparencyService({

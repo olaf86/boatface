@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/environment/app_environment.dart';
 import '../../../shared/format/date_time_formatters.dart';
 import '../../../shared/privacy/tracking_transparency_controller.dart';
 import '../../../shared/privacy/tracking_transparency_service.dart';
@@ -66,6 +67,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final AsyncValue<TrackingTransparencyInfo> trackingAsync = ref.watch(
       trackingTransparencyControllerProvider,
     );
+    final AppEnvironment appEnvironment = ref.watch(appEnvironmentProvider);
     final RacerMasterSyncState syncState = ref.watch(
       racerMasterSyncControllerProvider,
     );
@@ -87,6 +89,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _buildTrackingTransparencyCard(
             context,
             ref,
+            appEnvironment: appEnvironment,
             trackingAsync: trackingAsync,
           ),
           const SizedBox(height: 12),
@@ -312,6 +315,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildTrackingTransparencyCard(
     BuildContext context,
     WidgetRef ref, {
+    required AppEnvironment appEnvironment,
     required AsyncValue<TrackingTransparencyInfo> trackingAsync,
   }) {
     final ThemeData theme = Theme.of(context);
@@ -328,12 +332,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Text('広告とプライバシー', style: theme.textTheme.titleLarge),
                 const SizedBox(height: 8),
                 Text(
-                  'iPhone 実機を AdMob の test device に登録したいときは、ここで ATT の状態確認と IDFA の取得ができます。',
+                  appEnvironment.isProduction
+                      ? '広告表示に関するトラッキング許可の状態を確認できます。必要に応じて、あとから設定アプリで変更できます。'
+                      : 'iPhone 実機を AdMob の test device に登録したいときは、ここで ATT の状態確認と IDFA の取得ができます。',
                   style: theme.textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 16),
                 _InfoRow(label: 'ATT 状態', value: info.statusLabel),
-                _IdfaRow(idfa: info.idfa),
+                if (appEnvironment.isStaging) _IdfaRow(idfa: info.idfa),
                 const SizedBox(height: 16),
                 Wrap(
                   spacing: 12,
@@ -355,7 +361,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           : () => _reloadTrackingTransparency(ref),
                       child: const Text('状態を更新'),
                     ),
-                    if (info.hasIdfa)
+                    if (appEnvironment.isStaging && info.hasIdfa)
                       OutlinedButton(
                         onPressed: isBusy ? null : () => _copyIdfa(info.idfa!),
                         child: const Text('IDFA をコピー'),

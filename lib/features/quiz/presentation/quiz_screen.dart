@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show lerpDouble;
 import 'dart:io';
 
@@ -8,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_route.dart';
 import '../../../shared/ads/rewarded_continue_ad_service.dart';
+import '../../../shared/environment/app_environment.dart';
+import '../../../shared/privacy/tracking_transparency_service.dart';
 import '../application/quiz_answer_feedback.dart';
 import '../application/quiz_hint.dart';
 import '../application/quiz_session_controller.dart';
@@ -61,10 +64,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       duration: const Duration(seconds: 18),
     )..repeat(reverse: true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-      ref.read(rewardedContinueAdServiceProvider).preloadContinueAd();
+      unawaited(_preloadRewardedAdIfReady());
     });
   }
 
@@ -414,6 +414,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _rewardedContinueInProgress = true;
     });
 
+    await _requestTrackingAuthorizationIfNeeded();
+    if (!mounted || _didPop) {
+      return;
+    }
+
     final RewardedContinueAdResult adResult = await ref
         .read(rewardedContinueAdServiceProvider)
         .showContinueAd();
@@ -437,6 +442,47 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       context,
     ).showSnackBar(const SnackBar(content: Text('広告視聴が完了しなかったため続行できません。')));
     await _showGameOverDialog(canContinue: true);
+  }
+
+  Future<void> _preloadRewardedAdIfReady() async {
+    if (!mounted) {
+      return;
+    }
+    final AppEnvironment appEnvironment = ref.read(appEnvironmentProvider);
+    final bool supportsTrackingTransparency = ref.read(
+      trackingTransparencySupportedProvider,
+    );
+    if (appEnvironment.isProduction && supportsTrackingTransparency) {
+      final TrackingTransparencyInfo info = await ref
+          .read(trackingTransparencyServiceProvider)
+          .fetchInfo();
+      if (info.status == TrackingTransparencyStatus.notDetermined) {
+        return;
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+    ref.read(rewardedContinueAdServiceProvider).preloadContinueAd();
+  }
+
+  Future<void> _requestTrackingAuthorizationIfNeeded() async {
+    final AppEnvironment appEnvironment = ref.read(appEnvironmentProvider);
+    final bool supportsTrackingTransparency = ref.read(
+      trackingTransparencySupportedProvider,
+    );
+    if (!appEnvironment.isProduction || !supportsTrackingTransparency) {
+      return;
+    }
+
+    final TrackingTransparencyService trackingService = ref.read(
+      trackingTransparencyServiceProvider,
+    );
+    final TrackingTransparencyInfo info = await trackingService.fetchInfo();
+    if (info.status != TrackingTransparencyStatus.notDetermined) {
+      return;
+    }
+    await trackingService.requestAuthorization();
   }
 
   void _goToResult() {
