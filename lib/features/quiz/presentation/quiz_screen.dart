@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_route.dart';
 import '../../../shared/ads/rewarded_continue_ad_service.dart';
-import '../../../shared/privacy/tracking_transparency_service.dart';
 import '../application/quiz_answer_feedback.dart';
 import '../application/quiz_hint.dart';
 import '../application/quiz_session_controller.dart';
@@ -64,7 +63,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       duration: const Duration(seconds: 18),
     )..repeat(reverse: true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_preloadRewardedAdIfReady());
+      if (!mounted) {
+        return;
+      }
+      ref.read(rewardedContinueAdServiceProvider).preloadContinueAd();
     });
   }
 
@@ -176,9 +178,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
 
       if (next.gameOver && !(previous?.gameOver ?? false) && !_dialogVisible) {
         unawaited(
-          _replaceActiveDialogWithGameOver(
-            canContinue: next.canContinueWithAd,
-          ),
+          _replaceActiveDialogWithGameOver(canContinue: next.canContinueWithAd),
         );
         return;
       }
@@ -416,15 +416,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _rewardedContinueInProgress = true;
     });
 
-    final bool requestedTrackingAuthorization =
-        await _requestTrackingAuthorizationIfNeeded();
-    if (requestedTrackingAuthorization) {
-      await ref.read(rewardedContinueAdServiceProvider).preloadContinueAd();
-    }
-    if (!mounted || _didPop) {
-      return;
-    }
-
     final RewardedContinueAdResult adResult = await ref
         .read(rewardedContinueAdServiceProvider)
         .showContinueAd();
@@ -448,46 +439,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       context,
     ).showSnackBar(const SnackBar(content: Text('広告視聴が完了しなかったため続行できません。')));
     await _showGameOverDialog(canContinue: true);
-  }
-
-  Future<void> _preloadRewardedAdIfReady() async {
-    if (!mounted) {
-      return;
-    }
-    final bool supportsTrackingTransparency = ref.read(
-      trackingTransparencySupportedProvider,
-    );
-    if (supportsTrackingTransparency) {
-      final TrackingTransparencyInfo info = await ref
-          .read(trackingTransparencyServiceProvider)
-          .fetchInfo();
-      if (info.status == TrackingTransparencyStatus.notDetermined) {
-        return;
-      }
-    }
-    if (!mounted) {
-      return;
-    }
-    ref.read(rewardedContinueAdServiceProvider).preloadContinueAd();
-  }
-
-  Future<bool> _requestTrackingAuthorizationIfNeeded() async {
-    final bool supportsTrackingTransparency = ref.read(
-      trackingTransparencySupportedProvider,
-    );
-    if (!supportsTrackingTransparency) {
-      return false;
-    }
-
-    final TrackingTransparencyService trackingService = ref.read(
-      trackingTransparencyServiceProvider,
-    );
-    final TrackingTransparencyInfo info = await trackingService.fetchInfo();
-    if (info.status != TrackingTransparencyStatus.notDetermined) {
-      return false;
-    }
-    await trackingService.requestAuthorization();
-    return true;
   }
 
   Future<T?> _showManagedDialog<T>({

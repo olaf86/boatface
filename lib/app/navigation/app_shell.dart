@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +8,7 @@ import '../../features/home/presentation/settings_screen.dart';
 import '../../features/learn/presentation/learning_screen.dart';
 import '../../features/quiz/application/racer_master_sync_controller.dart';
 import '../../features/ranking/presentation/ranking_screen.dart';
+import '../../shared/privacy/tracking_transparency_service.dart';
 import 'app_route.dart';
 
 enum AppShellTab { learning, home, ranking }
@@ -57,7 +60,29 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
       ref
           .read(racerMasterSyncControllerProvider.notifier)
           .startBackgroundSyncIfNeeded();
+      unawaited(_prepareTrackingTransparencyIfNeeded());
     });
+  }
+
+  Future<void> _prepareTrackingTransparencyIfNeeded() async {
+    if (!mounted) {
+      return;
+    }
+    final bool supportsTrackingTransparency = ref.read(
+      trackingTransparencySupportedProvider,
+    );
+    if (supportsTrackingTransparency) {
+      final TrackingTransparencyService trackingService = ref.read(
+        trackingTransparencyServiceProvider,
+      );
+      final TrackingTransparencyInfo info = await trackingService.fetchInfo();
+      if (!mounted) {
+        return;
+      }
+      if (info.status == TrackingTransparencyStatus.notDetermined) {
+        await trackingService.requestAuthorization();
+      }
+    }
   }
 
   @override

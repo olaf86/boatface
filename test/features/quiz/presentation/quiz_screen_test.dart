@@ -10,7 +10,6 @@ import 'package:boatface/features/quiz/domain/quiz_models.dart';
 import 'package:boatface/features/quiz/presentation/racer_name_text.dart';
 import 'package:boatface/features/quiz/presentation/quiz_screen.dart';
 import 'package:boatface/shared/ads/rewarded_continue_ad_service.dart';
-import 'package:boatface/shared/privacy/tracking_transparency_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -252,43 +251,6 @@ void main() {
     expect(adService.preloadCallCount, 1);
   });
 
-  testWidgets('does not preload rewarded ad on iOS before ATT', (
-    WidgetTester tester,
-  ) async {
-    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
-    final _FakeRewardedContinueAdService adService =
-        _FakeRewardedContinueAdService(
-          () async => const RewardedContinueAdResult.granted(
-            RewardedContinueAdOutcome.loadFailedFallback,
-          ),
-        );
-    final _FakeTrackingTransparencyService trackingService =
-        _FakeTrackingTransparencyService(
-          fetchResult: const TrackingTransparencyInfo(
-            status: TrackingTransparencyStatus.notDetermined,
-          ),
-          requestResult: const TrackingTransparencyInfo(
-            status: TrackingTransparencyStatus.notDetermined,
-          ),
-        );
-
-    await tester.pumpWidget(
-      _buildApp(
-        mode: mode,
-        overrides: <Override>[
-          rewardedContinueAdServiceProvider.overrideWithValue(adService),
-          trackingTransparencyServiceProvider.overrideWithValue(
-            trackingService,
-          ),
-          trackingTransparencySupportedProvider.overrideWithValue(true),
-        ],
-      ),
-    );
-    await tester.pump();
-
-    expect(adService.preloadCallCount, 0);
-  });
-
   testWidgets('continues when rewarded ad fallback grants a retry', (
     WidgetTester tester,
   ) async {
@@ -404,66 +366,6 @@ void main() {
     }
   });
 
-  testWidgets('requests ATT before rewarded ad on iOS', (
-    WidgetTester tester,
-  ) async {
-    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
-    final _FakeRewardedContinueAdService adService =
-        _FakeRewardedContinueAdService(
-          () async => const RewardedContinueAdResult.granted(
-            RewardedContinueAdOutcome.earnedReward,
-          ),
-        );
-    final _FakeTrackingTransparencyService trackingService =
-        _FakeTrackingTransparencyService(
-          fetchResult: const TrackingTransparencyInfo(
-            status: TrackingTransparencyStatus.notDetermined,
-          ),
-          requestResult: const TrackingTransparencyInfo(
-            status: TrackingTransparencyStatus.authorized,
-            idfa: 'ABC',
-          ),
-        );
-
-    final ProviderContainer container = ProviderContainer(
-      overrides: <Override>[
-        racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
-        rewardedContinueAdServiceProvider.overrideWithValue(adService),
-        trackingTransparencyServiceProvider.overrideWithValue(trackingService),
-        trackingTransparencySupportedProvider.overrideWithValue(true),
-      ],
-    );
-    try {
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            home: QuizScreen(
-              mode: mode,
-              sessionId: 'session-1',
-              sessionExpiresAt: DateTime.utc(2026, 3, 25),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      await _triggerGameOver(tester, container, mode);
-
-      await tester.tap(find.text('広告を見て続行'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(trackingService.fetchCallCount, greaterThanOrEqualTo(1));
-      expect(trackingService.requestCallCount, 1);
-      expect(adService.preloadCallCount, 1);
-      expect(adService.showCallCount, 1);
-    } finally {
-      container.dispose();
-    }
-  });
-
   testWidgets('replaces exit confirmation with game-over dialog on timeout', (
     WidgetTester tester,
   ) async {
@@ -506,7 +408,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('クイズを終了'), findsNothing);
-      expect(find.byKey(const ValueKey<String>('game-over-dialog')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('game-over-dialog')),
+        findsOneWidget,
+      );
     } finally {
       container.dispose();
     }
@@ -695,31 +600,4 @@ class _FakeRewardedContinueAdService implements RewardedContinueAdService {
 
   @override
   void dispose() {}
-}
-
-class _FakeTrackingTransparencyService implements TrackingTransparencyService {
-  _FakeTrackingTransparencyService({
-    required this.fetchResult,
-    required this.requestResult,
-  });
-
-  final TrackingTransparencyInfo fetchResult;
-  final TrackingTransparencyInfo requestResult;
-  int fetchCallCount = 0;
-  int requestCallCount = 0;
-
-  @override
-  Future<TrackingTransparencyInfo> fetchInfo() async {
-    fetchCallCount += 1;
-    return fetchResult;
-  }
-
-  @override
-  Future<void> openSettings() async {}
-
-  @override
-  Future<TrackingTransparencyInfo> requestAuthorization() async {
-    requestCallCount += 1;
-    return requestResult;
-  }
 }
