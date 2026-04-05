@@ -5,6 +5,7 @@ import 'package:boatface/features/quiz/data/racer_master_models.dart';
 import 'package:boatface/features/quiz/data/racer_repository.dart';
 import 'package:boatface/features/quiz/application/quiz_hint.dart';
 import 'package:boatface/features/quiz/application/quiz_session_controller.dart';
+import 'package:boatface/features/quiz/application/quiz_session_state.dart';
 import 'package:boatface/features/quiz/domain/quiz_models.dart';
 import 'package:boatface/features/quiz/presentation/racer_name_text.dart';
 import 'package:boatface/features/quiz/presentation/quiz_screen.dart';
@@ -99,6 +100,179 @@ void main() {
     expect(find.text('HINT'), findsOneWidget);
     expect(find.byTooltip('2択に絞る'), findsOneWidget);
     expect(find.byTooltip('時間を停止する'), findsNothing);
+  });
+
+  testWidgets('shows emergency border while 3 seconds or less remain', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
+    final QuizSessionState initialState = _buildSessionState(mode: mode)
+        .copyWith(
+          remainingForCurrentQuestion: const Duration(milliseconds: 2900),
+          replaceRemaining: true,
+          elapsedForCurrentQuestion: const Duration(milliseconds: 7100),
+        );
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        quizSessionControllerProvider.overrideWith(
+          () => _FakeQuizSessionController(initialState),
+        ),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey<String>('quiz-emergency-border')),
+        findsOneWidget,
+      );
+    } finally {
+      container.dispose();
+    }
+  });
+
+  testWidgets('hides emergency border while more than 3 seconds remain', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
+    final QuizSessionState initialState = _buildSessionState(mode: mode)
+        .copyWith(
+          remainingForCurrentQuestion: const Duration(milliseconds: 3100),
+          replaceRemaining: true,
+          elapsedForCurrentQuestion: const Duration(milliseconds: 6900),
+        );
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        quizSessionControllerProvider.overrideWith(
+          () => _FakeQuizSessionController(initialState),
+        ),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey<String>('quiz-emergency-border')),
+        findsNothing,
+      );
+    } finally {
+      container.dispose();
+    }
+  });
+
+  testWidgets('hides emergency border while time freeze is active', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
+    final QuizSessionState initialState = _buildSessionState(mode: mode)
+        .copyWith(
+          remainingForCurrentQuestion: const Duration(milliseconds: 2900),
+          replaceRemaining: true,
+          elapsedForCurrentQuestion: const Duration(milliseconds: 7100),
+        );
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        quizSessionControllerProvider.overrideWith(
+          () => _FakeQuizSessionController(initialState),
+        ),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey<String>('quiz-emergency-border')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('quiz-hint-time-freeze')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 360));
+
+      expect(
+        find.byKey(const ValueKey<String>('quiz-emergency-border')),
+        findsNothing,
+      );
+    } finally {
+      container.dispose();
+    }
+  });
+
+  testWidgets('animates emergency border without framework errors', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
+    final QuizSessionState initialState = _buildSessionState(mode: mode)
+        .copyWith(
+          remainingForCurrentQuestion: const Duration(milliseconds: 2900),
+          replaceRemaining: true,
+          elapsedForCurrentQuestion: const Duration(milliseconds: 7100),
+        );
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        quizSessionControllerProvider.overrideWith(
+          () => _FakeQuizSessionController(initialState),
+        ),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 620));
+
+      expect(tester.takeException(), isNull);
+    } finally {
+      container.dispose();
+    }
   });
 
   testWidgets(
@@ -432,6 +606,53 @@ Widget _buildApp({required QuizModeConfig mode, DateTime? sessionExpiresAt}) {
   );
 }
 
+QuizSessionState _buildSessionState({required QuizModeConfig mode}) {
+  return QuizSessionState(
+    mode: mode,
+    currentQuestion: QuizQuestion(
+      promptType: QuizPromptType.faceToName,
+      prompt: 'この選手は誰？',
+      promptImageUrl: 'https://example.com/prompt.jpg',
+      options: const <QuizOption>[
+        QuizOption(racerId: 'racer-0', label: '選手0', labelReading: 'センシュ0'),
+        QuizOption(racerId: 'racer-1', label: '選手1', labelReading: 'センシュ1'),
+        QuizOption(racerId: 'racer-2', label: '選手2', labelReading: 'センシュ2'),
+        QuizOption(racerId: 'racer-3', label: '選手3', labelReading: 'センシュ3'),
+      ],
+      correctIndex: 0,
+      correctRacerId: 'racer-0',
+    ),
+    currentQuestionIndex: 0,
+    totalQuestions: 1,
+    score: 0,
+    correctAnswers: 0,
+    totalAnswerTime: Duration.zero,
+    elapsedForCurrentQuestion: Duration.zero,
+    remainingForCurrentQuestion: mode.timeLimitSeconds == null
+        ? null
+        : Duration(seconds: mode.timeLimitSeconds!),
+    gameOver: false,
+    isCompleted: false,
+    canContinueWithAd: false,
+    continuedByAd: false,
+    rankingEligible: true,
+    endReason: null,
+    availableHints: <QuizHintItem>[
+      const QuizHintItem(id: 'hint-fifty-fifty', type: QuizHintType.fiftyFifty),
+      if (mode.timeLimitSeconds != null)
+        const QuizHintItem(
+          id: 'hint-time-freeze',
+          type: QuizHintType.timeFreeze,
+        ),
+    ],
+    hintStockCapacity: kQuizHintStockCapacity,
+    disabledHintTypes: const <QuizHintType>{},
+    removedOptionIndexes: const <int>{},
+    timeFreezeActive: false,
+    isProcessing: false,
+  );
+}
+
 Future<void> _triggerGameOver(
   WidgetTester tester,
   ProviderContainer container,
@@ -520,6 +741,47 @@ class _FakeRacerRepository implements RacerRepository {
       downloadedImagePack: false,
       usedLocalSnapshot: true,
     );
+  }
+}
+
+class _FakeQuizSessionController extends QuizSessionController {
+  _FakeQuizSessionController(this._initialState);
+
+  final QuizSessionState _initialState;
+
+  @override
+  QuizSessionState build(QuizModeConfig mode) => _initialState;
+
+  void setSessionState(QuizSessionState nextState) {
+    state = nextState;
+  }
+
+  @override
+  bool useHint(String hintId) {
+    QuizHintItem? hint;
+    for (final QuizHintItem item in state.availableHints) {
+      if (item.id == hintId) {
+        hint = item;
+        break;
+      }
+    }
+    if (hint == null) {
+      return false;
+    }
+
+    state = state.copyWith(
+      availableHints: state.availableHints
+          .where((QuizHintItem item) => item.id != hintId)
+          .toList(),
+      disabledHintTypes: Set<QuizHintType>.unmodifiable(<QuizHintType>{
+        ...state.disabledHintTypes,
+        hint.type,
+      }),
+      timeFreezeActive: hint.type == QuizHintType.timeFreeze
+          ? true
+          : state.timeFreezeActive,
+    );
+    return true;
   }
 }
 

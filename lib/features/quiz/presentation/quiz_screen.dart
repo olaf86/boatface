@@ -216,6 +216,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       remaining: remainingForDisplay,
       totalSeconds: widget.mode.timeLimitSeconds,
     );
+    final bool showEmergencyBorder = _shouldShowEmergencyBorder(
+      remaining: remainingForDisplay,
+      isTimedMode: isTimedMode,
+      isTimeFrozen: state.timeFreezeActive,
+      isInteractionLocked:
+          activeFeedback != null ||
+          state.isProcessing ||
+          state.gameOver ||
+          state.isCompleted,
+    );
     final List<Color> backgroundColors = _quizBackgroundGradient(
       modeId: widget.mode.id,
       remainingRatio: remainingRatio,
@@ -344,6 +354,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 },
               ),
             ),
+            if (showEmergencyBorder)
+              const Positioned.fill(child: _QuizEmergencyBorderOverlay()),
             if (_rewardedContinueInProgress)
               const Positioned.fill(child: _RewardedContinueLoadingOverlay()),
           ],
@@ -504,6 +516,23 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 }
 
+bool _shouldShowEmergencyBorder({
+  required Duration? remaining,
+  required bool isTimedMode,
+  required bool isTimeFrozen,
+  required bool isInteractionLocked,
+}) {
+  if (!isTimedMode ||
+      isTimeFrozen ||
+      isInteractionLocked ||
+      remaining == null ||
+      remaining <= Duration.zero) {
+    return false;
+  }
+
+  return remaining <= const Duration(seconds: 3);
+}
+
 class _QuizPromptCard extends StatelessWidget {
   const _QuizPromptCard({
     required this.question,
@@ -552,6 +581,68 @@ class _QuizPromptCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _QuizEmergencyBorderOverlay extends StatefulWidget {
+  const _QuizEmergencyBorderOverlay();
+
+  @override
+  State<_QuizEmergencyBorderOverlay> createState() =>
+      _QuizEmergencyBorderOverlayState();
+}
+
+class _QuizEmergencyBorderOverlayState
+    extends State<_QuizEmergencyBorderOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (BuildContext context, Widget? child) {
+          final double intensity = _emergencyBorderIntensity(_controller.value);
+          final Color borderColor = Color.lerp(
+            const Color(0xFFFFB3B3),
+            const Color(0xFFFF2D2D),
+            intensity,
+          )!;
+
+          return DecoratedBox(
+            key: const ValueKey<String>('quiz-emergency-border'),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: borderColor.withValues(alpha: 0.95 * intensity),
+                width: lerpDouble(4, 14, intensity) ?? 10,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  double _emergencyBorderIntensity(double progress) {
+    final double clampedProgress = progress.clamp(0.0, 1.0);
+    return lerpDouble(0.18, 1.0, Curves.easeInOut.transform(clampedProgress)) ??
+        1.0;
   }
 }
 
