@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:io';
 
 import 'package:carousel_slider/carousel_slider.dart';
@@ -24,14 +25,23 @@ class ReviewPage extends StatelessWidget {
 }
 
 class ReviewScreen extends ConsumerStatefulWidget {
-  const ReviewScreen({super.key});
+  const ReviewScreen({super.key, this.initialIndex = 0});
+
+  final int initialIndex;
 
   @override
   ConsumerState<ReviewScreen> createState() => _ReviewScreenState();
 }
 
 class _ReviewScreenState extends ConsumerState<ReviewScreen> {
-  int _currentIndex = 0;
+  static const int _maxVisibleIndicatorNeighbors = 2;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,6 +109,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                       itemCount: mistakes.length,
                       options: CarouselOptions(
                         height: constraints.maxHeight,
+                        initialPage: currentIndex,
                         scrollDirection: Axis.vertical,
                         viewportFraction: mistakes.length == 1 ? 1 : 0.82,
                         enlargeCenterPage: false,
@@ -134,19 +145,11 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
               const SizedBox(height: 16),
               Wrap(
                 spacing: 8,
-                children: List<Widget>.generate(
-                  mistakes.length,
-                  (int index) => AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    width: index == currentIndex ? 22 : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: index == currentIndex
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.outlineVariant,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: _buildProgressIndicators(
+                  mistakesCount: mistakes.length,
+                  currentIndex: currentIndex,
+                  theme: theme,
                 ),
               ),
             ],
@@ -187,6 +190,104 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
           ),
         );
       },
+    );
+  }
+
+  List<Widget> _buildProgressIndicators({
+    required int mistakesCount,
+    required int currentIndex,
+    required ThemeData theme,
+  }) {
+    if (mistakesCount <= 0) {
+      return const <Widget>[];
+    }
+
+    final int maxVisibleIndicators = _maxVisibleIndicatorNeighbors * 2 + 1;
+    int startIndex = math.max(0, currentIndex - _maxVisibleIndicatorNeighbors);
+    startIndex = math.min(
+      startIndex,
+      math.max(0, mistakesCount - maxVisibleIndicators),
+    );
+    final int endIndex = math.min(
+      mistakesCount - 1,
+      startIndex + maxVisibleIndicators - 1,
+    );
+
+    final List<Widget> indicators = <Widget>[
+      if (startIndex > 0)
+        _ReviewIndicatorOverflow(
+          key: const ValueKey<String>('review-indicator-overflow-before'),
+          color: theme.colorScheme.outlineVariant,
+          towardCurrent: AxisDirection.right,
+        ),
+    ];
+
+    for (int index = startIndex; index <= endIndex; index += 1) {
+      indicators.add(
+        AnimatedContainer(
+          key: ValueKey<String>('review-indicator-dot-$index'),
+          duration: const Duration(milliseconds: 180),
+          width: index == currentIndex ? 22 : 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: index == currentIndex
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outlineVariant,
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+      );
+    }
+
+    if (endIndex < mistakesCount - 1) {
+      indicators.add(
+        _ReviewIndicatorOverflow(
+          key: const ValueKey<String>('review-indicator-overflow-after'),
+          color: theme.colorScheme.outlineVariant,
+          towardCurrent: AxisDirection.left,
+        ),
+      );
+    }
+
+    return indicators;
+  }
+}
+
+class _ReviewIndicatorOverflow extends StatelessWidget {
+  const _ReviewIndicatorOverflow({
+    super.key,
+    required this.color,
+    required this.towardCurrent,
+  });
+
+  final Color color;
+  final AxisDirection towardCurrent;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<double> dotSizes = switch (towardCurrent) {
+      AxisDirection.left => <double>[6, 5, 2],
+      AxisDirection.right => <double>[2, 5, 6],
+      _ => <double>[2, 5, 6],
+    };
+
+    return SizedBox(
+      width: 18,
+      height: 8,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List<Widget>.generate(dotSizes.length, (int index) {
+          final double size = dotSizes[index];
+          return Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.78),
+              shape: BoxShape.circle,
+            ),
+          );
+        }),
+      ),
     );
   }
 }

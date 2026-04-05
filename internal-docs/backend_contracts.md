@@ -254,7 +254,7 @@ To support later review without bloating leaderboard-oriented result rows, keep 
 
 Recommended rules:
 - store at question level, not at run level
-- keep only the most recent 10 records per user
+- keep only the most recent 20 records per user
 - write it alongside result submission
 - include enough denormalized prompt and option data to render a review UI without re-generating the quiz
 

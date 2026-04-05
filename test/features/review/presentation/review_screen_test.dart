@@ -89,6 +89,43 @@ void main() {
     expect(find.text('画像なし'), findsNothing);
     expect(find.text('情報なし'), findsNothing);
   });
+
+  testWidgets('limits progress indicators and shows overflow hints', (
+    WidgetTester tester,
+  ) async {
+    _setMobileSurfaceSize(tester);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          reviewRepositoryProvider.overrideWithValue(_ManyReviewRepository()),
+          racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: ReviewScreen(initialIndex: 10)),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(_reviewIndicatorDots(), findsNWidgets(5));
+    expect(
+      find.byKey(const ValueKey<String>('review-indicator-overflow-before')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('review-indicator-overflow-after')),
+      findsOneWidget,
+    );
+  });
+}
+
+Finder _reviewIndicatorDots() {
+  return find.byWidgetPredicate((Widget widget) {
+    final Key? key = widget.key;
+    return key is ValueKey<String> && key.value.startsWith('review-indicator-dot-');
+  });
 }
 
 class _FakeReviewRepository implements ReviewRepository {
@@ -229,6 +266,48 @@ class _NoAnswerReviewRepository implements ReviewRepository {
         createdAt: DateTime.utc(2026, 3, 31, 11),
       ),
     ];
+  }
+}
+
+class _ManyReviewRepository implements ReviewRepository {
+  @override
+  Future<List<ReviewMistakeEntry>> fetchMyMistakes() async {
+    return List<ReviewMistakeEntry>.generate(
+      20,
+      (int index) => ReviewMistakeEntry(
+        mistakeId: 'mistake-$index',
+        resultId: 'result-$index',
+        sessionId: 'session-$index',
+        modeId: 'quick',
+        modeLabel: 'さくっと',
+        questionIndex: index,
+        mistakeSequence: index,
+        promptType: QuizPromptType.faceToName,
+        prompt: 'この選手は誰？ #$index',
+        options: const <ReviewMistakeOption>[
+          ReviewMistakeOption(racerId: 'correct', label: '正解レーサー'),
+          ReviewMistakeOption(racerId: 'wrong', label: '誤答レーサー'),
+        ],
+        correctIndex: 0,
+        selectedIndex: 1,
+        correctRacerId: 'correct',
+        selectedRacerId: 'wrong',
+        correctOption: const ReviewMistakeOption(
+          racerId: 'correct',
+          label: '正解レーサー',
+        ),
+        selectedOption: const ReviewMistakeOption(
+          racerId: 'wrong',
+          label: '誤答レーサー',
+        ),
+        elapsedMs: 1000 + index,
+        outcome: QuizMistakeOutcome.wrongAnswer,
+        createdAt: DateTime.utc(2026, 3, 31, 10).subtract(
+          Duration(minutes: index),
+        ),
+      ),
+      growable: false,
+    );
   }
 }
 

@@ -567,7 +567,7 @@ test("functions endpoints work together in the emulator suite", async () => {
   assert.equal(publicRankingsResult.response.status, 401);
   assert.equal(publicRankingsResult.body.error, "unauthenticated");
 
-  for (let i = 1; i <= 11; i += 1) {
+  for (let i = 1; i <= 21; i += 1) {
     const nextSessionResult = await callFunction("createQuizSession", {
       method: "POST",
       headers: authHeaders,
@@ -582,12 +582,14 @@ test("functions endpoints work together in the emulator suite", async () => {
     .doc(localId)
     .collection("quiz_mistakes")
     .get();
-  assert.equal(trimmedMistakes.size, 10);
+  assert.equal(trimmedMistakes.size, 20);
 
   const latestQuizMistakesResult = await callFunction("getMyQuizMistakes", {
     method: "GET",
     headers: {Authorization: `Bearer ${idToken}`},
   });
   assert.equal(latestQuizMistakesResult.response.status, 200);
-  assert.equal(latestQuizMistakesResult.body.mistakes.length, 10);
+  assert.equal(latestQuizMistakesResult.body.mistakes.length, 20);
+  assert.equal(latestQuizMistakesResult.body.mistakes[0].prompt, "この選手は誰？ #21");
+  assert.equal(latestQuizMistakesResult.body.mistakes.at(-1).prompt, "この選手は誰？ #2");
 });

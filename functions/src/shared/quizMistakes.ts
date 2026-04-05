@@ -14,7 +14,7 @@ import {
   requireString,
 } from "./validation.js";
 
-export const maxStoredQuizMistakes = 10;
+export const maxStoredQuizMistakes = 20;
 
 export type ParsedQuizMistake = {
   questionIndex: number;
