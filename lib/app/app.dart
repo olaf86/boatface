@@ -197,6 +197,20 @@ class BoatfaceApp extends ConsumerWidget {
           backgroundColor: const Color(0xFFDFF4FF),
           indicatorColor: colorScheme.primary.withValues(alpha: 0.14),
           height: 76,
+          overlayColor: WidgetStateProperty.resolveWith<Color?>((
+            Set<WidgetState> states,
+          ) {
+            if (states.contains(WidgetState.pressed)) {
+              return colorScheme.primary.withValues(alpha: 0.14);
+            }
+            if (states.contains(WidgetState.hovered)) {
+              return colorScheme.primary.withValues(alpha: 0.08);
+            }
+            if (states.contains(WidgetState.focused)) {
+              return colorScheme.primary.withValues(alpha: 0.10);
+            }
+            return null;
+          }),
           labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
             (Set<WidgetState> states) {
               final bool selected = states.contains(WidgetState.selected);
