@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/environment/app_environment.dart';
 import '../../../shared/format/date_time_formatters.dart';
+import '../../../shared/privacy/tracking_transparency_controller.dart';
+import '../../../shared/privacy/tracking_transparency_service.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../profile/application/user_profile_controller.dart';
 import '../../profile/domain/user_profile.dart';
@@ -60,6 +64,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final AsyncValue<UserProfile?> saveState = ref.watch(
       userProfileControllerProvider,
     );
+    final AsyncValue<TrackingTransparencyInfo> trackingAsync = ref.watch(
+      trackingTransparencyControllerProvider,
+    );
+    final AppEnvironment appEnvironment = ref.watch(appEnvironmentProvider);
     final RacerMasterSyncState syncState = ref.watch(
       racerMasterSyncControllerProvider,
     );
@@ -76,6 +84,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ref,
             profileAsync: profileAsync,
             isSaving: saveState.isLoading,
+          ),
+          const SizedBox(height: 12),
+          _buildTrackingTransparencyCard(
+            context,
+            ref,
+            appEnvironment: appEnvironment,
+            trackingAsync: trackingAsync,
           ),
           const SizedBox(height: 12),
           Card(
@@ -297,6 +312,105 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildTrackingTransparencyCard(
+    BuildContext context,
+    WidgetRef ref, {
+    required AppEnvironment appEnvironment,
+    required AsyncValue<TrackingTransparencyInfo> trackingAsync,
+  }) {
+    final ThemeData theme = Theme.of(context);
+    final bool isBusy = trackingAsync.isLoading;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: trackingAsync.when(
+          data: (TrackingTransparencyInfo info) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text('広告とプライバシー', style: theme.textTheme.titleLarge),
+                const SizedBox(height: 8),
+                Text(
+                  appEnvironment.isProduction
+                      ? '広告表示に関するトラッキング許可の状態を確認できます。必要に応じて、あとから設定アプリで変更できます。'
+                      : 'iPhone 実機を AdMob の test device に登録したいときは、ここで ATT の状態確認と IDFA の取得ができます。',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 16),
+                _InfoRow(label: 'ATT 状態', value: info.statusLabel),
+                if (appEnvironment.isStaging) _IdfaRow(idfa: info.idfa),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: <Widget>[
+                    FilledButton(
+                      onPressed: isBusy
+                          ? null
+                          : info.canRequestAuthorization
+                          ? () => _requestTrackingTransparency(ref)
+                          : null,
+                      child: Text(
+                        info.canRequestAuthorization ? '許可を確認' : '確認済み',
+                      ),
+                    ),
+                    OutlinedButton(
+                      onPressed: isBusy
+                          ? null
+                          : () => _reloadTrackingTransparency(ref),
+                      child: const Text('状態を更新'),
+                    ),
+                    if (appEnvironment.isStaging && info.hasIdfa)
+                      OutlinedButton(
+                        onPressed: isBusy ? null : () => _copyIdfa(info.idfa!),
+                        child: const Text('IDFA をコピー'),
+                      ),
+                    if (info.canOpenSettings)
+                      OutlinedButton(
+                        onPressed: isBusy
+                            ? null
+                            : () => _openTrackingSettings(ref),
+                        child: const Text('設定を開く'),
+                      ),
+                  ],
+                ),
+              ],
+            );
+          },
+          loading: () => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('広告とプライバシー', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 16),
+              const Center(child: CircularProgressIndicator()),
+            ],
+          ),
+          error: (Object error, StackTrace stackTrace) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text('広告とプライバシー', style: theme.textTheme.titleLarge),
+                const SizedBox(height: 8),
+                Text(
+                  'ATT 状態の取得に失敗しました。',
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+                const SizedBox(height: 8),
+                Text(error.toString(), style: theme.textTheme.bodySmall),
+                const SizedBox(height: 16),
+                OutlinedButton(
+                  onPressed: () => _reloadTrackingTransparency(ref),
+                  child: const Text('再試行'),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   void _hydrateProfileFormIfNeeded(UserProfile profile) {
     if (_didHydrateProfile) {
       return;
@@ -325,6 +439,55 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _didHydrateProfile = false;
     });
     ref.invalidate(userProfileProvider);
+  }
+
+  Future<void> _reloadTrackingTransparency(WidgetRef ref) async {
+    try {
+      await ref.read(trackingTransparencyControllerProvider.notifier).refresh();
+    } catch (_) {
+      // Error state is reflected by the provider.
+    }
+  }
+
+  Future<void> _requestTrackingTransparency(WidgetRef ref) async {
+    try {
+      final TrackingTransparencyInfo info = await ref
+          .read(trackingTransparencyControllerProvider.notifier)
+          .requestAuthorization();
+      if (!mounted) {
+        return;
+      }
+      final String message = switch (info.status) {
+        TrackingTransparencyStatus.authorized when info.hasIdfa =>
+          'トラッキングを許可しました。IDFA を確認できます。',
+        TrackingTransparencyStatus.authorized => 'トラッキングを許可しました。',
+        TrackingTransparencyStatus.denied => 'トラッキングは未許可です。必要なら設定アプリから変更できます。',
+        TrackingTransparencyStatus.restricted => 'この端末ではトラッキング設定が制限されています。',
+        TrackingTransparencyStatus.notSupported => 'この端末では ATT を利用できません。',
+        TrackingTransparencyStatus.notDetermined => 'トラッキング設定はまだ未確認です。',
+      };
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      // Error state is reflected by the provider.
+    }
+  }
+
+  Future<void> _openTrackingSettings(WidgetRef ref) async {
+    await ref
+        .read(trackingTransparencyControllerProvider.notifier)
+        .openSettings();
+  }
+
+  Future<void> _copyIdfa(String idfa) async {
+    await Clipboard.setData(ClipboardData(text: idfa));
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('IDFA をコピーしました。')));
   }
 
   UserRegion? get _selectedRegion {
@@ -436,6 +599,36 @@ class _InfoRow extends StatelessWidget {
           SizedBox(width: 132, child: Text(label)),
           Expanded(
             child: Text(value, style: Theme.of(context).textTheme.titleMedium),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IdfaRow extends StatelessWidget {
+  const _IdfaRow({required this.idfa});
+
+  final String? idfa;
+
+  @override
+  Widget build(BuildContext context) {
+    final String displayValue = idfa ?? '未取得';
+    final ThemeData theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const SizedBox(width: 132, child: Text('IDFA')),
+          Expanded(
+            child: SelectableText(
+              displayValue,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontFamily: 'monospace',
+              ),
+            ),
           ),
         ],
       ),

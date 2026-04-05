@@ -1,26 +1,19 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+
+import '../environment/app_environment.dart';
 
 final Provider<RewardedContinueAdService> rewardedContinueAdServiceProvider =
     Provider<RewardedContinueAdService>((Ref ref) {
       final service = AdMobRewardedContinueAdService(
-        isProduction: _isProductionFirebaseProject(),
+        isProduction: ref.read(appEnvironmentProvider).isProduction,
       );
       ref.onDispose(service.dispose);
       return service;
     });
-
-bool _isProductionFirebaseProject() {
-  try {
-    return Firebase.app().options.projectId == 'boatface-prod';
-  } on FirebaseException {
-    return false;
-  }
-}
 
 enum RewardedContinueAdOutcome {
   earnedReward,
@@ -50,7 +43,7 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
   AdMobRewardedContinueAdService({required bool isProduction})
     : _isProduction = isProduction;
 
-  static const Duration _kAdLoadTimeout = Duration(seconds: 3);
+  static const Duration _kAdLoadTimeout = Duration(seconds: 10);
   static const String _kAndroidTestRewardedAdUnitId =
       'ca-app-pub-3940256099942544/5224354917';
   static const String _kIosTestRewardedAdUnitId =

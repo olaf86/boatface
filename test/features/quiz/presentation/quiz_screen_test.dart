@@ -539,6 +539,57 @@ void main() {
     }
   });
 
+  testWidgets('replaces exit confirmation with game-over dialog on timeout', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('クイズを終了'), findsOneWidget);
+
+      final QuizSessionController controller = container.read(
+        quizSessionControllerProvider(mode).notifier,
+      );
+      final QuizSessionState state = container.read(
+        quizSessionControllerProvider(mode),
+      );
+      final int wrongIndex = (state.currentQuestion!.correctIndex + 1) % 4;
+      controller.submitAnswer(wrongIndex);
+      controller.completeAnswerFeedback();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('クイズを終了'), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('game-over-dialog')),
+        findsOneWidget,
+      );
+    } finally {
+      container.dispose();
+    }
+  });
+
   testWidgets('shows furigana for racer names when available', (
     WidgetTester tester,
   ) async {
@@ -591,10 +642,15 @@ void main() {
   });
 }
 
-Widget _buildApp({required QuizModeConfig mode, DateTime? sessionExpiresAt}) {
+Widget _buildApp({
+  required QuizModeConfig mode,
+  DateTime? sessionExpiresAt,
+  List<Override> overrides = const <Override>[],
+}) {
   return ProviderScope(
     overrides: <Override>[
       racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+      ...overrides,
     ],
     child: MaterialApp(
       home: QuizScreen(
@@ -790,6 +846,7 @@ class _FakeRewardedContinueAdService implements RewardedContinueAdService {
 
   final Future<RewardedContinueAdResult> Function() _onShowContinueAd;
   int preloadCallCount = 0;
+  int showCallCount = 0;
 
   @override
   Future<void> preloadContinueAd() async {
@@ -798,6 +855,7 @@ class _FakeRewardedContinueAdService implements RewardedContinueAdService {
 
   @override
   Future<RewardedContinueAdResult> showContinueAd() {
+    showCallCount += 1;
     return _onShowContinueAd();
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show lerpDouble;
 import 'dart:io';
 
@@ -45,6 +46,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   bool _didPop = false;
   bool _dialogVisible = false;
   bool _sessionExpiryDialogVisible = false;
+  BuildContext? _activeDialogContext;
   late bool _isIntroCountdownActive;
   late final AnimationController _backgroundFlowController;
   QuizAnswerFeedback? _activeFeedback;
@@ -105,9 +107,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (!mounted || _didPop || _sessionExpiryDialogVisible) {
       return;
     }
+    _dismissActiveDialogIfNeeded();
     _sessionExpiryDialogVisible = true;
-    await showDialog<void>(
-      context: context,
+    await _showManagedDialog<void>(
       barrierDismissible: false,
       builder: (BuildContext context) => AlertDialog(
         title: const Text('セッション期限切れ'),
@@ -175,7 +177,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       }
 
       if (next.gameOver && !(previous?.gameOver ?? false) && !_dialogVisible) {
-        _showGameOverDialog(canContinue: next.canContinueWithAd);
+        unawaited(
+          _replaceActiveDialogWithGameOver(canContinue: next.canContinueWithAd),
+        );
         return;
       }
 
@@ -239,8 +243,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         if (didPop) {
           return;
         }
-        final bool? leave = await showDialog<bool>(
-          context: context,
+        final bool? leave = await _showManagedDialog<bool>(
           builder: (BuildContext context) => AlertDialog(
             title: const Text('クイズを終了'),
             content: const Text('途中離脱としてスコアはランキングに反映されません。終了しますか？'),
@@ -367,8 +370,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   Future<void> _showGameOverDialog({required bool canContinue}) async {
     _dialogVisible = true;
     final _GameOverDialogAction? action =
-        await showDialog<_GameOverDialogAction>(
-          context: context,
+        await _showManagedDialog<_GameOverDialogAction>(
           barrierDismissible: false,
           builder: (BuildContext context) => AlertDialog(
             key: const ValueKey<String>('game-over-dialog'),
@@ -449,6 +451,42 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       context,
     ).showSnackBar(const SnackBar(content: Text('広告視聴が完了しなかったため続行できません。')));
     await _showGameOverDialog(canContinue: true);
+  }
+
+  Future<T?> _showManagedDialog<T>({
+    required WidgetBuilder builder,
+    bool barrierDismissible = true,
+  }) async {
+    final T? result = await showDialog<T>(
+      context: context,
+      barrierDismissible: barrierDismissible,
+      builder: (BuildContext dialogContext) {
+        _activeDialogContext = dialogContext;
+        return builder(dialogContext);
+      },
+    );
+    _activeDialogContext = null;
+    return result;
+  }
+
+  void _dismissActiveDialogIfNeeded() {
+    final BuildContext? dialogContext = _activeDialogContext;
+    if (dialogContext == null) {
+      return;
+    }
+    Navigator.of(dialogContext).pop();
+    _activeDialogContext = null;
+  }
+
+  Future<void> _replaceActiveDialogWithGameOver({
+    required bool canContinue,
+  }) async {
+    _dismissActiveDialogIfNeeded();
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted || _didPop) {
+      return;
+    }
+    await _showGameOverDialog(canContinue: canContinue);
   }
 
   void _goToResult() {
