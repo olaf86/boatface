@@ -47,6 +47,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   bool _didPop = false;
   bool _dialogVisible = false;
   bool _sessionExpiryDialogVisible = false;
+  BuildContext? _activeDialogContext;
   late bool _isIntroCountdownActive;
   late final AnimationController _backgroundFlowController;
   QuizAnswerFeedback? _activeFeedback;
@@ -104,9 +105,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (!mounted || _didPop || _sessionExpiryDialogVisible) {
       return;
     }
+    _dismissActiveDialogIfNeeded();
     _sessionExpiryDialogVisible = true;
-    await showDialog<void>(
-      context: context,
+    await _showManagedDialog<void>(
       barrierDismissible: false,
       builder: (BuildContext context) => AlertDialog(
         title: const Text('セッション期限切れ'),
@@ -174,7 +175,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       }
 
       if (next.gameOver && !(previous?.gameOver ?? false) && !_dialogVisible) {
-        _showGameOverDialog(canContinue: next.canContinueWithAd);
+        unawaited(
+          _replaceActiveDialogWithGameOver(
+            canContinue: next.canContinueWithAd,
+          ),
+        );
         return;
       }
 
@@ -228,8 +233,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         if (didPop) {
           return;
         }
-        final bool? leave = await showDialog<bool>(
-          context: context,
+        final bool? leave = await _showManagedDialog<bool>(
           builder: (BuildContext context) => AlertDialog(
             title: const Text('クイズを終了'),
             content: const Text('途中離脱としてスコアはランキングに反映されません。終了しますか？'),
@@ -354,8 +358,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   Future<void> _showGameOverDialog({required bool canContinue}) async {
     _dialogVisible = true;
     final _GameOverDialogAction? action =
-        await showDialog<_GameOverDialogAction>(
-          context: context,
+        await _showManagedDialog<_GameOverDialogAction>(
           barrierDismissible: false,
           builder: (BuildContext context) => AlertDialog(
             key: const ValueKey<String>('game-over-dialog'),
@@ -413,7 +416,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       _rewardedContinueInProgress = true;
     });
 
-    await _requestTrackingAuthorizationIfNeeded();
+    final bool requestedTrackingAuthorization =
+        await _requestTrackingAuthorizationIfNeeded();
+    if (requestedTrackingAuthorization) {
+      await ref.read(rewardedContinueAdServiceProvider).preloadContinueAd();
+    }
     if (!mounted || _didPop) {
       return;
     }
@@ -464,12 +471,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     ref.read(rewardedContinueAdServiceProvider).preloadContinueAd();
   }
 
-  Future<void> _requestTrackingAuthorizationIfNeeded() async {
+  Future<bool> _requestTrackingAuthorizationIfNeeded() async {
     final bool supportsTrackingTransparency = ref.read(
       trackingTransparencySupportedProvider,
     );
     if (!supportsTrackingTransparency) {
-      return;
+      return false;
     }
 
     final TrackingTransparencyService trackingService = ref.read(
@@ -477,9 +484,46 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     );
     final TrackingTransparencyInfo info = await trackingService.fetchInfo();
     if (info.status != TrackingTransparencyStatus.notDetermined) {
-      return;
+      return false;
     }
     await trackingService.requestAuthorization();
+    return true;
+  }
+
+  Future<T?> _showManagedDialog<T>({
+    required WidgetBuilder builder,
+    bool barrierDismissible = true,
+  }) async {
+    final T? result = await showDialog<T>(
+      context: context,
+      barrierDismissible: barrierDismissible,
+      builder: (BuildContext dialogContext) {
+        _activeDialogContext = dialogContext;
+        return builder(dialogContext);
+      },
+    );
+    _activeDialogContext = null;
+    return result;
+  }
+
+  void _dismissActiveDialogIfNeeded() {
+    final BuildContext? dialogContext = _activeDialogContext;
+    if (dialogContext == null) {
+      return;
+    }
+    Navigator.of(dialogContext).pop();
+    _activeDialogContext = null;
+  }
+
+  Future<void> _replaceActiveDialogWithGameOver({
+    required bool canContinue,
+  }) async {
+    _dismissActiveDialogIfNeeded();
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted || _didPop) {
+      return;
+    }
+    await _showGameOverDialog(canContinue: canContinue);
   }
 
   void _goToResult() {

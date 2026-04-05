@@ -5,6 +5,7 @@ import 'package:boatface/features/quiz/data/racer_master_models.dart';
 import 'package:boatface/features/quiz/data/racer_repository.dart';
 import 'package:boatface/features/quiz/application/quiz_hint.dart';
 import 'package:boatface/features/quiz/application/quiz_session_controller.dart';
+import 'package:boatface/features/quiz/application/quiz_session_state.dart';
 import 'package:boatface/features/quiz/domain/quiz_models.dart';
 import 'package:boatface/features/quiz/presentation/racer_name_text.dart';
 import 'package:boatface/features/quiz/presentation/quiz_screen.dart';
@@ -456,7 +457,56 @@ void main() {
 
       expect(trackingService.fetchCallCount, greaterThanOrEqualTo(1));
       expect(trackingService.requestCallCount, 1);
+      expect(adService.preloadCallCount, 1);
       expect(adService.showCallCount, 1);
+    } finally {
+      container.dispose();
+    }
+  });
+
+  testWidgets('replaces exit confirmation with game-over dialog on timeout', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('クイズを終了'), findsOneWidget);
+
+      final QuizSessionController controller = container.read(
+        quizSessionControllerProvider(mode).notifier,
+      );
+      final QuizSessionState state = container.read(
+        quizSessionControllerProvider(mode),
+      );
+      final int wrongIndex = (state.currentQuestion!.correctIndex + 1) % 4;
+      controller.submitAnswer(wrongIndex);
+      controller.completeAnswerFeedback();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('クイズを終了'), findsNothing);
+      expect(find.byKey(const ValueKey<String>('game-over-dialog')), findsOneWidget);
     } finally {
       container.dispose();
     }

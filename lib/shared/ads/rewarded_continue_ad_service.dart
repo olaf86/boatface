@@ -43,7 +43,7 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
   AdMobRewardedContinueAdService({required bool isProduction})
     : _isProduction = isProduction;
 
-  static const Duration _kAdLoadTimeout = Duration(seconds: 3);
+  static const Duration _kAdLoadTimeout = Duration(seconds: 10);
   static const String _kAndroidTestRewardedAdUnitId =
       'ca-app-pub-3940256099942544/5224354917';
   static const String _kIosTestRewardedAdUnitId =
