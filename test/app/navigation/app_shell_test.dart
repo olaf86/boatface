@@ -11,6 +11,7 @@ import 'package:boatface/features/profile/domain/user_profile.dart';
 import 'package:boatface/features/profile/data/user_profile_repository.dart';
 import 'package:boatface/features/review/data/review_repository.dart';
 import 'package:boatface/features/review/domain/review_models.dart';
+import 'package:boatface/shared/privacy/ad_privacy_consent_service.dart';
 import 'package:boatface/shared/privacy/tracking_transparency_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -76,58 +77,83 @@ void main() {
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
   });
 
-  testWidgets('requests ATT when home shell first appears', (
-    WidgetTester tester,
-  ) async {
-    final _FakeTrackingTransparencyService trackingService =
-        _FakeTrackingTransparencyService(
-          fetchResult: const TrackingTransparencyInfo(
-            status: TrackingTransparencyStatus.notDetermined,
-          ),
-          requestResult: const TrackingTransparencyInfo(
-            status: TrackingTransparencyStatus.authorized,
-            idfa: 'ABC',
-          ),
-        );
+  testWidgets(
+    'gathers ad consent and requests ATT when home shell first appears',
+    (WidgetTester tester) async {
+      final _FakeAdPrivacyConsentService adPrivacyService =
+          _FakeAdPrivacyConsentService(
+            gatherResult: const AdPrivacyConsentInfo(
+              consentStatus: AdPrivacyConsentStatus.obtained,
+              canRequestAds: true,
+              privacyOptionsStatus: AdPrivacyOptionsStatus.required,
+              isConsentFormAvailable: true,
+            ),
+          );
+      final _FakeTrackingTransparencyService trackingService =
+          _FakeTrackingTransparencyService(
+            fetchResult: const TrackingTransparencyInfo(
+              status: TrackingTransparencyStatus.notDetermined,
+            ),
+            requestResult: const TrackingTransparencyInfo(
+              status: TrackingTransparencyStatus.authorized,
+              idfa: 'ABC',
+            ),
+          );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: <Override>[
-          racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
-          reviewRepositoryProvider.overrideWithValue(_EmptyReviewRepository()),
-          rankingRepositoryProvider.overrideWithValue(_FakeRankingRepository()),
-          userProfileRepositoryProvider.overrideWithValue(
-            _FakeUserProfileRepository(),
-          ),
-          trackingTransparencyServiceProvider.overrideWithValue(
-            trackingService,
-          ),
-          trackingTransparencySupportedProvider.overrideWithValue(true),
-          authStateProvider.overrideWith(
-            (Ref ref) => Stream<AuthState>.value(
-              const AuthState(
-                uid: 'current-user',
-                providerIds: <String>['anonymous'],
-                providerLabel: '匿名ログイン',
-                isAnonymous: true,
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: <Override>[
+            racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+            reviewRepositoryProvider.overrideWithValue(
+              _EmptyReviewRepository(),
+            ),
+            rankingRepositoryProvider.overrideWithValue(
+              _FakeRankingRepository(),
+            ),
+            userProfileRepositoryProvider.overrideWithValue(
+              _FakeUserProfileRepository(),
+            ),
+            adPrivacyConsentServiceProvider.overrideWithValue(adPrivacyService),
+            trackingTransparencyServiceProvider.overrideWithValue(
+              trackingService,
+            ),
+            trackingTransparencySupportedProvider.overrideWithValue(true),
+            authStateProvider.overrideWith(
+              (Ref ref) => Stream<AuthState>.value(
+                const AuthState(
+                  uid: 'current-user',
+                  providerIds: <String>['anonymous'],
+                  providerLabel: '匿名ログイン',
+                  isAnonymous: true,
+                ),
               ),
             ),
-          ),
-        ],
-        child: const MaterialApp(home: AppShellScreen()),
-      ),
-    );
+          ],
+          child: const MaterialApp(home: AppShellScreen()),
+        ),
+      );
 
-    await tester.pump();
-    await tester.pump();
+      await tester.pump();
+      await tester.pump();
 
-    expect(trackingService.fetchCallCount, 1);
+    expect(adPrivacyService.gatherCallCount, 1);
+    expect(trackingService.fetchCallCount, greaterThanOrEqualTo(2));
     expect(trackingService.requestCallCount, 1);
-  });
+    },
+  );
 
   testWidgets('does not request ATT when already determined', (
     WidgetTester tester,
   ) async {
+    final _FakeAdPrivacyConsentService adPrivacyService =
+        _FakeAdPrivacyConsentService(
+          gatherResult: const AdPrivacyConsentInfo(
+            consentStatus: AdPrivacyConsentStatus.obtained,
+            canRequestAds: true,
+            privacyOptionsStatus: AdPrivacyOptionsStatus.notRequired,
+            isConsentFormAvailable: false,
+          ),
+        );
     final _FakeTrackingTransparencyService trackingService =
         _FakeTrackingTransparencyService(
           fetchResult: const TrackingTransparencyInfo(
@@ -149,6 +175,7 @@ void main() {
           userProfileRepositoryProvider.overrideWithValue(
             _FakeUserProfileRepository(),
           ),
+          adPrivacyConsentServiceProvider.overrideWithValue(adPrivacyService),
           trackingTransparencyServiceProvider.overrideWithValue(
             trackingService,
           ),
@@ -171,7 +198,8 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(trackingService.fetchCallCount, 1);
+    expect(adPrivacyService.gatherCallCount, 1);
+    expect(trackingService.fetchCallCount, greaterThanOrEqualTo(1));
     expect(trackingService.requestCallCount, 0);
   });
 }
@@ -306,6 +334,29 @@ class _FakeTrackingTransparencyService implements TrackingTransparencyService {
     requestCallCount += 1;
     return requestResult;
   }
+}
+
+class _FakeAdPrivacyConsentService implements AdPrivacyConsentService {
+  _FakeAdPrivacyConsentService({
+    required this.gatherResult,
+    AdPrivacyConsentInfo? fetchResult,
+  }) : fetchResult = fetchResult ?? gatherResult;
+
+  final AdPrivacyConsentInfo gatherResult;
+  final AdPrivacyConsentInfo fetchResult;
+  int gatherCallCount = 0;
+
+  @override
+  Future<AdPrivacyConsentInfo> fetchInfo() async => fetchResult;
+
+  @override
+  Future<AdPrivacyConsentInfo> gatherConsent() async {
+    gatherCallCount += 1;
+    return gatherResult;
+  }
+
+  @override
+  Future<AdPrivacyConsentInfo> showPrivacyOptionsForm() async => fetchResult;
 }
 
 RacerProfile _buildRacer({required String id, required String name}) {

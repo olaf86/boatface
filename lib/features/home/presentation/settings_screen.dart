@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/environment/app_environment.dart';
 import '../../../shared/format/date_time_formatters.dart';
+import '../../../shared/privacy/ad_privacy_consent_controller.dart';
+import '../../../shared/privacy/ad_privacy_consent_service.dart';
 import '../../../shared/privacy/tracking_transparency_controller.dart';
 import '../../../shared/privacy/tracking_transparency_service.dart';
 import '../../auth/application/auth_controller.dart';
@@ -64,6 +66,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final AsyncValue<UserProfile?> saveState = ref.watch(
       userProfileControllerProvider,
     );
+    final AsyncValue<AdPrivacyConsentInfo> adPrivacyAsync = ref.watch(
+      adPrivacyConsentControllerProvider,
+    );
     final AsyncValue<TrackingTransparencyInfo> trackingAsync = ref.watch(
       trackingTransparencyControllerProvider,
     );
@@ -90,6 +95,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             context,
             ref,
             appEnvironment: appEnvironment,
+            adPrivacyAsync: adPrivacyAsync,
             trackingAsync: trackingAsync,
           ),
           const SizedBox(height: 12),
@@ -316,69 +322,75 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     BuildContext context,
     WidgetRef ref, {
     required AppEnvironment appEnvironment,
+    required AsyncValue<AdPrivacyConsentInfo> adPrivacyAsync,
     required AsyncValue<TrackingTransparencyInfo> trackingAsync,
   }) {
     final ThemeData theme = Theme.of(context);
-    final bool isBusy = trackingAsync.isLoading;
+    final bool isBusy = trackingAsync.isLoading || adPrivacyAsync.isLoading;
+    final AdPrivacyConsentInfo? adPrivacyInfo = adPrivacyAsync.valueOrNull;
+    final TrackingTransparencyInfo? trackingInfo = trackingAsync.valueOrNull;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: trackingAsync.when(
-          data: (TrackingTransparencyInfo info) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text('広告とプライバシー', style: theme.textTheme.titleLarge),
-                const SizedBox(height: 8),
-                Text(
-                  appEnvironment.isProduction
-                      ? '広告表示に関するトラッキング許可の状態を確認できます。必要に応じて、あとから設定アプリで変更できます。'
-                      : 'iPhone 実機を AdMob の test device に登録したいときは、ここで ATT の状態確認と IDFA の取得ができます。',
-                  style: theme.textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 16),
-                _InfoRow(label: 'ATT 状態', value: info.statusLabel),
-                if (appEnvironment.isStaging) _IdfaRow(idfa: info.idfa),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: <Widget>[
-                    FilledButton(
-                      onPressed: isBusy
-                          ? null
-                          : info.canRequestAuthorization
-                          ? () => _requestTrackingTransparency(ref)
-                          : null,
-                      child: Text(
-                        info.canRequestAuthorization ? '許可を確認' : '確認済み',
-                      ),
-                    ),
-                    OutlinedButton(
-                      onPressed: isBusy
-                          ? null
-                          : () => _reloadTrackingTransparency(ref),
-                      child: const Text('状態を更新'),
-                    ),
-                    if (appEnvironment.isStaging && info.hasIdfa)
-                      OutlinedButton(
-                        onPressed: isBusy ? null : () => _copyIdfa(info.idfa!),
-                        child: const Text('IDFA をコピー'),
-                      ),
-                    if (info.canOpenSettings)
-                      OutlinedButton(
-                        onPressed: isBusy
-                            ? null
-                            : () => _openTrackingSettings(ref),
-                        child: const Text('設定を開く'),
-                      ),
-                  ],
-                ),
-              ],
-            );
-          },
-          loading: () => Column(
+    if (adPrivacyAsync.hasError) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('広告とプライバシー', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 8),
+              Text(
+                '広告同意状態の取得に失敗しました。',
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                adPrivacyAsync.error.toString(),
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: () => _reloadPrivacyState(ref),
+                child: const Text('再試行'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (trackingAsync.hasError) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('広告とプライバシー', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 8),
+              Text(
+                'ATT 状態の取得に失敗しました。',
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                trackingAsync.error.toString(),
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: () => _reloadPrivacyState(ref),
+                child: const Text('再試行'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (adPrivacyInfo == null || trackingInfo == null) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text('広告とプライバシー', style: theme.textTheme.titleLarge),
@@ -386,26 +398,75 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const Center(child: CircularProgressIndicator()),
             ],
           ),
-          error: (Object error, StackTrace stackTrace) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text('広告とプライバシー', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              appEnvironment.isProduction
+                  ? '広告表示に関する同意状態とトラッキング許可の状態を確認できます。必要に応じて、プライバシー設定や設定アプリから見直せます。'
+                  : 'テスト広告の検証に使うプライバシー状態を確認できます。iPhone 実機では ATT 状態と IDFA の取得もここから確認できます。',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            _InfoRow(label: '広告同意', value: adPrivacyInfo.consentStatusLabel),
+            _InfoRow(
+              label: 'プライバシー設定',
+              value: adPrivacyInfo.privacyOptionsStatusLabel,
+            ),
+            _InfoRow(
+              label: '広告リクエスト',
+              value: adPrivacyInfo.canRequestAds ? '可能' : '未許可',
+            ),
+            _InfoRow(label: 'トラッキング許可', value: trackingInfo.statusLabel),
+            if (appEnvironment.isStaging) _IdfaRow(idfa: trackingInfo.idfa),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
               children: <Widget>[
-                Text('広告とプライバシー', style: theme.textTheme.titleLarge),
-                const SizedBox(height: 8),
-                Text(
-                  'ATT 状態の取得に失敗しました。',
-                  style: TextStyle(color: theme.colorScheme.error),
+                FilledButton(
+                  onPressed: isBusy
+                      ? null
+                      : trackingInfo.canRequestAuthorization
+                      ? () => _requestTrackingTransparency(ref)
+                      : null,
+                  child: Text(
+                    trackingInfo.canRequestAuthorization ? '許可を確認' : '確認済み',
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Text(error.toString(), style: theme.textTheme.bodySmall),
-                const SizedBox(height: 16),
                 OutlinedButton(
-                  onPressed: () => _reloadTrackingTransparency(ref),
-                  child: const Text('再試行'),
+                  onPressed: isBusy ? null : () => _reloadPrivacyState(ref),
+                  child: const Text('状態を更新'),
                 ),
+                if (adPrivacyInfo.privacyOptionsRequired)
+                  OutlinedButton(
+                    onPressed: isBusy ? null : () => _showPrivacyOptions(ref),
+                    child: const Text('プライバシー設定を見直す'),
+                  ),
+                if (appEnvironment.isStaging && trackingInfo.hasIdfa)
+                  OutlinedButton(
+                    onPressed: isBusy
+                        ? null
+                        : () => _copyIdfa(trackingInfo.idfa!),
+                    child: const Text('IDFA をコピー'),
+                  ),
+                if (trackingInfo.canOpenSettings)
+                  OutlinedButton(
+                    onPressed: isBusy ? null : () => _openTrackingSettings(ref),
+                    child: const Text('設定を開く'),
+                  ),
               ],
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
@@ -441,8 +502,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ref.invalidate(userProfileProvider);
   }
 
-  Future<void> _reloadTrackingTransparency(WidgetRef ref) async {
+  Future<void> _reloadPrivacyState(WidgetRef ref) async {
     try {
+      await ref.read(adPrivacyConsentControllerProvider.notifier).refresh();
       await ref.read(trackingTransparencyControllerProvider.notifier).refresh();
     } catch (_) {
       // Error state is reflected by the provider.
@@ -478,6 +540,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await ref
         .read(trackingTransparencyControllerProvider.notifier)
         .openSettings();
+  }
+
+  Future<void> _showPrivacyOptions(WidgetRef ref) async {
+    try {
+      final AdPrivacyConsentInfo info = await ref
+          .read(adPrivacyConsentControllerProvider.notifier)
+          .showPrivacyOptionsForm();
+      await ref.read(trackingTransparencyControllerProvider.notifier).refresh();
+      if (!mounted) {
+        return;
+      }
+      final String message = info.lastFormErrorMessage == null
+          ? 'プライバシー設定を更新しました。'
+          : info.lastFormErrorMessage!;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      // Error state is reflected by the provider.
+    }
   }
 
   Future<void> _copyIdfa(String idfa) async {

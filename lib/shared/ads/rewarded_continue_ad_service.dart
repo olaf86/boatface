@@ -5,11 +5,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../environment/app_environment.dart';
+import '../privacy/ad_privacy_consent_service.dart';
 
 final Provider<RewardedContinueAdService> rewardedContinueAdServiceProvider =
     Provider<RewardedContinueAdService>((Ref ref) {
       final service = AdMobRewardedContinueAdService(
         isProduction: ref.read(appEnvironmentProvider).isProduction,
+        canRequestAds: () async {
+          final AdPrivacyConsentInfo info = await ref
+              .read(adPrivacyConsentServiceProvider)
+              .fetchInfo();
+          return info.canRequestAds;
+        },
       );
       ref.onDispose(service.dispose);
       return service;
@@ -40,8 +47,11 @@ abstract class RewardedContinueAdService {
 }
 
 class AdMobRewardedContinueAdService implements RewardedContinueAdService {
-  AdMobRewardedContinueAdService({required bool isProduction})
-    : _isProduction = isProduction;
+  AdMobRewardedContinueAdService({
+    required bool isProduction,
+    required Future<bool> Function() canRequestAds,
+  }) : _isProduction = isProduction,
+       _canRequestAds = canRequestAds;
 
   static const Duration _kAdLoadTimeout = Duration(seconds: 10);
   static const String _kAndroidTestRewardedAdUnitId =
@@ -74,10 +84,16 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
   RewardedContinueAdOutcome? _lastPreloadFallbackOutcome;
   bool _disposed = false;
   final bool _isProduction;
+  final Future<bool> Function() _canRequestAds;
 
   @override
   Future<void> preloadContinueAd() async {
     if (_disposed || !_supportsRewardedAds || _cachedAd != null) {
+      return;
+    }
+    if (!await _canRequestAdsSafely()) {
+      _lastPreloadFallbackOutcome =
+          RewardedContinueAdOutcome.unavailableFallback;
       return;
     }
     final String adUnitId = _rewardedAdUnitId;
@@ -129,6 +145,11 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
   @override
   Future<RewardedContinueAdResult> showContinueAd() async {
     if (!_supportsRewardedAds) {
+      return const RewardedContinueAdResult.granted(
+        RewardedContinueAdOutcome.unavailableFallback,
+      );
+    }
+    if (!await _canRequestAdsSafely()) {
       return const RewardedContinueAdResult.granted(
         RewardedContinueAdOutcome.unavailableFallback,
       );
@@ -250,6 +271,14 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
     _preloadCompleter = null;
     if (completer != null && !completer.isCompleted) {
       completer.complete();
+    }
+  }
+
+  Future<bool> _canRequestAdsSafely() async {
+    try {
+      return await _canRequestAds();
+    } catch (_) {
+      return false;
     }
   }
 

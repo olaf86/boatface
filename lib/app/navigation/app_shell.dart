@@ -8,7 +8,9 @@ import '../../features/home/presentation/settings_screen.dart';
 import '../../features/learn/presentation/learning_screen.dart';
 import '../../features/quiz/application/racer_master_sync_controller.dart';
 import '../../features/ranking/presentation/ranking_screen.dart';
+import '../../shared/privacy/ad_privacy_consent_controller.dart';
 import '../../shared/privacy/tracking_transparency_service.dart';
+import '../../shared/privacy/tracking_transparency_controller.dart';
 import 'app_route.dart';
 
 enum AppShellTab { learning, home, ranking }
@@ -60,28 +62,48 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
       ref
           .read(racerMasterSyncControllerProvider.notifier)
           .startBackgroundSyncIfNeeded();
-      unawaited(_prepareTrackingTransparencyIfNeeded());
+      unawaited(_preparePrivacyMessaging());
     });
   }
 
-  Future<void> _prepareTrackingTransparencyIfNeeded() async {
+  Future<void> _preparePrivacyMessaging() async {
     if (!mounted) {
       return;
     }
+    try {
+      await ref
+          .read(adPrivacyConsentControllerProvider.notifier)
+          .gatherConsent();
+    } catch (_) {
+      // Privacy state remains available through the controller's error state.
+    }
+    if (!mounted) {
+      return;
+    }
+
     final bool supportsTrackingTransparency = ref.read(
       trackingTransparencySupportedProvider,
     );
-    if (supportsTrackingTransparency) {
-      final TrackingTransparencyService trackingService = ref.read(
-        trackingTransparencyServiceProvider,
-      );
-      final TrackingTransparencyInfo info = await trackingService.fetchInfo();
+    if (!supportsTrackingTransparency) {
+      return;
+    }
+
+    TrackingTransparencyInfo info = await ref
+        .read(trackingTransparencyControllerProvider.notifier)
+        .refresh();
+    if (!mounted) {
+      return;
+    }
+    if (info.status == TrackingTransparencyStatus.notDetermined) {
+      await ref
+          .read(trackingTransparencyControllerProvider.notifier)
+          .requestAuthorization();
       if (!mounted) {
         return;
       }
-      if (info.status == TrackingTransparencyStatus.notDetermined) {
-        await trackingService.requestAuthorization();
-      }
+      info = await ref
+          .read(trackingTransparencyControllerProvider.notifier)
+          .refresh();
     }
   }
 

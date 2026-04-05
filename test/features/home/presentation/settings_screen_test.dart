@@ -8,6 +8,7 @@ import 'package:boatface/features/quiz/data/racer_repository.dart';
 import 'package:boatface/features/quiz/data/quiz_data_providers.dart';
 import 'package:boatface/features/quiz/domain/quiz_models.dart';
 import 'package:boatface/shared/environment/app_environment.dart';
+import 'package:boatface/shared/privacy/ad_privacy_consent_service.dart';
 import 'package:boatface/shared/privacy/tracking_transparency_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +19,14 @@ void main() {
     await tester.pumpWidget(
       _buildSettingsScreen(
         appEnvironment: const AppEnvironment(isProduction: false),
+        adPrivacyService: _FakeAdPrivacyConsentService(
+          const AdPrivacyConsentInfo(
+            consentStatus: AdPrivacyConsentStatus.obtained,
+            canRequestAds: true,
+            privacyOptionsStatus: AdPrivacyOptionsStatus.required,
+            isConsentFormAvailable: true,
+          ),
+        ),
         trackingService: _FakeTrackingTransparencyService(
           const TrackingTransparencyInfo(
             status: TrackingTransparencyStatus.authorized,
@@ -29,15 +38,25 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('広告とプライバシー'), findsOneWidget);
+    expect(find.text('トラッキング許可'), findsOneWidget);
     expect(find.text('IDFA'), findsOneWidget);
     expect(find.text('ABC-123'), findsOneWidget);
     expect(find.text('IDFA をコピー'), findsOneWidget);
+    expect(find.text('プライバシー設定を見直す'), findsOneWidget);
   });
 
   testWidgets('hides IDFA controls in production', (WidgetTester tester) async {
     await tester.pumpWidget(
       _buildSettingsScreen(
         appEnvironment: const AppEnvironment(isProduction: true),
+        adPrivacyService: _FakeAdPrivacyConsentService(
+          const AdPrivacyConsentInfo(
+            consentStatus: AdPrivacyConsentStatus.obtained,
+            canRequestAds: true,
+            privacyOptionsStatus: AdPrivacyOptionsStatus.notRequired,
+            isConsentFormAvailable: false,
+          ),
+        ),
         trackingService: _FakeTrackingTransparencyService(
           const TrackingTransparencyInfo(
             status: TrackingTransparencyStatus.authorized,
@@ -52,12 +71,15 @@ void main() {
     expect(find.text('IDFA'), findsNothing);
     expect(find.text('ABC-123'), findsNothing);
     expect(find.text('IDFA をコピー'), findsNothing);
-    expect(find.text('ATT 状態'), findsOneWidget);
+    expect(find.text('トラッキング許可'), findsOneWidget);
+    expect(find.text('広告同意'), findsOneWidget);
+    expect(find.text('プライバシー設定を見直す'), findsNothing);
   });
 }
 
 Widget _buildSettingsScreen({
   required AppEnvironment appEnvironment,
+  required AdPrivacyConsentService adPrivacyService,
   required TrackingTransparencyService trackingService,
 }) {
   return ProviderScope(
@@ -68,6 +90,7 @@ Widget _buildSettingsScreen({
       userProfileProvider.overrideWith((Ref ref) async => _testProfile),
       racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
       appEnvironmentProvider.overrideWithValue(appEnvironment),
+      adPrivacyConsentServiceProvider.overrideWithValue(adPrivacyService),
       trackingTransparencyServiceProvider.overrideWithValue(trackingService),
     ],
     child: const MaterialApp(home: SettingsScreen()),
@@ -96,6 +119,21 @@ class _FakeTrackingTransparencyService implements TrackingTransparencyService {
 
   @override
   Future<TrackingTransparencyInfo> requestAuthorization() async => _info;
+}
+
+class _FakeAdPrivacyConsentService implements AdPrivacyConsentService {
+  _FakeAdPrivacyConsentService(this._info);
+
+  final AdPrivacyConsentInfo _info;
+
+  @override
+  Future<AdPrivacyConsentInfo> fetchInfo() async => _info;
+
+  @override
+  Future<AdPrivacyConsentInfo> gatherConsent() async => _info;
+
+  @override
+  Future<AdPrivacyConsentInfo> showPrivacyOptionsForm() async => _info;
 }
 
 class _FakeRacerRepository implements RacerRepository {
