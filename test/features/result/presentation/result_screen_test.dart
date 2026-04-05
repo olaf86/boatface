@@ -12,11 +12,13 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   QuizResultSummary buildSummary({
     required QuizEndReason endReason,
+    String modeId = 'mode-1',
+    String modeLabel = 'テストモード',
     List<QuizMistakeSnapshot> mistakes = const <QuizMistakeSnapshot>[],
   }) {
     return QuizResultSummary(
-      modeId: 'mode-1',
-      modeLabel: 'テストモード',
+      modeId: modeId,
+      modeLabel: modeLabel,
       score: 5,
       correctAnswers: 5,
       totalQuestions: 5,
@@ -53,6 +55,45 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('MODE CLEAR'), findsOneWidget);
+    expect(
+      find.text('テストモードクリアおめでとうございます！次のモードにも挑戦してみましょう！'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('達人モードクリア時は専用メッセージを表示する', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          quizBackendRepositoryProvider.overrideWithValue(
+            _FakeQuizBackendRepository(),
+          ),
+        ],
+        child: MaterialApp(
+          home: ResultScreen(
+            summary: buildSummary(
+              endReason: QuizEndReason.completed,
+              modeId: 'master',
+              modeLabel: '達人',
+            ),
+            sessionId: 'session-1',
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+
+    expect(
+      find.text('ここまで来たあなたは、もう達人。次は自己ベスト更新を狙いましょう。'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('達人モードクリアおめでとうございます！次のモードにも挑戦してみましょう！'),
+      findsNothing,
+    );
   });
 
   testWidgets('全問クリア以外では紙吹雪演出を表示しない', (WidgetTester tester) async {

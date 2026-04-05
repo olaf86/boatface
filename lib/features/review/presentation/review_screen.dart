@@ -266,14 +266,14 @@ class _ReviewIndicatorOverflow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final List<double> dotSizes = switch (towardCurrent) {
-      AxisDirection.left => <double>[6, 5, 2],
-      AxisDirection.right => <double>[2, 5, 6],
-      _ => <double>[2, 5, 6],
+      AxisDirection.left => <double>[6, 3],
+      AxisDirection.right => <double>[3, 6],
+      _ => <double>[3, 6],
     };
 
     return SizedBox(
-      width: 18,
-      height: 8,
+      width: 13,
+      height: 6,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: List<Widget>.generate(dotSizes.length, (int index) {

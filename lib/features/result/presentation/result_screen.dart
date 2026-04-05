@@ -30,6 +30,16 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   bool get _showCelebration =>
       widget.summary.endReason == QuizEndReason.completed;
 
+  String get _celebrationMessage {
+    if (widget.summary.modeId == 'master') {
+      return 'ここまで来たあなたは、もう達人。次は自己ベスト更新を狙いましょう。';
+    }
+    final String modeName = widget.summary.modeLabel.endsWith('モード')
+        ? widget.summary.modeLabel
+        : '${widget.summary.modeLabel}モード';
+    return '$modeNameクリアおめでとうございます！次のモードにも挑戦してみましょう！';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -100,7 +110,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                         ),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Padding(
+                      child: Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 14,
@@ -108,7 +118,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            Text(
+                            const Text(
                               'MODE CLEAR',
                               style: TextStyle(
                                 color: Colors.white,
@@ -116,9 +126,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                                 letterSpacing: 1.1,
                               ),
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Text(
-                              '紙吹雪と一緒にリザルトを表示しています。',
+                              _celebrationMessage,
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,

@@ -193,6 +193,31 @@ class BoatfaceApp extends ConsumerWidget {
           thickness: 1,
           space: 1,
         ),
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: const Color(0xFFDFF4FF),
+          indicatorColor: colorScheme.primary.withValues(alpha: 0.14),
+          height: 76,
+          labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
+            (Set<WidgetState> states) {
+              final bool selected = states.contains(WidgetState.selected);
+              return textTheme.labelLarge?.copyWith(
+                color: selected
+                    ? colorScheme.primary
+                    : colorScheme.onSurface.withValues(alpha: 0.72),
+              );
+            },
+          ),
+          iconTheme: WidgetStateProperty.resolveWith<IconThemeData?>((
+            Set<WidgetState> states,
+          ) {
+            final bool selected = states.contains(WidgetState.selected);
+            return IconThemeData(
+              color: selected
+                  ? colorScheme.primary
+                  : colorScheme.onSurface.withValues(alpha: 0.72),
+            );
+          }),
+        ),
       ),
       builder: (BuildContext context, Widget? child) {
         return _AppBackground(
