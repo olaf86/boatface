@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/navigation/app_route.dart';
 import '../../../shared/ads/rewarded_continue_ad_service.dart';
-import '../../../shared/environment/app_environment.dart';
 import '../../../shared/privacy/tracking_transparency_service.dart';
 import '../application/quiz_answer_feedback.dart';
 import '../application/quiz_hint.dart';
@@ -448,11 +447,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (!mounted) {
       return;
     }
-    final AppEnvironment appEnvironment = ref.read(appEnvironmentProvider);
     final bool supportsTrackingTransparency = ref.read(
       trackingTransparencySupportedProvider,
     );
-    if (appEnvironment.isProduction && supportsTrackingTransparency) {
+    if (supportsTrackingTransparency) {
       final TrackingTransparencyInfo info = await ref
           .read(trackingTransparencyServiceProvider)
           .fetchInfo();
@@ -467,11 +465,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 
   Future<void> _requestTrackingAuthorizationIfNeeded() async {
-    final AppEnvironment appEnvironment = ref.read(appEnvironmentProvider);
     final bool supportsTrackingTransparency = ref.read(
       trackingTransparencySupportedProvider,
     );
-    if (!appEnvironment.isProduction || !supportsTrackingTransparency) {
+    if (!supportsTrackingTransparency) {
       return;
     }
 

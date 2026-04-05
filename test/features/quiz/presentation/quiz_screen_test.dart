@@ -9,7 +9,6 @@ import 'package:boatface/features/quiz/domain/quiz_models.dart';
 import 'package:boatface/features/quiz/presentation/racer_name_text.dart';
 import 'package:boatface/features/quiz/presentation/quiz_screen.dart';
 import 'package:boatface/shared/ads/rewarded_continue_ad_service.dart';
-import 'package:boatface/shared/environment/app_environment.dart';
 import 'package:boatface/shared/privacy/tracking_transparency_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -252,7 +251,7 @@ void main() {
     expect(adService.preloadCallCount, 1);
   });
 
-  testWidgets('does not preload rewarded ad on production iOS before ATT', (
+  testWidgets('does not preload rewarded ad on iOS before ATT', (
     WidgetTester tester,
   ) async {
     final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
@@ -279,9 +278,6 @@ void main() {
           rewardedContinueAdServiceProvider.overrideWithValue(adService),
           trackingTransparencyServiceProvider.overrideWithValue(
             trackingService,
-          ),
-          appEnvironmentProvider.overrideWithValue(
-            const AppEnvironment(isProduction: true),
           ),
           trackingTransparencySupportedProvider.overrideWithValue(true),
         ],
@@ -407,7 +403,7 @@ void main() {
     }
   });
 
-  testWidgets('requests ATT before rewarded ad on production iOS', (
+  testWidgets('requests ATT before rewarded ad on iOS', (
     WidgetTester tester,
   ) async {
     final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
@@ -433,9 +429,6 @@ void main() {
         racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
         rewardedContinueAdServiceProvider.overrideWithValue(adService),
         trackingTransparencyServiceProvider.overrideWithValue(trackingService),
-        appEnvironmentProvider.overrideWithValue(
-          const AppEnvironment(isProduction: true),
-        ),
         trackingTransparencySupportedProvider.overrideWithValue(true),
       ],
     );
