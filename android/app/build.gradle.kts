@@ -24,17 +24,24 @@ if (admobPropertiesFile.exists()) {
 }
 
 val admobAndroidTestAppId = "ca-app-pub-3940256099942544~3347511713"
+val requestedGradleTasks = gradle.startParameter.taskNames.joinToString(" ").lowercase()
+// Flavor definitions are configured up front, so only fail fast when a prod task
+// is actually being built.
+val isProdBuildRequested = requestedGradleTasks.contains("prod")
 
 fun admobProperty(name: String, fallback: String): String {
     return admobProperties.getProperty(name) ?: System.getenv(name) ?: fallback
 }
 
-fun requiredAdmobProperty(name: String): String {
+fun prodAdmobProperty(name: String): String {
     val value = admobProperties.getProperty(name) ?: System.getenv(name)
     if (value.isNullOrBlank()) {
+        if (!isProdBuildRequested) {
+            return admobAndroidTestAppId
+        }
         throw GradleException("Missing required AdMob property: $name")
     }
-    if (value == admobAndroidTestAppId) {
+    if (value == admobAndroidTestAppId && isProdBuildRequested) {
         throw GradleException("AdMob property $name must not use the Google test App ID in prod")
     }
     return value
@@ -99,7 +106,7 @@ android {
             dimension = "environment"
             applicationId = "dev.asobo.boatface"
             manifestPlaceholders["appName"] = "BoatFace"
-            manifestPlaceholders["admobApplicationId"] = requiredAdmobProperty(
+            manifestPlaceholders["admobApplicationId"] = prodAdmobProperty(
                 "ADMOB_ANDROID_APP_ID_PROD",
             )
         }
