@@ -97,7 +97,7 @@ Notes:
 ### GitHub Actions
 GitHub Actions has two responsibilities:
 - [`flutter.yml`](.github/workflows/flutter.yml): analyze and test on push / pull request.
-- [`android-publish-play.yml`](.github/workflows/android-publish-play.yml): build the `stg` Android App Bundle on `main` pushes and upload it to the Play Console `internal` track.
+- [`android-publish-play.yml`](.github/workflows/android-publish-play.yml): build the `stg` Android App Bundle on `develop` pushes and the `prod` Android App Bundle on `main` pushes, then upload each build to the Play Console `internal` track as a draft release.
 
 Android staging releases use an auto-incremented build number:
 
@@ -105,7 +105,7 @@ Android staging releases use an auto-incremented build number:
 BUILD_NUMBER = GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT
 ```
 
-The Android publish workflow is triggered automatically by pushes to `main`. Manual runs are also available through `workflow_dispatch`.
+The Android publish workflow is triggered automatically by pushes to `develop` for staging and pushes to `main` for production. Manual runs are also available through `workflow_dispatch`.
 
 Configure these GitHub repository secrets for Android staging delivery:
 - `ANDROID_STG_GOOGLE_SERVICES_JSON_BASE64`
@@ -135,9 +135,10 @@ Before the workflow can publish successfully, prepare Google Play Console:
 
 Store the Play service account JSON as the `PLAY_STG_SERVICE_ACCOUNT_JSON` GitHub secret.
 
-After these secrets are configured, pushing a commit to `main` should trigger [`android-publish-play.yml`](.github/workflows/android-publish-play.yml) automatically. Check the GitHub Actions run named `Android Publish to Play Console` to confirm that:
-- `Build staging AAB` succeeds.
-- `Upload to Play Console internal testing` succeeds.
+After these secrets are configured:
+- pushing a commit to `develop` should trigger the staging path in [`android-publish-play.yml`](.github/workflows/android-publish-play.yml),
+- pushing a commit to `main` should trigger the production path,
+- each automatic upload should land on the Play Console `internal` track as a draft release.
 
 ### Xcode Cloud
 Xcode Cloud is expected to handle iOS staging archives from `main` and deploy them to TestFlight.

@@ -33,7 +33,7 @@ on:
       release_status:
         description: Release status
         required: true
-        default: completed
+        default: draft
         type: choice
         options:
           - completed
@@ -52,8 +52,8 @@ jobs:
     permissions:
       contents: read
     if: |
-      github.event_name == 'push' && github.ref_name == 'develop' ||
-      github.event_name == 'workflow_dispatch' && inputs.environment == 'stg'
+      (github.event_name == 'push' && github.ref_name == 'develop') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'stg')
 
     steps:
       - name: Checkout
@@ -100,8 +100,8 @@ jobs:
 
       - name: Upload staging build to Play Console
         if: |
-          github.event_name == 'push' && github.ref_name == 'develop' ||
-          github.event_name == 'workflow_dispatch' && inputs.publish_to_play
+          (github.event_name == 'push' && github.ref_name == 'develop') ||
+          (github.event_name == 'workflow_dispatch' && inputs.publish_to_play)
         uses: r0adkll/upload-google-play@v1
         env:
           PLAY_STG_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_STG_SERVICE_ACCOUNT_JSON }}
@@ -110,7 +110,7 @@ jobs:
           packageName: dev.asobo.boatface.stg
           releaseFiles: build/app/outputs/bundle/stgRelease/app-stg-release.aab
           track: ${{ github.event_name == 'push' && 'internal' || inputs.track }}
-          status: ${{ github.event_name == 'push' && 'completed' || inputs.release_status }}
+          status: ${{ github.event_name == 'push' && 'draft' || inputs.release_status }}
 
       - name: Cleanup staging secrets
         if: always()
@@ -126,8 +126,8 @@ jobs:
     permissions:
       contents: read
     if: |
-      github.event_name == 'push' && github.ref_name == 'main' ||
-      github.event_name == 'workflow_dispatch' && inputs.environment == 'prod'
+      (github.event_name == 'push' && github.ref_name == 'main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'prod')
 
     steps:
       - name: Checkout
@@ -182,8 +182,8 @@ jobs:
 
       - name: Upload production build to Play Console
         if: |
-          github.event_name == 'push' && github.ref_name == 'main' ||
-          github.event_name == 'workflow_dispatch' && inputs.publish_to_play
+          (github.event_name == 'push' && github.ref_name == 'main') ||
+          (github.event_name == 'workflow_dispatch' && inputs.publish_to_play)
         uses: r0adkll/upload-google-play@v1
         env:
           PLAY_PROD_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_PROD_SERVICE_ACCOUNT_JSON }}
@@ -192,7 +192,7 @@ jobs:
           packageName: dev.asobo.boatface
           releaseFiles: build/app/outputs/bundle/prodRelease/app-prod-release.aab
           track: ${{ github.event_name == 'push' && 'internal' || inputs.track }}
-          status: ${{ github.event_name == 'push' && 'completed' || inputs.release_status }}
+          status: ${{ github.event_name == 'push' && 'draft' || inputs.release_status }}
 
       - name: Cleanup production secrets
         if: always()
