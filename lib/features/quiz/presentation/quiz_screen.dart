@@ -619,6 +619,8 @@ class _QuizEmergencyBorderOverlayState
         animation: _controller,
         builder: (BuildContext context, Widget? child) {
           final double intensity = _emergencyBorderIntensity(_controller.value);
+          final double borderWidth = lerpDouble(4, 14, intensity) ?? 10;
+          final double cornerRadius = lerpDouble(24, 40, intensity) ?? 32;
           final Color borderColor = Color.lerp(
             const Color(0xFFFFB3B3),
             const Color(0xFFFF2D2D),
@@ -628,9 +630,10 @@ class _QuizEmergencyBorderOverlayState
           return DecoratedBox(
             key: const ValueKey<String>('quiz-emergency-border'),
             decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(cornerRadius),
               border: Border.all(
                 color: borderColor.withValues(alpha: 0.95 * intensity),
-                width: lerpDouble(4, 14, intensity) ?? 10,
+                width: borderWidth,
               ),
             ),
           );
