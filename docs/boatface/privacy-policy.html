@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BoatFace Privacy Policy</title>
+    <meta
+      name="description"
+      content="Privacy Policy for BoatFace, available in English and Japanese."
+    />
+    <style>
+      :root {
+        color-scheme: light;
+        --bg-top: #f7fbff;
+        --bg-bottom: #eef6ff;
+        --surface: rgba(255, 255, 255, 0.9);
+        --surface-border: rgba(12, 50, 84, 0.12);
+        --text: #17324d;
+        --muted: #5f7388;
+        --accent: #0c7abf;
+        --accent-strong: #075d93;
+        --accent-soft: rgba(12, 122, 191, 0.12);
+        --shadow: 0 24px 60px rgba(22, 52, 82, 0.14);
+        --max-width: 920px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          "Avenir Next",
+          "Hiragino Sans",
+          "Yu Gothic",
+          "Noto Sans JP",
+          sans-serif;
+        line-height: 1.7;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(12, 122, 191, 0.14), transparent 32%),
+          linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+      }
+
+      a {
+        color: var(--accent-strong);
+      }
+
+      .page {
+        width: min(calc(100% - 32px), var(--max-width));
+        margin: 0 auto;
+        padding: 32px 0 56px;
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 28px;
+        border: 1px solid var(--surface-border);
+        border-radius: 28px;
+        background:
+          linear-gradient(140deg, rgba(12, 122, 191, 0.14), rgba(255, 255, 255, 0.86)),
+          var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -72px -96px auto;
+        width: 220px;
+        height: 220px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(12, 122, 191, 0.18), transparent 72%);
+        pointer-events: none;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 14px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+        color: var(--accent-strong);
+        font-size: 0.84rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 4vw, 3.4rem);
+        line-height: 1.05;
+      }
+
+      .subtitle {
+        max-width: 42rem;
+        margin: 14px 0 0;
+        color: var(--muted);
+        font-size: 1rem;
+      }
+
+      .hero-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-start;
+      }
+
+      .language-toggle {
+        display: inline-flex;
+        gap: 6px;
+        padding: 6px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.82);
+        border: 1px solid rgba(12, 50, 84, 0.08);
+      }
+
+      .language-toggle button {
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 16px;
+        font: inherit;
+        font-weight: 700;
+        color: var(--muted);
+        background: transparent;
+        cursor: pointer;
+        transition:
+          background-color 180ms ease,
+          color 180ms ease,
+          transform 180ms ease;
+      }
+
+      .language-toggle button:hover {
+        color: var(--accent-strong);
+        transform: translateY(-1px);
+      }
+
+      .language-toggle button[aria-pressed="true"] {
+        background: var(--accent);
+        color: #ffffff;
+      }
+
+      .panel {
+        margin-top: 22px;
+        padding: 28px;
+        border-radius: 28px;
+        border: 1px solid var(--surface-border);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .summary {
+        margin: 0 0 24px;
+        padding: 18px 20px;
+        border-radius: 20px;
+        background: var(--accent-soft);
+        color: var(--text);
+      }
+
+      .summary strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      article[data-content-lang] {
+        display: none;
+      }
+
+      body[data-active-lang="ja"] article[data-content-lang="ja"],
+      body[data-active-lang="en"] article[data-content-lang="en"] {
+        display: block;
+      }
+
+      h2 {
+        margin: 32px 0 12px;
+        font-size: 1.35rem;
+      }
+
+      h3 {
+        margin: 22px 0 10px;
+        font-size: 1.02rem;
+      }
+
+      p,
+      ul {
+        margin: 0 0 14px;
+      }
+
+      ul {
+        padding-left: 22px;
+      }
+
+      li + li {
+        margin-top: 6px;
+      }
+
+      .footer-note {
+        margin-top: 28px;
+        font-size: 0.94rem;
+        color: var(--muted);
+      }
+
+      @media (max-width: 640px) {
+        .page {
+          width: min(calc(100% - 20px), var(--max-width));
+          padding-top: 18px;
+        }
+
+        .hero,
+        .panel {
+          padding: 22px 18px;
+          border-radius: 22px;
+        }
+
+        .hero-row {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body data-active-lang="ja">
+    <main class="page">
+      <section class="hero">
+        <div class="hero-row">
+          <div>
+            <p class="eyebrow">BoatFace</p>
+            <h1>Privacy Policy</h1>
+            <p class="subtitle">
+              This page provides the BoatFace privacy policy in Japanese and
+              English for app review, AdMob UMP, and public disclosure.
+            </p>
+          </div>
+          <div
+            class="language-toggle"
+            role="group"
+            aria-label="Language toggle"
+          >
+            <button type="button" data-lang="ja" aria-pressed="true">
+              日本語
+            </button>
+            <button type="button" data-lang="en" aria-pressed="false">
+              English
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <article data-content-lang="ja">
+          <p class="summary">
+            <strong>最終更新日: 2026-04-06</strong>
+            本ポリシーは、アプリ「BoatFace」における利用者情報の取扱いを説明するものです。
+          </p>
+
+          <h2>1. 取得する情報</h2>
+          <h3>1-1. 認証とアカウントに関する情報</h3>
+          <ul>
+            <li>Firebase Authentication のユーザー ID（UID）</li>
+            <li>ログイン方法の種別（匿名ログイン、Google ログイン）</li>
+            <li>認証プロバイダから取得される表示名</li>
+          </ul>
+          <p>
+            Google ログインを利用した場合、Google および Firebase Authentication
+            はアカウント識別子や表示名などの認証情報を処理します。本アプリのアプリ内データベースでは、主に UID
+            と表示名を利用し、メールアドレスを独自に保存する実装は現在含まれていません。
+          </p>
+
+          <h3>1-2. プロフィールとゲームプレイに関する情報</h3>
+          <ul>
+            <li>ニックネーム</li>
+            <li>選択した地域情報（都道府県など）</li>
+            <li>プレイ回数、モード別挑戦回数、クリア済みモードなどの進行状況</li>
+            <li>
+              クイズ結果
+              （モード、スコア、正解数、問題数、回答時間、終了理由、送信時刻など）
+            </li>
+            <li>広告視聴による続行を利用したかどうか</li>
+            <li>
+              復習機能のための最近のミス履歴
+              （問題文、選択肢、正誤、経過時間、画像参照情報など）
+            </li>
+          </ul>
+
+          <h3>1-3. ランキング表示に関する情報</h3>
+          <ul>
+            <li>ランキング表示名（ニックネームまたは表示名）</li>
+            <li>地域情報</li>
+            <li>スコア、順位、合計回答時間</li>
+          </ul>
+          <p>
+            ランキング対象の記録を送信した場合、これらの情報はアプリ内ランキングとして他の利用者に表示されることがあります。
+          </p>
+
+          <h3>1-4. 広告・同意管理・端末識別に関する情報</h3>
+          <ul>
+            <li>Google AdMob の広告配信に必要な情報</li>
+            <li>UMP における同意状態やプライバシー関連シグナル</li>
+            <li>
+              iOS では、端末設定と利用者の許可状況に応じた App Tracking
+              Transparency のステータス
+            </li>
+            <li>
+              iOS では、許可され利用可能な場合に限り広告識別子（IDFA）
+            </li>
+          </ul>
+          <p>
+            広告配信では、Google のポリシーに基づき、端末識別子、IP アドレス、広告接触やアプリ利用に関する情報などが Google
+            により処理される場合があります。
+          </p>
+
+          <h3>1-5. 端末内に保存される情報</h3>
+          <ul>
+            <li>クイズで利用する選手データや画像のキャッシュ</li>
+            <li>認証状態や広告表示のために SDK が保持するローカル情報</li>
+          </ul>
+
+          <h2>2. 利用目的</h2>
+          <ul>
+            <li>ログイン機能と利用者識別のため</li>
+            <li>プロフィール、進行状況、ランキングの提供のため</li>
+            <li>クイズ結果の保存、ランキング集計、復習機能のため</li>
+            <li>リワード広告の表示および継続機能の提供のため</li>
+            <li>UMP や iOS の許諾状況に応じた広告制御のため</li>
+            <li>不正利用防止、障害対応、サービス品質維持のため</li>
+          </ul>
+
+          <h2>3. 広告、同意、トラッキング</h2>
+          <p>
+            本アプリは Google AdMob を利用してリワード広告を表示する場合があります。広告配信にあたり、Google の User
+            Messaging Platform（UMP）を通じて、法令や配信地域に応じた同意取得を行うことがあります。
+          </p>
+          <p>
+            iOS では App Tracking Transparency（ATT）の許可を求める場合があります。許可しない場合でもアプリの基本機能は利用できますが、パーソナライズ広告や広告識別子の利用が制限されることがあります。
+          </p>
+
+          <h2>4. 第三者サービス</h2>
+          <p>本アプリは、主に以下の第三者サービスや SDK を利用します。</p>
+          <ul>
+            <li>Firebase Authentication</li>
+            <li>Firebase Cloud Firestore</li>
+            <li>Firebase Cloud Functions</li>
+            <li>Google Sign-In</li>
+            <li>Google AdMob</li>
+            <li>Google User Messaging Platform（UMP）</li>
+            <li>Apple App Tracking Transparency（iOS のみ）</li>
+          </ul>
+          <p>
+            これらのサービスにおけるデータ取扱いは、各事業者のプライバシーポリシーその他の規約に従います。
+          </p>
+
+          <h2>5. 第三者提供</h2>
+          <p>
+            開発者は、法令に基づく場合を除き、利用者情報を第三者へ販売または不必要に提供しません。ただし、以下の場合があります。
+          </p>
+          <ul>
+            <li>認証、データ保存、広告配信などのために第三者サービスを利用する場合</li>
+            <li>ランキング機能により表示名、地域、スコア等が他の利用者に表示される場合</li>
+            <li>法令に基づき開示が必要な場合</li>
+          </ul>
+
+          <h2>6. 保持期間と削除</h2>
+          <ul>
+            <li>
+              プロフィール情報、進行状況、ランキング関連情報、クイズ結果は、サービス提供上必要な期間保持されます。
+            </li>
+            <li>
+              クイズセッション情報は短期利用を前提として発行され、期限切れ後は自動的に無効化されます。
+            </li>
+            <li>
+              端末内のキャッシュデータは、アプリの再同期、アプリ削除、または OS
+              の管理により削除されることがあります。
+            </li>
+          </ul>
+          <p>
+            データ削除の希望がある場合は、下記お問い合わせ先までご連絡ください。
+          </p>
+
+          <h2>7. セキュリティ</h2>
+          <p>
+            開発者は、認証、アクセス制御、運用上の管理など合理的な安全管理措置を講じ、情報の漏えい、滅失、毀損の防止に努めます。
+          </p>
+
+          <h2>8. 未成年の利用</h2>
+          <p>
+            未成年の方は、必要に応じて保護者の同意を得たうえで本アプリを利用してください。
+          </p>
+
+          <h2>9. ポリシーの変更</h2>
+          <p>
+            本ポリシーの内容は、必要に応じて変更されることがあります。重要な変更を行う場合は、この公開ページまたはアプリ内でお知らせします。
+          </p>
+
+          <h2>10. お問い合わせ先</h2>
+          <p>
+            本ポリシーに関するお問い合わせは、以下までご連絡ください。
+          </p>
+          <ul>
+            <li>
+              <a href="https://github.com/olaf86/boatface/issues"
+                >GitHub Issues</a
+              >
+            </li>
+          </ul>
+        </article>
+
+        <article data-content-lang="en">
+          <p class="summary">
+            <strong>Last updated: April 6, 2026</strong>
+            This Privacy Policy explains how BoatFace collects, uses, and
+            shares information when you use the app.
+          </p>
+
+          <h2>1. Information We Collect</h2>
+          <h3>1-1. Authentication and account information</h3>
+          <ul>
+            <li>Your Firebase Authentication user ID (UID)</li>
+            <li>Your sign-in method, such as anonymous sign-in or Google sign-in</li>
+            <li>Your display name provided by the authentication provider</li>
+          </ul>
+          <p>
+            If you use Google sign-in, Google and Firebase Authentication may
+            process account information such as your account identifier and
+            display name. In the app's own database, BoatFace currently stores
+            and uses your UID and display name, and does not separately store
+            your email address as part of its app data model.
+          </p>
+
+          <h3>1-2. Profile and gameplay information</h3>
+          <ul>
+            <li>Your nickname</li>
+            <li>Your selected region or prefecture</li>
+            <li>Quiz progress, attempt counts, and cleared modes</li>
+            <li>
+              Quiz result data, including mode, score, answer count, total
+              questions, answer time, finish reason, and submission time
+            </li>
+            <li>Whether you used an ad-based continue</li>
+            <li>
+              Recent mistake review snapshots, including prompts, options,
+              correctness, elapsed time, and referenced image data
+            </li>
+          </ul>
+
+          <h3>1-3. Ranking information</h3>
+          <ul>
+            <li>Your ranking display name, based on your nickname or display name</li>
+            <li>Your region information</li>
+            <li>Your score, rank, and total answer time</li>
+          </ul>
+          <p>
+            If you submit ranking-eligible records, this information may be
+            shown to other users inside the app's ranking features.
+          </p>
+
+          <h3>1-4. Advertising, consent, and identifier information</h3>
+          <ul>
+            <li>Information needed to request and display Google AdMob ads</li>
+            <li>Consent status and privacy-related signals managed through UMP</li>
+            <li>
+              On iOS, the App Tracking Transparency authorization status based
+              on your device settings and choices
+            </li>
+            <li>
+              On iOS, the advertising identifier (IDFA) only when available and
+              permitted
+            </li>
+          </ul>
+          <p>
+            In connection with ad delivery, Google may process data such as
+            device identifiers, IP address, ad interaction data, and app usage
+            signals under Google's own policies.
+          </p>
+
+          <h3>1-5. Information stored on your device</h3>
+          <ul>
+            <li>Cached racer data and images used by the quiz experience</li>
+            <li>Local data maintained by SDKs to support sign-in and ads</li>
+          </ul>
+
+          <h2>2. How We Use Information</h2>
+          <ul>
+            <li>To provide sign-in and identify users</li>
+            <li>To provide profiles, progress tracking, and rankings</li>
+            <li>To save quiz results, build rankings, and power review features</li>
+            <li>To show rewarded ads and support ad-based continue flows</li>
+            <li>To respect consent choices and platform privacy permissions</li>
+            <li>To prevent abuse, troubleshoot issues, and maintain service quality</li>
+          </ul>
+
+          <h2>3. Ads, Consent, and Tracking</h2>
+          <p>
+            BoatFace may display rewarded ads through Google AdMob. Depending
+            on legal requirements and your region, the app may use Google's User
+            Messaging Platform (UMP) to collect and manage consent choices
+            before requesting ads.
+          </p>
+          <p>
+            On iOS, the app may request permission through App Tracking
+            Transparency (ATT). You can continue using the core features of the
+            app even if you do not allow tracking, but personalized ads and the
+            use of advertising identifiers may be limited.
+          </p>
+
+          <h2>4. Third-Party Services</h2>
+          <p>BoatFace uses the following third-party services and SDKs:</p>
+          <ul>
+            <li>Firebase Authentication</li>
+            <li>Firebase Cloud Firestore</li>
+            <li>Firebase Cloud Functions</li>
+            <li>Google Sign-In</li>
+            <li>Google AdMob</li>
+            <li>Google User Messaging Platform (UMP)</li>
+            <li>Apple App Tracking Transparency (iOS only)</li>
+          </ul>
+          <p>
+            Data handling by these services is governed by each provider's own
+            policies and terms.
+          </p>
+
+          <h2>5. Sharing of Information</h2>
+          <p>
+            We do not sell your personal information. However, information may
+            be shared in the following cases:
+          </p>
+          <ul>
+            <li>
+              With service providers that support authentication, storage, or ad delivery
+            </li>
+            <li>
+              With other users through the in-app ranking features when your
+              ranking display name, region, score, or timing is shown
+            </li>
+            <li>When disclosure is required by law</li>
+          </ul>
+
+          <h2>6. Retention and Deletion</h2>
+          <ul>
+            <li>
+              Profile information, progress, ranking-related data, and quiz
+              results are retained for as long as needed to operate the service.
+            </li>
+            <li>
+              Quiz session records are created for short-lived validation and
+              automatically expire after their validity period.
+            </li>
+            <li>
+              Cached device data may be removed during resync, app removal, or
+              operating system cleanup.
+            </li>
+          </ul>
+          <p>
+            If you would like to request deletion of your data, please contact
+            us using the contact method below.
+          </p>
+
+          <h2>7. Security</h2>
+          <p>
+            We take reasonable administrative and technical measures, including
+            authentication and access control, to help protect information from
+            unauthorized access, loss, or misuse.
+          </p>
+
+          <h2>8. Children's Privacy</h2>
+          <p>
+            If you are a minor, please use the app with consent from a parent
+            or legal guardian when required.
+          </p>
+
+          <h2>9. Changes to This Policy</h2>
+          <p>
+            We may update this Privacy Policy from time to time. If we make
+            material changes, we will provide notice on this page or within the
+            app.
+          </p>
+
+          <h2>10. Contact</h2>
+          <p>
+            If you have questions about this Privacy Policy, please contact us
+            here:
+          </p>
+          <ul>
+            <li>
+              <a href="https://github.com/olaf86/boatface/issues"
+                >GitHub Issues</a
+              >
+            </li>
+          </ul>
+        </article>
+
+        <p class="footer-note">
+          BoatFace is a quiz app for learning and recognizing professional boat
+          racers by face, name, and registration number.
+        </p>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        var storageKey = "boatface-policy-lang";
+        var buttons = document.querySelectorAll("[data-lang]");
+
+        function normalizeLanguage(value) {
+          return value === "en" ? "en" : "ja";
+        }
+
+        function detectInitialLanguage() {
+          try {
+            var saved = localStorage.getItem(storageKey);
+            if (saved) {
+              return normalizeLanguage(saved);
+            }
+          } catch (_) {}
+
+          var browserLang = navigator.language || navigator.userLanguage || "";
+          return browserLang.toLowerCase().indexOf("ja") === 0 ? "ja" : "en";
+        }
+
+        function applyLanguage(language) {
+          var nextLanguage = normalizeLanguage(language);
+          document.body.setAttribute("data-active-lang", nextLanguage);
+          document.documentElement.lang = nextLanguage;
+
+          buttons.forEach(function (button) {
+            var isActive = button.getAttribute("data-lang") === nextLanguage;
+            button.setAttribute("aria-pressed", isActive ? "true" : "false");
+          });
+
+          try {
+            localStorage.setItem(storageKey, nextLanguage);
+          } catch (_) {}
+        }
+
+        buttons.forEach(function (button) {
+          button.addEventListener("click", function () {
+            applyLanguage(button.getAttribute("data-lang"));
+          });
+        });
+
+        applyLanguage(detectInitialLanguage());
+      })();
+    </script>
+  </body>
+</html>
