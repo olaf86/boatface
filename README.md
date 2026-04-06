@@ -3,8 +3,8 @@
 BoatFace is a quiz app for learning and recognizing professional boat racers by face, name, and registration number.
 
 ## Privacy Policy
-- Public page: `docs/boatface/privacy-policy.html`
-- GitHub Pages default URL: `https://olaf86.github.io/boatface/boatface/privacy-policy.html`
+- Public page: `docs/privacy-policy.html`
+- GitHub Pages default URL: `https://olaf86.github.io/boatface/privacy-policy.html`
 
 ## MVP Specification
 - [internal-docs/mvp_spec.md](internal-docs/mvp_spec.md)
