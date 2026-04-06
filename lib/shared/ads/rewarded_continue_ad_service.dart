@@ -11,12 +11,7 @@ final Provider<RewardedContinueAdService> rewardedContinueAdServiceProvider =
     Provider<RewardedContinueAdService>((Ref ref) {
       final service = AdMobRewardedContinueAdService(
         isProduction: ref.read(appEnvironmentProvider).isProduction,
-        canRequestAds: () async {
-          final AdPrivacyConsentInfo info = await ref
-              .read(adPrivacyConsentServiceProvider)
-              .fetchInfo();
-          return info.canRequestAds;
-        },
+        fetchConsentInfo: ref.read(adPrivacyConsentServiceProvider).fetchInfo,
       );
       ref.onDispose(service.dispose);
       return service;
@@ -25,6 +20,7 @@ final Provider<RewardedContinueAdService> rewardedContinueAdServiceProvider =
 enum RewardedContinueAdOutcome {
   earnedReward,
   dismissedWithoutReward,
+  consentRequiredDenied,
   unavailableFallback,
   timeoutFallback,
   loadFailedFallback,
@@ -49,9 +45,9 @@ abstract class RewardedContinueAdService {
 class AdMobRewardedContinueAdService implements RewardedContinueAdService {
   AdMobRewardedContinueAdService({
     required bool isProduction,
-    required Future<bool> Function() canRequestAds,
+    required Future<AdPrivacyConsentInfo> Function() fetchConsentInfo,
   }) : _isProduction = isProduction,
-       _canRequestAds = canRequestAds;
+       _fetchConsentInfo = fetchConsentInfo;
 
   static const Duration _kAdLoadTimeout = Duration(seconds: 10);
   static const String _kAndroidTestRewardedAdUnitId =
@@ -84,14 +80,15 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
   RewardedContinueAdOutcome? _lastPreloadFallbackOutcome;
   bool _disposed = false;
   final bool _isProduction;
-  final Future<bool> Function() _canRequestAds;
+  final Future<AdPrivacyConsentInfo> Function() _fetchConsentInfo;
 
   @override
   Future<void> preloadContinueAd() async {
     if (_disposed || !_supportsRewardedAds || _cachedAd != null) {
       return;
     }
-    if (!await _canRequestAdsSafely()) {
+    final AdPrivacyConsentInfo consentInfo = await _fetchConsentInfoSafely();
+    if (!consentInfo.canRequestAds) {
       _lastPreloadFallbackOutcome =
           RewardedContinueAdOutcome.unavailableFallback;
       return;
@@ -149,7 +146,13 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
         RewardedContinueAdOutcome.unavailableFallback,
       );
     }
-    if (!await _canRequestAdsSafely()) {
+    final AdPrivacyConsentInfo consentInfo = await _fetchConsentInfoSafely();
+    if (!consentInfo.canRequestAds) {
+      if (consentInfo.requiresConsentForAds) {
+        return const RewardedContinueAdResult.denied(
+          RewardedContinueAdOutcome.consentRequiredDenied,
+        );
+      }
       return const RewardedContinueAdResult.granted(
         RewardedContinueAdOutcome.unavailableFallback,
       );
@@ -274,11 +277,16 @@ class AdMobRewardedContinueAdService implements RewardedContinueAdService {
     }
   }
 
-  Future<bool> _canRequestAdsSafely() async {
+  Future<AdPrivacyConsentInfo> _fetchConsentInfoSafely() async {
     try {
-      return await _canRequestAds();
+      return await _fetchConsentInfo();
     } catch (_) {
-      return false;
+      return const AdPrivacyConsentInfo(
+        consentStatus: AdPrivacyConsentStatus.unknown,
+        canRequestAds: false,
+        privacyOptionsStatus: AdPrivacyOptionsStatus.unknown,
+        isConsentFormAvailable: false,
+      );
     }
   }
 

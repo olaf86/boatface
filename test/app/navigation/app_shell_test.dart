@@ -136,9 +136,9 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-    expect(adPrivacyService.gatherCallCount, 1);
-    expect(trackingService.fetchCallCount, greaterThanOrEqualTo(2));
-    expect(trackingService.requestCallCount, 1);
+      expect(adPrivacyService.gatherCallCount, 1);
+      expect(trackingService.fetchCallCount, greaterThanOrEqualTo(2));
+      expect(trackingService.requestCallCount, 1);
     },
   );
 
@@ -200,6 +200,66 @@ void main() {
 
     expect(adPrivacyService.gatherCallCount, 1);
     expect(trackingService.fetchCallCount, greaterThanOrEqualTo(1));
+    expect(trackingService.requestCallCount, 0);
+  });
+
+  testWidgets('does not request ATT when UMP disallows ads', (
+    WidgetTester tester,
+  ) async {
+    final _FakeAdPrivacyConsentService adPrivacyService =
+        _FakeAdPrivacyConsentService(
+          gatherResult: const AdPrivacyConsentInfo(
+            consentStatus: AdPrivacyConsentStatus.required,
+            canRequestAds: false,
+            privacyOptionsStatus: AdPrivacyOptionsStatus.required,
+            isConsentFormAvailable: true,
+          ),
+        );
+    final _FakeTrackingTransparencyService trackingService =
+        _FakeTrackingTransparencyService(
+          fetchResult: const TrackingTransparencyInfo(
+            status: TrackingTransparencyStatus.notDetermined,
+          ),
+          requestResult: const TrackingTransparencyInfo(
+            status: TrackingTransparencyStatus.authorized,
+            idfa: 'ABC',
+          ),
+        );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+          reviewRepositoryProvider.overrideWithValue(_EmptyReviewRepository()),
+          rankingRepositoryProvider.overrideWithValue(_FakeRankingRepository()),
+          userProfileRepositoryProvider.overrideWithValue(
+            _FakeUserProfileRepository(),
+          ),
+          adPrivacyConsentServiceProvider.overrideWithValue(adPrivacyService),
+          trackingTransparencyServiceProvider.overrideWithValue(
+            trackingService,
+          ),
+          trackingTransparencySupportedProvider.overrideWithValue(true),
+          authStateProvider.overrideWith(
+            (Ref ref) => Stream<AuthState>.value(
+              const AuthState(
+                uid: 'current-user',
+                providerIds: <String>['anonymous'],
+                providerLabel: '匿名ログイン',
+                isAnonymous: true,
+              ),
+            ),
+          ),
+        ],
+        child: const MaterialApp(home: AppShellScreen()),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+
+    expect(adPrivacyService.gatherCallCount, 1);
+    expect(trackingService.fetchCallCount, 0);
     expect(trackingService.requestCallCount, 0);
   });
 }

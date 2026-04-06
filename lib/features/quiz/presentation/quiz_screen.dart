@@ -447,9 +447,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return;
     }
 
+    final String message = switch (adResult.outcome) {
+      RewardedContinueAdOutcome.consentRequiredDenied =>
+        '広告利用の同意が必要です。設定から変更できます。',
+      _ => '広告視聴が完了しなかったため続行できません。',
+    };
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('広告視聴が完了しなかったため続行できません。')));
+    ).showSnackBar(SnackBar(content: Text(message)));
     await _showGameOverDialog(canContinue: true);
   }
 

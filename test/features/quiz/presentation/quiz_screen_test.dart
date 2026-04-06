@@ -539,6 +539,59 @@ void main() {
     }
   });
 
+  testWidgets('does not continue when ad consent is still required', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+        rewardedContinueAdServiceProvider.overrideWithValue(
+          _FakeRewardedContinueAdService(
+            () async => const RewardedContinueAdResult.denied(
+              RewardedContinueAdOutcome.consentRequiredDenied,
+            ),
+          ),
+        ),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await _triggerGameOver(tester, container, mode);
+
+      await tester.tap(find.text('広告を見て続行'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final QuizSessionState state = container.read(
+        quizSessionControllerProvider(mode),
+      );
+      expect(state.gameOver, isTrue);
+      expect(state.continuedByAd, isFalse);
+      expect(find.text('広告利用の同意が必要です。設定から変更できます。'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('game-over-dialog')),
+        findsOneWidget,
+      );
+    } finally {
+      container.dispose();
+    }
+  });
+
   testWidgets('replaces exit confirmation with game-over dialog on timeout', (
     WidgetTester tester,
   ) async {

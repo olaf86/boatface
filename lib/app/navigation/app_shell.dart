@@ -9,6 +9,7 @@ import '../../features/learn/presentation/learning_screen.dart';
 import '../../features/quiz/application/racer_master_sync_controller.dart';
 import '../../features/ranking/presentation/ranking_screen.dart';
 import '../../shared/privacy/ad_privacy_consent_controller.dart';
+import '../../shared/privacy/ad_privacy_consent_service.dart';
 import '../../shared/privacy/tracking_transparency_service.dart';
 import '../../shared/privacy/tracking_transparency_controller.dart';
 import 'app_route.dart';
@@ -70,14 +71,18 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
     if (!mounted) {
       return;
     }
+    AdPrivacyConsentInfo? consentInfo;
     try {
-      await ref
+      consentInfo = await ref
           .read(adPrivacyConsentControllerProvider.notifier)
           .gatherConsent();
     } catch (_) {
       // Privacy state remains available through the controller's error state.
     }
     if (!mounted) {
+      return;
+    }
+    if (consentInfo != null && !consentInfo.canRequestAds) {
       return;
     }
 

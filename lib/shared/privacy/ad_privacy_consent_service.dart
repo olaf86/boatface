@@ -39,6 +39,9 @@ class AdPrivacyConsentInfo {
   bool get privacyOptionsRequired =>
       privacyOptionsStatus == AdPrivacyOptionsStatus.required;
 
+  bool get requiresConsentForAds =>
+      consentStatus == AdPrivacyConsentStatus.required && !canRequestAds;
+
   String get consentStatusLabel => switch (consentStatus) {
     AdPrivacyConsentStatus.notRequired => '不要',
     AdPrivacyConsentStatus.required => '確認が必要',
