@@ -6,6 +6,7 @@ import '../../../shared/environment/app_environment.dart';
 import '../../../shared/format/date_time_formatters.dart';
 import '../../../shared/privacy/ad_privacy_consent_controller.dart';
 import '../../../shared/privacy/ad_privacy_consent_service.dart';
+import '../../../shared/privacy/privacy_preferences_controller.dart';
 import '../../../shared/privacy/tracking_transparency_controller.dart';
 import '../../../shared/privacy/tracking_transparency_service.dart';
 import '../../auth/application/auth_controller.dart';
@@ -340,7 +341,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Text('広告とプライバシー', style: theme.textTheme.titleLarge),
               const SizedBox(height: 8),
               Text(
-                '広告同意状態の取得に失敗しました。',
+                '広告の同意状態の取得に失敗しました。',
                 style: TextStyle(color: theme.colorScheme.error),
               ),
               const SizedBox(height: 8),
@@ -368,7 +369,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Text('広告とプライバシー', style: theme.textTheme.titleLarge),
               const SizedBox(height: 8),
               Text(
-                'ATT 状態の取得に失敗しました。',
+                'トラッキング許可の状態取得に失敗しました。',
                 style: TextStyle(color: theme.colorScheme.error),
               ),
               const SizedBox(height: 8),
@@ -412,18 +413,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 8),
             Text(
               appEnvironment.isProduction
-                  ? '広告表示に関する同意状態とトラッキング許可の状態を確認できます。必要に応じて、プライバシー設定や設定アプリから見直せます。'
-                  : 'テスト広告の検証に使うプライバシー状態を確認できます。iPhone 実機では ATT 状態と IDFA の取得もここから確認できます。',
+                  ? '広告の利用同意やトラッキング許可の状態を確認できます。必要に応じて、広告の設定や設定アプリから見直せます。'
+                  : '広告の利用同意やトラッキング許可の状態を確認できます。iPhone 実機では IDFA の確認もできます。',
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
-            _InfoRow(label: '広告同意', value: adPrivacyInfo.consentStatusLabel),
+            _InfoRow(label: '広告の同意', value: adPrivacyInfo.consentStatusLabel),
             _InfoRow(
-              label: 'プライバシー設定',
+              label: '広告設定の見直し',
               value: adPrivacyInfo.privacyOptionsStatusLabel,
             ),
             _InfoRow(
-              label: '広告リクエスト',
+              label: '広告を表示できる状態',
               value: adPrivacyInfo.canRequestAds ? '可能' : '未許可',
             ),
             _InfoRow(label: 'トラッキング許可', value: trackingInfo.statusLabel),
@@ -440,7 +441,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ? () => _requestTrackingTransparency(ref)
                       : null,
                   child: Text(
-                    trackingInfo.canRequestAuthorization ? '許可を確認' : '確認済み',
+                    trackingInfo.canRequestAuthorization
+                        ? 'トラッキング許可を確認'
+                        : '確認済み',
                   ),
                 ),
                 OutlinedButton(
@@ -450,7 +453,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 if (adPrivacyInfo.privacyOptionsRequired)
                   OutlinedButton(
                     onPressed: isBusy ? null : () => _showPrivacyOptions(ref),
-                    child: const Text('プライバシー設定を見直す'),
+                    child: const Text('広告の設定を見直す'),
                   ),
                 if (appEnvironment.isStaging && trackingInfo.hasIdfa)
                   OutlinedButton(
@@ -504,8 +507,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _reloadPrivacyState(WidgetRef ref) async {
     try {
-      await ref.read(adPrivacyConsentControllerProvider.notifier).refresh();
-      await ref.read(trackingTransparencyControllerProvider.notifier).refresh();
+      await ref
+          .read(privacyPreferencesControllerProvider)
+          .refreshPrivacyState();
     } catch (_) {
       // Error state is reflected by the provider.
     }
@@ -514,8 +518,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _requestTrackingTransparency(WidgetRef ref) async {
     try {
       final TrackingTransparencyInfo info = await ref
-          .read(trackingTransparencyControllerProvider.notifier)
-          .requestAuthorization();
+          .read(privacyPreferencesControllerProvider)
+          .requestTrackingAuthorization();
       if (!mounted) {
         return;
       }
@@ -537,17 +541,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _openTrackingSettings(WidgetRef ref) async {
-    await ref
-        .read(trackingTransparencyControllerProvider.notifier)
-        .openSettings();
+    await ref.read(privacyPreferencesControllerProvider).openTrackingSettings();
   }
 
   Future<void> _showPrivacyOptions(WidgetRef ref) async {
     try {
       final AdPrivacyConsentInfo info = await ref
-          .read(adPrivacyConsentControllerProvider.notifier)
-          .showPrivacyOptionsForm();
-      await ref.read(trackingTransparencyControllerProvider.notifier).refresh();
+          .read(privacyPreferencesControllerProvider)
+          .showPrivacyOptions();
       if (!mounted) {
         return;
       }

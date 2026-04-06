@@ -42,7 +42,7 @@ void main() {
     expect(find.text('IDFA'), findsOneWidget);
     expect(find.text('ABC-123'), findsOneWidget);
     expect(find.text('IDFA をコピー'), findsOneWidget);
-    expect(find.text('プライバシー設定を見直す'), findsOneWidget);
+    expect(find.text('広告の設定を見直す'), findsOneWidget);
   });
 
   testWidgets('hides IDFA controls in production', (WidgetTester tester) async {
@@ -72,8 +72,8 @@ void main() {
     expect(find.text('ABC-123'), findsNothing);
     expect(find.text('IDFA をコピー'), findsNothing);
     expect(find.text('トラッキング許可'), findsOneWidget);
-    expect(find.text('広告同意'), findsOneWidget);
-    expect(find.text('プライバシー設定を見直す'), findsNothing);
+    expect(find.text('広告の同意'), findsOneWidget);
+    expect(find.text('広告の設定を見直す'), findsNothing);
   });
 }
 
