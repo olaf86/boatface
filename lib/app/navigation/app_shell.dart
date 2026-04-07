@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +8,7 @@ import '../../features/home/presentation/settings_screen.dart';
 import '../../features/learn/presentation/learning_screen.dart';
 import '../../features/quiz/application/racer_master_sync_controller.dart';
 import '../../features/ranking/presentation/ranking_screen.dart';
+import '../../shared/privacy/privacy_preferences_controller.dart';
 import 'app_route.dart';
 
 enum AppShellTab { learning, home, ranking }
@@ -57,6 +60,11 @@ class _AppShellScreenState extends ConsumerState<AppShellScreen> {
       ref
           .read(racerMasterSyncControllerProvider.notifier)
           .startBackgroundSyncIfNeeded();
+      unawaited(
+        ref
+            .read(privacyPreferencesControllerProvider)
+            .preparePrivacyMessagingOnAppStart(),
+      );
     });
   }
 

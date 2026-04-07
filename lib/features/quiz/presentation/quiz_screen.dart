@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show lerpDouble;
 import 'dart:io';
 
@@ -45,6 +46,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   bool _didPop = false;
   bool _dialogVisible = false;
   bool _sessionExpiryDialogVisible = false;
+  BuildContext? _activeDialogContext;
   late bool _isIntroCountdownActive;
   late final AnimationController _backgroundFlowController;
   QuizAnswerFeedback? _activeFeedback;
@@ -105,9 +107,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
     if (!mounted || _didPop || _sessionExpiryDialogVisible) {
       return;
     }
+    _dismissActiveDialogIfNeeded();
     _sessionExpiryDialogVisible = true;
-    await showDialog<void>(
-      context: context,
+    await _showManagedDialog<void>(
       barrierDismissible: false,
       builder: (BuildContext context) => AlertDialog(
         title: const Text('セッション期限切れ'),
@@ -175,7 +177,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       }
 
       if (next.gameOver && !(previous?.gameOver ?? false) && !_dialogVisible) {
-        _showGameOverDialog(canContinue: next.canContinueWithAd);
+        unawaited(
+          _replaceActiveDialogWithGameOver(canContinue: next.canContinueWithAd),
+        );
         return;
       }
 
@@ -216,6 +220,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       remaining: remainingForDisplay,
       totalSeconds: widget.mode.timeLimitSeconds,
     );
+    final bool showEmergencyBorder = _shouldShowEmergencyBorder(
+      remaining: remainingForDisplay,
+      isTimedMode: isTimedMode,
+      isTimeFrozen: state.timeFreezeActive,
+      isInteractionLocked:
+          activeFeedback != null ||
+          state.isProcessing ||
+          state.gameOver ||
+          state.isCompleted,
+    );
     final List<Color> backgroundColors = _quizBackgroundGradient(
       modeId: widget.mode.id,
       remainingRatio: remainingRatio,
@@ -229,8 +243,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
         if (didPop) {
           return;
         }
-        final bool? leave = await showDialog<bool>(
-          context: context,
+        final bool? leave = await _showManagedDialog<bool>(
           builder: (BuildContext context) => AlertDialog(
             title: const Text('クイズを終了'),
             content: const Text('途中離脱としてスコアはランキングに反映されません。終了しますか？'),
@@ -344,6 +357,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                 },
               ),
             ),
+            if (showEmergencyBorder)
+              const Positioned.fill(child: _QuizEmergencyBorderOverlay()),
             if (_rewardedContinueInProgress)
               const Positioned.fill(child: _RewardedContinueLoadingOverlay()),
           ],
@@ -355,8 +370,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   Future<void> _showGameOverDialog({required bool canContinue}) async {
     _dialogVisible = true;
     final _GameOverDialogAction? action =
-        await showDialog<_GameOverDialogAction>(
-          context: context,
+        await _showManagedDialog<_GameOverDialogAction>(
           barrierDismissible: false,
           builder: (BuildContext context) => AlertDialog(
             key: const ValueKey<String>('game-over-dialog'),
@@ -433,10 +447,51 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
       return;
     }
 
+    final String message = switch (adResult.outcome) {
+      RewardedContinueAdOutcome.consentRequiredDenied =>
+        '広告利用の同意が必要です。設定から変更できます。',
+      _ => '広告視聴が完了しなかったため続行できません。',
+    };
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('広告視聴が完了しなかったため続行できません。')));
+    ).showSnackBar(SnackBar(content: Text(message)));
     await _showGameOverDialog(canContinue: true);
+  }
+
+  Future<T?> _showManagedDialog<T>({
+    required WidgetBuilder builder,
+    bool barrierDismissible = true,
+  }) async {
+    final T? result = await showDialog<T>(
+      context: context,
+      barrierDismissible: barrierDismissible,
+      builder: (BuildContext dialogContext) {
+        _activeDialogContext = dialogContext;
+        return builder(dialogContext);
+      },
+    );
+    _activeDialogContext = null;
+    return result;
+  }
+
+  void _dismissActiveDialogIfNeeded() {
+    final BuildContext? dialogContext = _activeDialogContext;
+    if (dialogContext == null) {
+      return;
+    }
+    Navigator.of(dialogContext).pop();
+    _activeDialogContext = null;
+  }
+
+  Future<void> _replaceActiveDialogWithGameOver({
+    required bool canContinue,
+  }) async {
+    _dismissActiveDialogIfNeeded();
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted || _didPop) {
+      return;
+    }
+    await _showGameOverDialog(canContinue: canContinue);
   }
 
   void _goToResult() {
@@ -504,6 +559,23 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
   }
 }
 
+bool _shouldShowEmergencyBorder({
+  required Duration? remaining,
+  required bool isTimedMode,
+  required bool isTimeFrozen,
+  required bool isInteractionLocked,
+}) {
+  if (!isTimedMode ||
+      isTimeFrozen ||
+      isInteractionLocked ||
+      remaining == null ||
+      remaining <= Duration.zero) {
+    return false;
+  }
+
+  return remaining <= const Duration(seconds: 3);
+}
+
 class _QuizPromptCard extends StatelessWidget {
   const _QuizPromptCard({
     required this.question,
@@ -552,6 +624,71 @@ class _QuizPromptCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _QuizEmergencyBorderOverlay extends StatefulWidget {
+  const _QuizEmergencyBorderOverlay();
+
+  @override
+  State<_QuizEmergencyBorderOverlay> createState() =>
+      _QuizEmergencyBorderOverlayState();
+}
+
+class _QuizEmergencyBorderOverlayState
+    extends State<_QuizEmergencyBorderOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (BuildContext context, Widget? child) {
+          final double intensity = _emergencyBorderIntensity(_controller.value);
+          final double borderWidth = lerpDouble(4, 14, intensity) ?? 10;
+          final double cornerRadius = lerpDouble(24, 40, intensity) ?? 32;
+          final Color borderColor = Color.lerp(
+            const Color(0xFFFFB3B3),
+            const Color(0xFFFF2D2D),
+            intensity,
+          )!;
+
+          return DecoratedBox(
+            key: const ValueKey<String>('quiz-emergency-border'),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(cornerRadius),
+              border: Border.all(
+                color: borderColor.withValues(alpha: 0.95 * intensity),
+                width: borderWidth,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  double _emergencyBorderIntensity(double progress) {
+    final double clampedProgress = progress.clamp(0.0, 1.0);
+    return lerpDouble(0.18, 1.0, Curves.easeInOut.transform(clampedProgress)) ??
+        1.0;
   }
 }
 
