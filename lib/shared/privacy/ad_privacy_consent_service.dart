@@ -4,9 +4,19 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import '../environment/app_environment.dart';
+
 final Provider<AdPrivacyConsentService> adPrivacyConsentServiceProvider =
     Provider<AdPrivacyConsentService>((Ref ref) {
-      return PlatformAdPrivacyConsentService();
+      final AppEnvironment environment = ref.read(appEnvironmentProvider);
+      return PlatformAdPrivacyConsentService(
+        umpDebugGeography: environment.isStaging
+            ? environment.umpDebugGeography
+            : UmpDebugGeography.disabled,
+        umpTestDeviceIds: environment.isStaging
+            ? environment.umpTestDeviceIds
+            : const <String>[],
+      );
     });
 
 enum AdPrivacyConsentStatus { unknown, notRequired, required, obtained }
@@ -80,10 +90,22 @@ abstract class AdPrivacyConsentService {
 }
 
 class PlatformAdPrivacyConsentService implements AdPrivacyConsentService {
-  PlatformAdPrivacyConsentService({ConsentInformation? consentInformation})
-    : _consentInformation = consentInformation ?? ConsentInformation.instance;
+  PlatformAdPrivacyConsentService({
+    ConsentInformation? consentInformation,
+    this.umpDebugGeography = UmpDebugGeography.disabled,
+    this.umpTestDeviceIds = const <String>[],
+    bool? supportsPrivacyMessagingOverride,
+    Future<String?> Function()? loadAndShowConsentFormIfRequiredOverride,
+  }) : _consentInformation = consentInformation ?? ConsentInformation.instance,
+       _supportsPrivacyMessagingOverride = supportsPrivacyMessagingOverride,
+       _loadAndShowConsentFormIfRequiredOverride =
+           loadAndShowConsentFormIfRequiredOverride;
 
   final ConsentInformation _consentInformation;
+  final UmpDebugGeography umpDebugGeography;
+  final List<String> umpTestDeviceIds;
+  final bool? _supportsPrivacyMessagingOverride;
+  final Future<String?> Function()? _loadAndShowConsentFormIfRequiredOverride;
 
   @override
   Future<AdPrivacyConsentInfo> fetchInfo() async {
@@ -145,7 +167,9 @@ class PlatformAdPrivacyConsentService implements AdPrivacyConsentService {
   Future<void> _requestConsentInfoUpdate() {
     final Completer<void> completer = Completer<void>();
     _consentInformation.requestConsentInfoUpdate(
-      ConsentRequestParameters(),
+      ConsentRequestParameters(
+        consentDebugSettings: _buildConsentDebugSettings(),
+      ),
       () {
         if (!completer.isCompleted) {
           completer.complete();
@@ -160,7 +184,26 @@ class PlatformAdPrivacyConsentService implements AdPrivacyConsentService {
     return completer.future;
   }
 
+  ConsentDebugSettings? _buildConsentDebugSettings() {
+    final DebugGeography debugGeography = _mapDebugGeography(
+      umpDebugGeography,
+    );
+    if (debugGeography == DebugGeography.debugGeographyDisabled &&
+        umpTestDeviceIds.isEmpty) {
+      return null;
+    }
+    return ConsentDebugSettings(
+      debugGeography: debugGeography,
+      testIdentifiers: umpTestDeviceIds.isEmpty ? null : umpTestDeviceIds,
+    );
+  }
+
   Future<String?> _loadAndShowConsentFormIfRequired() {
+    final Future<String?> Function()? override =
+        _loadAndShowConsentFormIfRequiredOverride;
+    if (override != null) {
+      return override();
+    }
     final Completer<String?> completer = Completer<String?>();
     ConsentForm.loadAndShowConsentFormIfRequired((FormError? formError) {
       if (!completer.isCompleted) {
@@ -170,7 +213,8 @@ class PlatformAdPrivacyConsentService implements AdPrivacyConsentService {
     return completer.future;
   }
 
-  bool get _supportsPrivacyMessaging => Platform.isAndroid || Platform.isIOS;
+  bool get _supportsPrivacyMessaging =>
+      _supportsPrivacyMessagingOverride ?? (Platform.isAndroid || Platform.isIOS);
 
   AdPrivacyConsentStatus _mapConsentStatus(ConsentStatus status) {
     return switch (status) {
@@ -190,6 +234,16 @@ class PlatformAdPrivacyConsentService implements AdPrivacyConsentService {
       PrivacyOptionsRequirementStatus.notRequired =>
         AdPrivacyOptionsStatus.notRequired,
       PrivacyOptionsRequirementStatus.unknown => AdPrivacyOptionsStatus.unknown,
+    };
+  }
+
+  DebugGeography _mapDebugGeography(UmpDebugGeography geography) {
+    return switch (geography) {
+      UmpDebugGeography.eea => DebugGeography.debugGeographyEea,
+      UmpDebugGeography.regulatedUsState =>
+        DebugGeography.debugGeographyRegulatedUsState,
+      UmpDebugGeography.other => DebugGeography.debugGeographyOther,
+      UmpDebugGeography.disabled => DebugGeography.debugGeographyDisabled,
     };
   }
 }

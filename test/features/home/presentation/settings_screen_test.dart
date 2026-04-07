@@ -45,6 +45,37 @@ void main() {
     expect(find.text('広告の設定を見直す'), findsOneWidget);
   });
 
+  testWidgets('shows UMP debug geography in staging when configured', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      _buildSettingsScreen(
+        appEnvironment: const AppEnvironment(
+          isProduction: false,
+          umpDebugGeography: UmpDebugGeography.eea,
+        ),
+        adPrivacyService: _FakeAdPrivacyConsentService(
+          const AdPrivacyConsentInfo(
+            consentStatus: AdPrivacyConsentStatus.obtained,
+            canRequestAds: true,
+            privacyOptionsStatus: AdPrivacyOptionsStatus.required,
+            isConsentFormAvailable: true,
+          ),
+        ),
+        trackingService: _FakeTrackingTransparencyService(
+          const TrackingTransparencyInfo(
+            status: TrackingTransparencyStatus.authorized,
+            idfa: 'ABC-123',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('UMP デバッグ地域'), findsOneWidget);
+    expect(find.text('EEA'), findsOneWidget);
+  });
+
   testWidgets('hides IDFA controls in production', (WidgetTester tester) async {
     await tester.pumpWidget(
       _buildSettingsScreen(

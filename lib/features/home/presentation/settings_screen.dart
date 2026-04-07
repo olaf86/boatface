@@ -417,6 +417,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   : '広告の利用同意やトラッキング許可の状態を確認できます。iPhone 実機では IDFA の確認もできます。',
               style: theme.textTheme.bodyMedium,
             ),
+            if (appEnvironment.usesUmpDebugSettings) ...<Widget>[
+              const SizedBox(height: 12),
+              _InfoRow(
+                label: 'UMP デバッグ地域',
+                value: switch (appEnvironment.umpDebugGeography) {
+                  UmpDebugGeography.eea => 'EEA',
+                  UmpDebugGeography.regulatedUsState => '規制対象の米国州',
+                  UmpDebugGeography.other => 'その他地域',
+                  UmpDebugGeography.disabled => '未設定',
+                },
+              ),
+            ],
             const SizedBox(height: 16),
             _InfoRow(label: '広告の同意', value: adPrivacyInfo.consentStatusLabel),
             _InfoRow(
