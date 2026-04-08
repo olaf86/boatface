@@ -1,9 +1,9 @@
 import 'quiz_models.dart';
 
 const int kMasterQuestionCount = 4096;
-const List<QuizQuestionFlowStep> kCarefulFlowSteps = <QuizQuestionFlowStep>[
+const List<QuizQuestionFlowStep> kCarefulA1FlowSteps = <QuizQuestionFlowStep>[
   QuizQuestionFlowStep(
-    weight: 50,
+    weight: 100,
     targetCondition: QuizRacerCondition(racerClasses: <String>['A1']),
     optionCondition: QuizRacerCondition(
       racerClasses: <String>['A1'],
@@ -11,8 +11,11 @@ const List<QuizQuestionFlowStep> kCarefulFlowSteps = <QuizQuestionFlowStep>[
       sameGenderAsTarget: true,
     ),
   ),
+];
+
+const List<QuizQuestionFlowStep> kCarefulA2FlowSteps = <QuizQuestionFlowStep>[
   QuizQuestionFlowStep(
-    weight: 30,
+    weight: 100,
     targetCondition: QuizRacerCondition(racerClasses: <String>['A2']),
     optionCondition: QuizRacerCondition(
       racerClasses: <String>['A2'],
@@ -20,14 +23,14 @@ const List<QuizQuestionFlowStep> kCarefulFlowSteps = <QuizQuestionFlowStep>[
       sameGenderAsTarget: true,
     ),
   ),
+];
+
+const List<QuizQuestionFlowStep> kCarefulBFlowSteps = <QuizQuestionFlowStep>[
   QuizQuestionFlowStep(
-    weight: 20,
-    targetCondition: QuizRacerCondition(
-      racerClasses: <String>['A2', 'B1', 'B2'],
-    ),
+    weight: 100,
+    targetCondition: QuizRacerCondition(racerClasses: <String>['B1', 'B2']),
     optionCondition: QuizRacerCondition(
-      racerClasses: <String>['A2', 'B1', 'B2'],
-      sameRacerClassAsTarget: true,
+      racerClasses: <String>['B1', 'B2'],
       sameGenderAsTarget: true,
     ),
   ),
@@ -61,6 +64,39 @@ const List<QuizQuestionFlowStep> kChallengeFlowSteps = <QuizQuestionFlowStep>[
       sameRacerClassAsTarget: true,
       sameGenderAsTarget: true,
     ),
+  ),
+];
+
+const List<QuizSegment> kCarefulSegments = <QuizSegment>[
+  QuizSegment(
+    promptType: QuizPromptType.faceToName,
+    count: 5,
+    flowSteps: kCarefulA1FlowSteps,
+  ),
+  QuizSegment(
+    promptType: QuizPromptType.nameToFace,
+    count: 5,
+    flowSteps: kCarefulA1FlowSteps,
+  ),
+  QuizSegment(
+    promptType: QuizPromptType.faceToName,
+    count: 5,
+    flowSteps: kCarefulA2FlowSteps,
+  ),
+  QuizSegment(
+    promptType: QuizPromptType.nameToFace,
+    count: 5,
+    flowSteps: kCarefulA2FlowSteps,
+  ),
+  QuizSegment(
+    promptType: QuizPromptType.faceToName,
+    count: 5,
+    flowSteps: kCarefulBFlowSteps,
+  ),
+  QuizSegment(
+    promptType: QuizPromptType.nameToFace,
+    count: 5,
+    flowSteps: kCarefulBFlowSteps,
   ),
 ];
 
@@ -119,20 +155,9 @@ const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[
   QuizModeConfig(
     id: 'careful',
     label: 'じっくり',
-    description: '30問・前半20問は顔 → 選手名、後半10問は選手名 → 顔',
+    description: '30問・5問ずつ顔 → 選手名と選手名 → 顔が交互',
     timeLimitSeconds: null,
-    segments: <QuizSegment>[
-      QuizSegment(
-        promptType: QuizPromptType.faceToName,
-        count: 20,
-        flowSteps: kCarefulFlowSteps,
-      ),
-      QuizSegment(
-        promptType: QuizPromptType.nameToFace,
-        count: 10,
-        flowSteps: kCarefulFlowSteps,
-      ),
-    ],
+    segments: kCarefulSegments,
   ),
   QuizModeConfig(
     id: 'challenge',
