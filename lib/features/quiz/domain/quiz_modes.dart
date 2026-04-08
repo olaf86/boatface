@@ -64,6 +64,39 @@ const List<QuizQuestionFlowStep> kChallengeFlowSteps = <QuizQuestionFlowStep>[
   ),
 ];
 
+const List<QuizSegment> kCarefulSegments = <QuizSegment>[
+  QuizSegment(
+    promptType: QuizPromptType.faceToName,
+    count: 5,
+    flowSteps: kCarefulFlowSteps,
+  ),
+  QuizSegment(
+    promptType: QuizPromptType.nameToFace,
+    count: 5,
+    flowSteps: kCarefulFlowSteps,
+  ),
+  QuizSegment(
+    promptType: QuizPromptType.faceToName,
+    count: 5,
+    flowSteps: kCarefulFlowSteps,
+  ),
+  QuizSegment(
+    promptType: QuizPromptType.nameToFace,
+    count: 5,
+    flowSteps: kCarefulFlowSteps,
+  ),
+  QuizSegment(
+    promptType: QuizPromptType.faceToName,
+    count: 5,
+    flowSteps: kCarefulFlowSteps,
+  ),
+  QuizSegment(
+    promptType: QuizPromptType.nameToFace,
+    count: 5,
+    flowSteps: kCarefulFlowSteps,
+  ),
+];
+
 const List<QuizSegment> kChallengeSegments = <QuizSegment>[
   QuizSegment(
     promptType: QuizPromptType.faceToName,
@@ -119,20 +152,9 @@ const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[
   QuizModeConfig(
     id: 'careful',
     label: 'じっくり',
-    description: '30問・前半20問は顔 → 選手名、後半10問は選手名 → 顔',
+    description: '30問・5問ずつ顔 → 選手名と選手名 → 顔が交互',
     timeLimitSeconds: null,
-    segments: <QuizSegment>[
-      QuizSegment(
-        promptType: QuizPromptType.faceToName,
-        count: 20,
-        flowSteps: kCarefulFlowSteps,
-      ),
-      QuizSegment(
-        promptType: QuizPromptType.nameToFace,
-        count: 10,
-        flowSteps: kCarefulFlowSteps,
-      ),
-    ],
+    segments: kCarefulSegments,
   ),
   QuizModeConfig(
     id: 'challenge',

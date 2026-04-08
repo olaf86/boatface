@@ -13,6 +13,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('aggregates repeated prompt types for careful mode', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig carefulMode = kQuizModes.firstWhere(
+      (QuizModeConfig mode) => mode.id == 'careful',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          racerRepositoryProvider.overrideWithValue(_FakeRacerRepository()),
+          quizBackendRepositoryProvider.overrideWithValue(
+            _FakeQuizBackendRepository(),
+          ),
+        ],
+        child: MaterialApp(home: QuizRuleScreen(baseMode: carefulMode)),
+      ),
+    );
+
+    await tester.pump();
+
+    expect(find.text('30 問'), findsOneWidget);
+    expect(find.text('15 問'), findsNWidgets(2));
+  });
+
   testWidgets('keeps start button loading while route transition begins', (
     WidgetTester tester,
   ) async {
