@@ -25,7 +25,7 @@ class RacerNameText extends StatelessWidget {
     final TextStyle effectiveKanaStyle =
         kanaStyle ??
         textTheme.labelMedium!.copyWith(
-          fontSize: (effectiveStyle.fontSize ?? 16) * 0.37,
+          fontSize: (effectiveStyle.fontSize ?? 16) * 0.32,
           height: 0.72,
           color: effectiveStyle.color?.withValues(alpha: 0.9),
         );

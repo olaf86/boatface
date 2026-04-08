@@ -154,7 +154,7 @@ void main() {
       final QuizQuestion question = session.currentQuestion!;
       final QuizOption target = question.options[question.correctIndex];
 
-      expect(question.prompt, contains(target.label));
+      expect(question.prompt, 'の顔はどれ？');
       expect(target.labelReading, isNotNull);
     });
 

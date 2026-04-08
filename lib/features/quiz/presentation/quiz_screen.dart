@@ -855,8 +855,11 @@ class _NameToFacePrompt extends StatelessWidget {
           name: target.label,
           nameKana: target.labelReading,
           style: textTheme.headlineSmall,
-          kanaStyle: textTheme.titleSmall?.copyWith(
+          kanaStyle: textTheme.labelMedium?.copyWith(
+            fontSize: (textTheme.headlineSmall?.fontSize ?? 24) * 0.28,
             color: textTheme.headlineSmall?.color?.withValues(alpha: 0.78),
+            fontWeight: FontWeight.w700,
+            height: 0.72,
           ),
         ),
         const SizedBox(height: 6),
