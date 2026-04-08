@@ -196,7 +196,7 @@ void main() {
       },
     );
 
-    test('alternates careful mode in five-question windows', () {
+    test('alternates careful mode with segment-based difficulty ramps', () {
       final QuizModeConfig carefulMode = kQuizModes.firstWhere(
         (QuizModeConfig mode) => mode.id == 'careful',
       );
@@ -217,132 +217,66 @@ void main() {
         QuizPromptType.faceToName,
       );
       _expectQuestionWindow(
-        questions.sublist(0, 3),
+        questions.sublist(0, 5),
         racerById,
         allowedTargetClasses: <String>['A1'],
         allowedOptionClasses: <String>['A1'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(3, 4),
-        racerById,
-        allowedTargetClasses: <String>['A2'],
-        allowedOptionClasses: <String>['A2'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(4, 5),
-        racerById,
-        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
-        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
       );
       _expectPromptTypeWindow(
         questions.sublist(5, 10),
         QuizPromptType.nameToFace,
       );
       _expectQuestionWindow(
-        questions.sublist(5, 8),
+        questions.sublist(5, 10),
         racerById,
         allowedTargetClasses: <String>['A1'],
         allowedOptionClasses: <String>['A1'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(8, 9),
-        racerById,
-        allowedTargetClasses: <String>['A2'],
-        allowedOptionClasses: <String>['A2'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(9, 10),
-        racerById,
-        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
-        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
       );
       _expectPromptTypeWindow(
         questions.sublist(10, 15),
         QuizPromptType.faceToName,
       );
       _expectQuestionWindow(
-        questions.sublist(10, 13),
-        racerById,
-        allowedTargetClasses: <String>['A1'],
-        allowedOptionClasses: <String>['A1'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(13, 14),
+        questions.sublist(10, 15),
         racerById,
         allowedTargetClasses: <String>['A2'],
         allowedOptionClasses: <String>['A2'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(14, 15),
-        racerById,
-        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
-        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
       );
       _expectPromptTypeWindow(
         questions.sublist(15, 20),
         QuizPromptType.nameToFace,
       );
       _expectQuestionWindow(
-        questions.sublist(15, 18),
-        racerById,
-        allowedTargetClasses: <String>['A1'],
-        allowedOptionClasses: <String>['A1'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(18, 19),
+        questions.sublist(15, 20),
         racerById,
         allowedTargetClasses: <String>['A2'],
         allowedOptionClasses: <String>['A2'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(19, 20),
-        racerById,
-        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
-        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
       );
       _expectPromptTypeWindow(
         questions.sublist(20, 25),
         QuizPromptType.faceToName,
       );
       _expectQuestionWindow(
-        questions.sublist(20, 23),
-        racerById,
-        allowedTargetClasses: <String>['A1'],
-        allowedOptionClasses: <String>['A1'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(23, 24),
-        racerById,
-        allowedTargetClasses: <String>['A2'],
-        allowedOptionClasses: <String>['A2'],
-      );
-      _expectQuestionWindow(
         questions.sublist(24, 25),
         racerById,
-        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
-        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
+        allowedTargetClasses: <String>['B1', 'B2'],
+        allowedOptionClasses: <String>['B1', 'B2'],
+      );
+      _expectQuestionWindow(
+        questions.sublist(20, 24),
+        racerById,
+        allowedTargetClasses: <String>['B1', 'B2'],
+        allowedOptionClasses: <String>['B1', 'B2'],
       );
       _expectPromptTypeWindow(
         questions.sublist(25, 30),
         QuizPromptType.nameToFace,
       );
       _expectQuestionWindow(
-        questions.sublist(25, 28),
+        questions.sublist(25, 30),
         racerById,
-        allowedTargetClasses: <String>['A1'],
-        allowedOptionClasses: <String>['A1'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(28, 29),
-        racerById,
-        allowedTargetClasses: <String>['A2'],
-        allowedOptionClasses: <String>['A2'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(29, 30),
-        racerById,
-        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
-        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
+        allowedTargetClasses: <String>['B1', 'B2'],
+        allowedOptionClasses: <String>['B1', 'B2'],
       );
     });
 

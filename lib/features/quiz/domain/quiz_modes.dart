@@ -1,9 +1,9 @@
 import 'quiz_models.dart';
 
 const int kMasterQuestionCount = 4096;
-const List<QuizQuestionFlowStep> kCarefulFlowSteps = <QuizQuestionFlowStep>[
+const List<QuizQuestionFlowStep> kCarefulA1FlowSteps = <QuizQuestionFlowStep>[
   QuizQuestionFlowStep(
-    weight: 50,
+    weight: 100,
     targetCondition: QuizRacerCondition(racerClasses: <String>['A1']),
     optionCondition: QuizRacerCondition(
       racerClasses: <String>['A1'],
@@ -11,8 +11,11 @@ const List<QuizQuestionFlowStep> kCarefulFlowSteps = <QuizQuestionFlowStep>[
       sameGenderAsTarget: true,
     ),
   ),
+];
+
+const List<QuizQuestionFlowStep> kCarefulA2FlowSteps = <QuizQuestionFlowStep>[
   QuizQuestionFlowStep(
-    weight: 30,
+    weight: 100,
     targetCondition: QuizRacerCondition(racerClasses: <String>['A2']),
     optionCondition: QuizRacerCondition(
       racerClasses: <String>['A2'],
@@ -20,14 +23,14 @@ const List<QuizQuestionFlowStep> kCarefulFlowSteps = <QuizQuestionFlowStep>[
       sameGenderAsTarget: true,
     ),
   ),
+];
+
+const List<QuizQuestionFlowStep> kCarefulBFlowSteps = <QuizQuestionFlowStep>[
   QuizQuestionFlowStep(
-    weight: 20,
-    targetCondition: QuizRacerCondition(
-      racerClasses: <String>['A2', 'B1', 'B2'],
-    ),
+    weight: 100,
+    targetCondition: QuizRacerCondition(racerClasses: <String>['B1', 'B2']),
     optionCondition: QuizRacerCondition(
-      racerClasses: <String>['A2', 'B1', 'B2'],
-      sameRacerClassAsTarget: true,
+      racerClasses: <String>['B1', 'B2'],
       sameGenderAsTarget: true,
     ),
   ),
@@ -68,32 +71,32 @@ const List<QuizSegment> kCarefulSegments = <QuizSegment>[
   QuizSegment(
     promptType: QuizPromptType.faceToName,
     count: 5,
-    flowSteps: kCarefulFlowSteps,
+    flowSteps: kCarefulA1FlowSteps,
   ),
   QuizSegment(
     promptType: QuizPromptType.nameToFace,
     count: 5,
-    flowSteps: kCarefulFlowSteps,
+    flowSteps: kCarefulA1FlowSteps,
   ),
   QuizSegment(
     promptType: QuizPromptType.faceToName,
     count: 5,
-    flowSteps: kCarefulFlowSteps,
+    flowSteps: kCarefulA2FlowSteps,
   ),
   QuizSegment(
     promptType: QuizPromptType.nameToFace,
     count: 5,
-    flowSteps: kCarefulFlowSteps,
+    flowSteps: kCarefulA2FlowSteps,
   ),
   QuizSegment(
     promptType: QuizPromptType.faceToName,
     count: 5,
-    flowSteps: kCarefulFlowSteps,
+    flowSteps: kCarefulBFlowSteps,
   ),
   QuizSegment(
     promptType: QuizPromptType.nameToFace,
     count: 5,
-    flowSteps: kCarefulFlowSteps,
+    flowSteps: kCarefulBFlowSteps,
   ),
 ];
 
