@@ -159,7 +159,7 @@ const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[
     description: '問題数と形式を自由設定',
     timeLimitSeconds: 10,
     segments: <QuizSegment>[
-      QuizSegment(promptType: QuizPromptType.faceToName, count: 20),
+      QuizSegment(promptType: QuizPromptType.faceToName, count: 0),
     ],
     availableInMvp: true,
   ),
