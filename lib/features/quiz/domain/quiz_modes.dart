@@ -96,7 +96,7 @@ const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[
   QuizModeConfig(
     id: 'quick',
     label: 'さくっと',
-    description: '10問・A1級限定の顔 -> 選手名',
+    description: '10問・A1級限定の顔 → 選手名',
     timeLimitSeconds: 10,
     segments: <QuizSegment>[
       QuizSegment(
@@ -119,7 +119,7 @@ const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[
   QuizModeConfig(
     id: 'careful',
     label: 'じっくり',
-    description: '30問・前半20問は顔 -> 選手名、後半10問は選手名 -> 顔',
+    description: '30問・前半20問は顔 → 選手名、後半10問は選手名 → 顔',
     timeLimitSeconds: null,
     segments: <QuizSegment>[
       QuizSegment(
@@ -144,7 +144,7 @@ const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[
   QuizModeConfig(
     id: 'master',
     label: '達人',
-    description: '最大4096問・全問 顔 -> 選手名',
+    description: '最大4096問・全問 顔 → 選手名',
     timeLimitSeconds: 10,
     segments: <QuizSegment>[
       QuizSegment(

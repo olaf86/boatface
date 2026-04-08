@@ -31,7 +31,7 @@ void main() {
     expect(find.text('正解レーサーかな'), findsOneWidget);
     expect(find.text('誤答レーサーかな'), findsOneWidget);
     expect(find.text('さくっと'), findsOneWidget);
-    expect(find.text('顔 -> 選手名'), findsOneWidget);
+    expect(find.text('顔 → 選手名'), findsOneWidget);
     expect(find.textContaining('生年月日'), findsNWidgets(2));
     expect(find.textContaining('出身'), findsNWidgets(2));
     expect(find.textContaining('支部'), findsNWidgets(2));

@@ -12,7 +12,7 @@ void main() {
       final QuizSession faceToName = QuizSessionFactory.create(
         mode: const QuizModeConfig(
           id: 'face-name',
-          label: '顔->名前',
+          label: '顔→名前',
           description: '',
           timeLimitSeconds: 10,
           segments: <QuizSegment>[
@@ -24,7 +24,7 @@ void main() {
       final QuizSession faceToRegistration = QuizSessionFactory.create(
         mode: const QuizModeConfig(
           id: 'face-registration',
-          label: '顔->登録番号',
+          label: '顔→登録番号',
           description: '',
           timeLimitSeconds: 10,
           segments: <QuizSegment>[
@@ -64,7 +64,7 @@ void main() {
       final QuizSession nameToFace = QuizSessionFactory.create(
         mode: const QuizModeConfig(
           id: 'name-face',
-          label: '名前->顔',
+          label: '名前→顔',
           description: '',
           timeLimitSeconds: 10,
           segments: <QuizSegment>[
@@ -76,7 +76,7 @@ void main() {
       final QuizSession registrationToFace = QuizSessionFactory.create(
         mode: const QuizModeConfig(
           id: 'registration-face',
-          label: '登録番号->顔',
+          label: '登録番号→顔',
           description: '',
           timeLimitSeconds: 10,
           segments: <QuizSegment>[
@@ -141,7 +141,7 @@ void main() {
       final QuizSession session = QuizSessionFactory.create(
         mode: const QuizModeConfig(
           id: 'name-face',
-          label: '名前->顔',
+          label: '名前→顔',
           description: '',
           timeLimitSeconds: 10,
           segments: <QuizSegment>[

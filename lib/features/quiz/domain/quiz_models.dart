@@ -506,14 +506,14 @@ class QuizResultSummary {
 String promptTypeLabel(QuizPromptType type) {
   switch (type) {
     case QuizPromptType.faceToName:
-      return '顔 -> 選手名';
+      return '顔 → 選手名';
     case QuizPromptType.nameToFace:
-      return '選手名 -> 顔';
+      return '選手名 → 顔';
     case QuizPromptType.partialFaceToName:
-      return '顔の一部 -> 選手名';
+      return '顔の一部 → 選手名';
     case QuizPromptType.registrationToFace:
-      return '登録番号 -> 顔';
+      return '登録番号 → 顔';
     case QuizPromptType.faceToRegistration:
-      return '顔 -> 登録番号';
+      return '顔 → 登録番号';
   }
 }
