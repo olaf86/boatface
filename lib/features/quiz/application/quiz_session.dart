@@ -655,6 +655,7 @@ class QuizSessionFactory {
         );
       case PartialFaceVariant.spotlights:
         return QuizSpotlightsVisualSpec(
+          maskPattern: _pickPartialFaceMaskPattern(random),
           spotlightCount: random.nextBool() ? 2 : 3,
           startRadiusFactor: 0.18 + (random.nextDouble() * 0.04),
           endRadiusFactor: 0.28 + (random.nextDouble() * 0.06),
@@ -672,6 +673,7 @@ class QuizSessionFactory {
           (int index) => index,
         )..shuffle(random);
         return QuizTileRevealVisualSpec(
+          maskPattern: _pickPartialFaceMaskPattern(random),
           tileRows: tileRows,
           tileColumns: tileColumns,
           revealOrder: List<int>.unmodifiable(revealOrder),
@@ -744,6 +746,12 @@ class QuizSessionFactory {
       }
     }
     return weights.last.variant;
+  }
+
+  static PartialFaceMaskPattern _pickPartialFaceMaskPattern(Random random) {
+    return PartialFaceMaskPattern.values[random.nextInt(
+      PartialFaceMaskPattern.values.length,
+    )];
   }
 
   static QuizOption _buildOption(QuizPromptType type, RacerProfile racer) {

@@ -340,6 +340,8 @@ class RacerProfile {
 
 enum PartialFaceVariant { zoomOutCenter, spotlights, tileReveal }
 
+enum PartialFaceMaskPattern { waveBands, contourLines, geometricGrid }
+
 sealed class QuizPromptVisualSpec {
   const QuizPromptVisualSpec();
 }
@@ -358,6 +360,7 @@ class QuizZoomOutCenterVisualSpec extends QuizPromptVisualSpec {
 
 class QuizSpotlightsVisualSpec extends QuizPromptVisualSpec {
   const QuizSpotlightsVisualSpec({
+    required this.maskPattern,
     required this.spotlightCount,
     required this.startRadiusFactor,
     required this.endRadiusFactor,
@@ -368,6 +371,7 @@ class QuizSpotlightsVisualSpec extends QuizPromptVisualSpec {
     required this.phaseOffsetTurns,
   });
 
+  final PartialFaceMaskPattern maskPattern;
   final int spotlightCount;
   final double startRadiusFactor;
   final double endRadiusFactor;
@@ -380,12 +384,14 @@ class QuizSpotlightsVisualSpec extends QuizPromptVisualSpec {
 
 class QuizTileRevealVisualSpec extends QuizPromptVisualSpec {
   const QuizTileRevealVisualSpec({
+    required this.maskPattern,
     required this.tileRows,
     required this.tileColumns,
     required this.revealOrder,
     required this.initialVisibleTileCount,
   });
 
+  final PartialFaceMaskPattern maskPattern;
   final int tileRows;
   final int tileColumns;
   final List<int> revealOrder;

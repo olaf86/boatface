@@ -193,6 +193,7 @@ void main() {
           currentQuestion: _buildPartialFaceQuestion(
             variant: PartialFaceVariant.spotlights,
             spec: const QuizSpotlightsVisualSpec(
+              maskPattern: PartialFaceMaskPattern.waveBands,
               spotlightCount: 2,
               startRadiusFactor: 0.2,
               endRadiusFactor: 0.32,
@@ -208,7 +209,7 @@ void main() {
       await tester.pump();
 
       expect(
-        find.byKey(const ValueKey<String>('quiz-partial-face-sliding-window')),
+        find.byKey(const ValueKey<String>('quiz-partial-face-spotlights')),
         findsOneWidget,
       );
 
@@ -217,6 +218,7 @@ void main() {
           currentQuestion: _buildPartialFaceQuestion(
             variant: PartialFaceVariant.tileReveal,
             spec: const QuizTileRevealVisualSpec(
+              maskPattern: PartialFaceMaskPattern.contourLines,
               tileRows: 4,
               tileColumns: 4,
               revealOrder: <int>[

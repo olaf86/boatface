@@ -2345,7 +2345,7 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
 
     if (promptVisualSpec is QuizSpotlightsVisualSpec) {
       return Stack(
-        key: const ValueKey<String>('quiz-partial-face-sliding-window'),
+        key: const ValueKey<String>('quiz-partial-face-spotlights'),
         fit: StackFit.expand,
         children: <Widget>[
           image,
@@ -2353,11 +2353,11 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
             child: CustomPaint(
               painter: _SpotlightsMaskPainter(
                 progress: progress,
+                maskPattern: promptVisualSpec.maskPattern,
                 spotlightCount: promptVisualSpec.spotlightCount,
                 startRadiusFactor: promptVisualSpec.startRadiusFactor,
                 endRadiusFactor: promptVisualSpec.endRadiusFactor,
-                horizontalTravelFactor:
-                    promptVisualSpec.horizontalTravelFactor,
+                horizontalTravelFactor: promptVisualSpec.horizontalTravelFactor,
                 verticalTravelFactor: promptVisualSpec.verticalTravelFactor,
                 horizontalTurns: promptVisualSpec.horizontalTurns,
                 verticalTurns: promptVisualSpec.verticalTurns,
@@ -2393,6 +2393,7 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
           Positioned.fill(
             child: CustomPaint(
               painter: _TileRevealMaskPainter(
+                maskPattern: promptVisualSpec.maskPattern,
                 tileRows: promptVisualSpec.tileRows,
                 tileColumns: promptVisualSpec.tileColumns,
                 visibleTiles: promptVisualSpec.revealOrder
@@ -2451,10 +2452,12 @@ double _acceleratedRevealProgress(double linearProgress) {
 
 const Color _kPartialFaceMaskColor = Color(0xFF0C5E88);
 const Color _kPartialFaceMaskStrokeColor = Color(0xFFDDF6FF);
+const Color _kPartialFaceMaskPatternColor = Color(0xFFB6E6FA);
 
 class _SpotlightsMaskPainter extends CustomPainter {
   const _SpotlightsMaskPainter({
     required this.progress,
+    required this.maskPattern,
     required this.spotlightCount,
     required this.startRadiusFactor,
     required this.endRadiusFactor,
@@ -2466,6 +2469,7 @@ class _SpotlightsMaskPainter extends CustomPainter {
   });
 
   final double progress;
+  final PartialFaceMaskPattern maskPattern;
   final int spotlightCount;
   final double startRadiusFactor;
   final double endRadiusFactor;
@@ -2513,7 +2517,12 @@ class _SpotlightsMaskPainter extends CustomPainter {
       maskPath.addOval(spotlightRect);
     }
 
-    canvas.drawPath(maskPath, Paint()..color = _kPartialFaceMaskColor);
+    _paintPatternedMask(
+      canvas: canvas,
+      bounds: bounds,
+      maskedRegion: maskPath,
+      pattern: maskPattern,
+    );
     final Paint strokePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5
@@ -2526,6 +2535,7 @@ class _SpotlightsMaskPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _SpotlightsMaskPainter oldDelegate) {
     return oldDelegate.progress != progress ||
+        oldDelegate.maskPattern != maskPattern ||
         oldDelegate.spotlightCount != spotlightCount ||
         oldDelegate.startRadiusFactor != startRadiusFactor ||
         oldDelegate.endRadiusFactor != endRadiusFactor ||
@@ -2539,20 +2549,22 @@ class _SpotlightsMaskPainter extends CustomPainter {
 
 class _TileRevealMaskPainter extends CustomPainter {
   const _TileRevealMaskPainter({
+    required this.maskPattern,
     required this.tileRows,
     required this.tileColumns,
     required this.visibleTiles,
   });
 
+  final PartialFaceMaskPattern maskPattern;
   final int tileRows;
   final int tileColumns;
   final Set<int> visibleTiles;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final Path maskPath = Path();
     final double tileWidth = size.width / tileColumns;
     final double tileHeight = size.height / tileRows;
-    final Paint maskPaint = Paint()..color = _kPartialFaceMaskColor;
 
     for (int row = 0; row < tileRows; row += 1) {
       for (int column = 0; column < tileColumns; column += 1) {
@@ -2567,17 +2579,123 @@ class _TileRevealMaskPainter extends CustomPainter {
           tileWidth,
           tileHeight,
         );
-        canvas.drawRect(tileRect, maskPaint);
+        maskPath.addRect(tileRect);
       }
     }
+
+    _paintPatternedMask(
+      canvas: canvas,
+      bounds: Offset.zero & size,
+      maskedRegion: maskPath,
+      pattern: maskPattern,
+    );
   }
 
   @override
   bool shouldRepaint(covariant _TileRevealMaskPainter oldDelegate) {
-    return oldDelegate.tileRows != tileRows ||
+    return oldDelegate.maskPattern != maskPattern ||
+        oldDelegate.tileRows != tileRows ||
         oldDelegate.tileColumns != tileColumns ||
         oldDelegate.visibleTiles.length != visibleTiles.length ||
         !oldDelegate.visibleTiles.containsAll(visibleTiles);
+  }
+}
+
+void _paintPatternedMask({
+  required Canvas canvas,
+  required Rect bounds,
+  required Path maskedRegion,
+  required PartialFaceMaskPattern pattern,
+}) {
+  canvas.drawPath(maskedRegion, Paint()..color = _kPartialFaceMaskColor);
+
+  canvas.save();
+  canvas.clipPath(maskedRegion);
+  switch (pattern) {
+    case PartialFaceMaskPattern.waveBands:
+      _paintWaveBandsPattern(canvas, bounds);
+    case PartialFaceMaskPattern.contourLines:
+      _paintContourLinesPattern(canvas, bounds);
+    case PartialFaceMaskPattern.geometricGrid:
+      _paintGeometricGridPattern(canvas, bounds);
+  }
+  canvas.restore();
+}
+
+void _paintWaveBandsPattern(Canvas canvas, Rect bounds) {
+  final Paint strokePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.2
+    ..color = _kPartialFaceMaskPatternColor.withValues(alpha: 0.13);
+  final double lineGap = bounds.height / 6.5;
+
+  for (
+    double y = bounds.top - (lineGap * 1.5);
+    y <= bounds.bottom + lineGap;
+    y += lineGap
+  ) {
+    final Path path = Path()..moveTo(bounds.left - 32, y);
+    for (double x = bounds.left - 32; x <= bounds.right + 32; x += 32) {
+      final double waveY = y + math.sin((x / bounds.width) * math.pi * 2.6) * 8;
+      path.lineTo(x, waveY);
+    }
+    canvas.drawPath(path, strokePaint);
+  }
+}
+
+void _paintContourLinesPattern(Canvas canvas, Rect bounds) {
+  final Paint strokePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.8
+    ..color = _kPartialFaceMaskPatternColor.withValues(alpha: 0.14);
+  final Offset center = bounds.center;
+  final double maxRadius = math.max(bounds.width, bounds.height) * 0.75;
+
+  for (
+    double radius = maxRadius * 0.22;
+    radius <= maxRadius;
+    radius += maxRadius * 0.12
+  ) {
+    final Rect ovalRect = Rect.fromCenter(
+      center: center.translate(radius * 0.08, -radius * 0.04),
+      width: radius * 1.8,
+      height: radius * 1.15,
+    );
+    canvas.drawOval(ovalRect, strokePaint);
+  }
+}
+
+void _paintGeometricGridPattern(Canvas canvas, Rect bounds) {
+  final Paint strokePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.4
+    ..color = _kPartialFaceMaskPatternColor.withValues(alpha: 0.12);
+  final double spacing = math.max(
+    22,
+    math.min(bounds.width, bounds.height) / 6,
+  );
+
+  for (
+    double x = bounds.left - bounds.height;
+    x <= bounds.right + bounds.height;
+    x += spacing
+  ) {
+    canvas.drawLine(
+      Offset(x, bounds.top),
+      Offset(x + bounds.height, bounds.bottom),
+      strokePaint,
+    );
+  }
+  for (
+    double x = bounds.left - bounds.height;
+    x <= bounds.right + bounds.height;
+    x += spacing
+  ) {
+    canvas.drawLine(
+      Offset(x, bounds.bottom),
+      Offset(x + bounds.height, bounds.top),
+      strokePaint,
+    );
   }
 }
 

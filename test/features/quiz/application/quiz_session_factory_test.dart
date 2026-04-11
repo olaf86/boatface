@@ -157,15 +157,16 @@ void main() {
               PartialFaceVariant.spotlights,
               QuizSpotlightsVisualSpec windowSpec,
             ):
+              expect(
+                PartialFaceMaskPattern.values,
+                contains(windowSpec.maskPattern),
+              );
               expect(windowSpec.spotlightCount, anyOf(equals(2), equals(3)));
               expect(
                 windowSpec.startRadiusFactor,
                 inInclusiveRange(0.18, 0.22),
               );
-              expect(
-                windowSpec.endRadiusFactor,
-                inInclusiveRange(0.28, 0.34),
-              );
+              expect(windowSpec.endRadiusFactor, inInclusiveRange(0.28, 0.34));
               expect(
                 windowSpec.endRadiusFactor,
                 greaterThan(windowSpec.startRadiusFactor),
@@ -178,22 +179,17 @@ void main() {
                 windowSpec.verticalTravelFactor,
                 inInclusiveRange(0.34, 0.52),
               );
-              expect(
-                windowSpec.horizontalTurns,
-                inInclusiveRange(1.15, 1.55),
-              );
-              expect(
-                windowSpec.verticalTurns,
-                inInclusiveRange(1.7, 2.25),
-              );
-              expect(
-                windowSpec.phaseOffsetTurns,
-                inInclusiveRange(0, 1),
-              );
+              expect(windowSpec.horizontalTurns, inInclusiveRange(1.15, 1.55));
+              expect(windowSpec.verticalTurns, inInclusiveRange(1.7, 2.25));
+              expect(windowSpec.phaseOffsetTurns, inInclusiveRange(0, 1));
             case (
               PartialFaceVariant.tileReveal,
               QuizTileRevealVisualSpec tileSpec,
             ):
+              expect(
+                PartialFaceMaskPattern.values,
+                contains(tileSpec.maskPattern),
+              );
               expect(tileSpec.tileRows, anyOf(equals(3), equals(4)));
               expect(tileSpec.tileColumns, 4);
               expect(
