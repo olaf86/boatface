@@ -157,21 +157,38 @@ void main() {
               PartialFaceVariant.slidingWindow,
               QuizSlidingWindowVisualSpec windowSpec,
             ):
+              expect(windowSpec.spotlightCount, anyOf(equals(2), equals(3)));
               expect(
-                windowSpec.windowWidthFactor,
-                inInclusiveRange(0.34, 0.42),
+                windowSpec.startRadiusFactor,
+                inInclusiveRange(0.18, 0.22),
               );
               expect(
-                windowSpec.windowHeightFactor,
-                inInclusiveRange(0.34, 0.42),
+                windowSpec.endRadiusFactor,
+                inInclusiveRange(0.28, 0.34),
               );
               expect(
-                windowSpec.startAlignmentX,
-                anyOf(equals(-0.72), equals(0.72)),
+                windowSpec.endRadiusFactor,
+                greaterThan(windowSpec.startRadiusFactor),
               );
               expect(
-                windowSpec.endAlignmentX,
-                anyOf(equals(-0.72), equals(0.72)),
+                windowSpec.horizontalTravelFactor,
+                inInclusiveRange(0.46, 0.64),
+              );
+              expect(
+                windowSpec.verticalTravelFactor,
+                inInclusiveRange(0.34, 0.52),
+              );
+              expect(
+                windowSpec.horizontalTurns,
+                inInclusiveRange(1.15, 1.55),
+              );
+              expect(
+                windowSpec.verticalTurns,
+                inInclusiveRange(1.7, 2.25),
+              );
+              expect(
+                windowSpec.phaseOffsetTurns,
+                inInclusiveRange(0, 1),
               );
             case (
               PartialFaceVariant.tileReveal,

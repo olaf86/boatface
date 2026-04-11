@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 import 'dart:io';
 
@@ -2345,21 +2346,6 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
     }
 
     if (promptVisualSpec is QuizSlidingWindowVisualSpec) {
-      final Alignment alignment = Alignment(
-        lerpDouble(
-              promptVisualSpec.startAlignmentX,
-              promptVisualSpec.endAlignmentX,
-              progress,
-            ) ??
-            promptVisualSpec.endAlignmentX,
-        lerpDouble(
-              promptVisualSpec.startAlignmentY,
-              promptVisualSpec.endAlignmentY,
-              progress,
-            ) ??
-            promptVisualSpec.endAlignmentY,
-      );
-
       return Stack(
         key: const ValueKey<String>('quiz-partial-face-sliding-window'),
         fit: StackFit.expand,
@@ -2368,9 +2354,16 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
           Positioned.fill(
             child: CustomPaint(
               painter: _SlidingWindowMaskPainter(
-                alignment: alignment,
-                windowWidthFactor: promptVisualSpec.windowWidthFactor,
-                windowHeightFactor: promptVisualSpec.windowHeightFactor,
+                progress: progress,
+                spotlightCount: promptVisualSpec.spotlightCount,
+                startRadiusFactor: promptVisualSpec.startRadiusFactor,
+                endRadiusFactor: promptVisualSpec.endRadiusFactor,
+                horizontalTravelFactor:
+                    promptVisualSpec.horizontalTravelFactor,
+                verticalTravelFactor: promptVisualSpec.verticalTravelFactor,
+                horizontalTurns: promptVisualSpec.horizontalTurns,
+                verticalTurns: promptVisualSpec.verticalTurns,
+                phaseOffsetTurns: promptVisualSpec.phaseOffsetTurns,
               ),
             ),
           ),
@@ -2463,50 +2456,86 @@ const Color _kPartialFaceMaskStrokeColor = Color(0xFFDDF6FF);
 
 class _SlidingWindowMaskPainter extends CustomPainter {
   const _SlidingWindowMaskPainter({
-    required this.alignment,
-    required this.windowWidthFactor,
-    required this.windowHeightFactor,
+    required this.progress,
+    required this.spotlightCount,
+    required this.startRadiusFactor,
+    required this.endRadiusFactor,
+    required this.horizontalTravelFactor,
+    required this.verticalTravelFactor,
+    required this.horizontalTurns,
+    required this.verticalTurns,
+    required this.phaseOffsetTurns,
   });
 
-  final Alignment alignment;
-  final double windowWidthFactor;
-  final double windowHeightFactor;
+  final double progress;
+  final int spotlightCount;
+  final double startRadiusFactor;
+  final double endRadiusFactor;
+  final double horizontalTravelFactor;
+  final double verticalTravelFactor;
+  final double horizontalTurns;
+  final double verticalTurns;
+  final double phaseOffsetTurns;
 
   @override
   void paint(Canvas canvas, Size size) {
     final Rect bounds = Offset.zero & size;
-    final Size windowSize = Size(
-      size.width * windowWidthFactor,
-      size.height * windowHeightFactor,
-    );
-    final double left =
-        ((alignment.x + 1) / 2) * (size.width - windowSize.width);
-    final double top =
-        ((alignment.y + 1) / 2) * (size.height - windowSize.height);
-    final RRect window = RRect.fromRectAndRadius(
-      Rect.fromLTWH(left, top, windowSize.width, windowSize.height),
-      const Radius.circular(22),
-    );
+    final double radiusFactor =
+        lerpDouble(startRadiusFactor, endRadiusFactor, progress) ??
+        endRadiusFactor;
+    final double spotlightRadius =
+        math.min(size.width, size.height) * radiusFactor;
 
     final Path maskPath = Path()
       ..fillType = PathFillType.evenOdd
-      ..addRect(bounds)
-      ..addRRect(window);
+      ..addRect(bounds);
+    final List<Rect> spotlightRects = <Rect>[];
+    for (int index = 0; index < spotlightCount; index += 1) {
+      final double phaseTurns = phaseOffsetTurns + (index / spotlightCount);
+      final double horizontalAngle =
+          ((horizontalTurns * progress) + phaseTurns) * math.pi * 2;
+      final double verticalAngle =
+          ((verticalTurns * progress) + (phaseTurns * 1.35)) * math.pi * 2;
+      final double x =
+          ((math.cos(horizontalAngle) * horizontalTravelFactor) + 1) *
+          0.5 *
+          size.width;
+      final double y =
+          ((math.sin(verticalAngle) * verticalTravelFactor) + 1) *
+          0.5 *
+          size.height;
+      final double width = spotlightRadius * 2 * (index.isEven ? 1.0 : 0.92);
+      final double height = spotlightRadius * 2 * (index.isEven ? 0.94 : 1.06);
+      final Rect spotlightRect = Rect.fromCenter(
+        center: Offset(x, y),
+        width: width,
+        height: height,
+      );
+      spotlightRects.add(spotlightRect);
+      maskPath.addOval(spotlightRect);
+    }
+
     canvas.drawPath(maskPath, Paint()..color = _kPartialFaceMaskColor);
-    canvas.drawRRect(
-      window,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5
-        ..color = _kPartialFaceMaskStrokeColor,
-    );
+    final Paint strokePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..color = _kPartialFaceMaskStrokeColor;
+    for (final Rect spotlightRect in spotlightRects) {
+      canvas.drawOval(spotlightRect, strokePaint);
+    }
   }
 
   @override
   bool shouldRepaint(covariant _SlidingWindowMaskPainter oldDelegate) {
-    return oldDelegate.alignment != alignment ||
-        oldDelegate.windowWidthFactor != windowWidthFactor ||
-        oldDelegate.windowHeightFactor != windowHeightFactor;
+    return oldDelegate.progress != progress ||
+        oldDelegate.spotlightCount != spotlightCount ||
+        oldDelegate.startRadiusFactor != startRadiusFactor ||
+        oldDelegate.endRadiusFactor != endRadiusFactor ||
+        oldDelegate.horizontalTravelFactor != horizontalTravelFactor ||
+        oldDelegate.verticalTravelFactor != verticalTravelFactor ||
+        oldDelegate.horizontalTurns != horizontalTurns ||
+        oldDelegate.verticalTurns != verticalTurns ||
+        oldDelegate.phaseOffsetTurns != phaseOffsetTurns;
   }
 }
 

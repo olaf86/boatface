@@ -358,20 +358,24 @@ class QuizZoomOutCenterVisualSpec extends QuizPromptVisualSpec {
 
 class QuizSlidingWindowVisualSpec extends QuizPromptVisualSpec {
   const QuizSlidingWindowVisualSpec({
-    required this.windowWidthFactor,
-    required this.windowHeightFactor,
-    required this.startAlignmentX,
-    required this.startAlignmentY,
-    required this.endAlignmentX,
-    required this.endAlignmentY,
+    required this.spotlightCount,
+    required this.startRadiusFactor,
+    required this.endRadiusFactor,
+    required this.horizontalTravelFactor,
+    required this.verticalTravelFactor,
+    required this.horizontalTurns,
+    required this.verticalTurns,
+    required this.phaseOffsetTurns,
   });
 
-  final double windowWidthFactor;
-  final double windowHeightFactor;
-  final double startAlignmentX;
-  final double startAlignmentY;
-  final double endAlignmentX;
-  final double endAlignmentY;
+  final int spotlightCount;
+  final double startRadiusFactor;
+  final double endRadiusFactor;
+  final double horizontalTravelFactor;
+  final double verticalTravelFactor;
+  final double horizontalTurns;
+  final double verticalTurns;
+  final double phaseOffsetTurns;
 }
 
 class QuizTileRevealVisualSpec extends QuizPromptVisualSpec {

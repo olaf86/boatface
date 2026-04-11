@@ -654,20 +654,15 @@ class QuizSessionFactory {
           startAlignmentY: (random.nextDouble() * 0.18) - 0.09,
         );
       case PartialFaceVariant.slidingWindow:
-        final bool diagonal = random.nextBool();
-        final double startX = random.nextBool() ? -0.72 : 0.72;
-        final double startY = diagonal
-            ? (random.nextBool() ? -0.68 : 0.68)
-            : ((random.nextDouble() * 0.44) - 0.22);
-        final double endX = -startX;
-        final double endY = diagonal ? -startY : startY;
         return QuizSlidingWindowVisualSpec(
-          windowWidthFactor: 0.34 + (random.nextDouble() * 0.08),
-          windowHeightFactor: 0.34 + (random.nextDouble() * 0.08),
-          startAlignmentX: startX,
-          startAlignmentY: startY,
-          endAlignmentX: endX,
-          endAlignmentY: endY,
+          spotlightCount: random.nextBool() ? 2 : 3,
+          startRadiusFactor: 0.18 + (random.nextDouble() * 0.04),
+          endRadiusFactor: 0.28 + (random.nextDouble() * 0.06),
+          horizontalTravelFactor: 0.46 + (random.nextDouble() * 0.18),
+          verticalTravelFactor: 0.34 + (random.nextDouble() * 0.18),
+          horizontalTurns: 1.15 + (random.nextDouble() * 0.4),
+          verticalTurns: 1.7 + (random.nextDouble() * 0.55),
+          phaseOffsetTurns: random.nextDouble(),
         );
       case PartialFaceVariant.tileReveal:
         final int tileRows = random.nextBool() ? 3 : 4;
