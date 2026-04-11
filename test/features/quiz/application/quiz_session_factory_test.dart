@@ -452,19 +452,19 @@ void main() {
       expect(questions, hasLength(50));
       _expectPromptTypeWindow(questions, QuizPromptType.partialFaceToName);
       _expectQuestionWindow(
-        questions.sublist(0, 10),
+        questions.sublist(0, 30),
         racerById,
         allowedTargetClasses: <String>['A1'],
         allowedOptionClasses: <String>['A1'],
       );
       _expectQuestionWindow(
-        questions.sublist(10, 25),
+        questions.sublist(30, 40),
         racerById,
         allowedTargetClasses: <String>['A2'],
         allowedOptionClasses: <String>['A2'],
       );
       _expectQuestionWindow(
-        questions.sublist(25, 50),
+        questions.sublist(40, 50),
         racerById,
         allowedTargetClasses: <String>['A2', 'B1', 'B2'],
         allowedOptionClasses: <String>['A2', 'B1', 'B2'],

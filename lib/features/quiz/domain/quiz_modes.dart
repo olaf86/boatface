@@ -37,7 +37,7 @@ const List<QuizQuestionFlowStep> kCarefulBFlowSteps = <QuizQuestionFlowStep>[
 ];
 const List<QuizQuestionFlowStep> kChallengeFlowSteps = <QuizQuestionFlowStep>[
   QuizQuestionFlowStep(
-    weight: 20,
+    weight: 60,
     targetCondition: QuizRacerCondition(racerClasses: <String>['A1']),
     optionCondition: QuizRacerCondition(
       racerClasses: <String>['A1'],
@@ -46,7 +46,7 @@ const List<QuizQuestionFlowStep> kChallengeFlowSteps = <QuizQuestionFlowStep>[
     ),
   ),
   QuizQuestionFlowStep(
-    weight: 30,
+    weight: 20,
     targetCondition: QuizRacerCondition(racerClasses: <String>['A2']),
     optionCondition: QuizRacerCondition(
       racerClasses: <String>['A2'],
@@ -55,7 +55,7 @@ const List<QuizQuestionFlowStep> kChallengeFlowSteps = <QuizQuestionFlowStep>[
     ),
   ),
   QuizQuestionFlowStep(
-    weight: 50,
+    weight: 20,
     targetCondition: QuizRacerCondition(
       racerClasses: <String>['A2', 'B1', 'B2'],
     ),
