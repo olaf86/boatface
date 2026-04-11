@@ -2459,10 +2459,13 @@ double _revealProgressForSpec({
   return _acceleratedRevealProgress(linearProgress);
 }
 
-const Color _kPartialFaceMaskColor = Color(0xFF4EA8C7);
-const Color _kPartialFaceMaskStrokeColor = Color(0xFFF0FCFF);
-const Color _kPartialFaceMaskPatternDarkColor = Color(0xFF2D708A);
-const Color _kPartialFaceMaskPatternLightColor = Color(0xFFE5FAFF);
+const Color _kPartialFaceMaskStartColor = Color(0xFFA8E1EE);
+const Color _kPartialFaceMaskMidColor = Color(0xFF72C4D8);
+const Color _kPartialFaceMaskEndColor = Color(0xFF4A9FC0);
+const Color _kPartialFaceMaskAccentColor = Color(0xFFE8FBFF);
+const Color _kPartialFaceMaskStrokeColor = Color(0xFFF4FDFF);
+const Color _kPartialFaceMaskPatternDarkColor = Color(0xFF2A6F86);
+const Color _kPartialFaceMaskPatternLightColor = Color(0xFFF5FDFF);
 
 class _SpotlightsMaskPainter extends CustomPainter {
   const _SpotlightsMaskPainter({
@@ -2609,6 +2612,7 @@ class _TileRevealMaskPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final Rect fullBounds = Offset.zero & size;
     final double tileWidth = size.width / tileColumns;
     final double tileHeight = size.height / tileRows;
     final Map<int, int> revealIndexByTile = <int, int>{
@@ -2641,7 +2645,7 @@ class _TileRevealMaskPainter extends CustomPainter {
 
         _paintPatternedMask(
           canvas: canvas,
-          bounds: tileRect,
+          bounds: fullBounds,
           maskedRegion: Path()..addRect(tileRect),
           pattern: maskPattern,
           opacity: maskOpacity,
@@ -2667,13 +2671,41 @@ void _paintPatternedMask({
   required PartialFaceMaskPattern pattern,
   double opacity = 1,
 }) {
-  canvas.drawPath(
-    maskedRegion,
-    Paint()..color = _kPartialFaceMaskColor.withValues(alpha: opacity),
-  );
+  final Paint basePaint = Paint()
+    ..shader = LinearGradient(
+      colors: <Color>[
+        _kPartialFaceMaskStartColor.withValues(alpha: opacity),
+        _kPartialFaceMaskMidColor.withValues(alpha: opacity),
+        _kPartialFaceMaskEndColor.withValues(alpha: opacity),
+      ],
+      stops: const <double>[0, 0.52, 1],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ).createShader(bounds);
+  canvas.drawPath(maskedRegion, basePaint);
 
   canvas.save();
   canvas.clipPath(maskedRegion);
+  final Rect accentRect = Rect.fromCircle(
+    center: Offset(
+      bounds.left + (bounds.width * 0.22),
+      bounds.top + (bounds.height * 0.18),
+    ),
+    radius: math.max(bounds.width, bounds.height) * 0.82,
+  );
+  canvas.drawRect(
+    bounds,
+    Paint()
+      ..shader = RadialGradient(
+        colors: <Color>[
+          _kPartialFaceMaskAccentColor.withValues(alpha: 0.28 * opacity),
+          _kPartialFaceMaskAccentColor.withValues(alpha: 0.1 * opacity),
+          Colors.transparent,
+        ],
+        stops: const <double>[0, 0.36, 1],
+      ).createShader(accentRect),
+  );
+
   switch (pattern) {
     case PartialFaceMaskPattern.waterRipples:
       _paintWaterRipplesPattern(canvas, bounds, opacity: opacity);
@@ -2695,14 +2727,14 @@ void _paintWaterRipplesPattern(
     ..strokeWidth = 2.8
     ..strokeCap = StrokeCap.round
     ..color = _kPartialFaceMaskPatternDarkColor.withValues(
-      alpha: 0.1 * opacity,
+      alpha: 0.09 * opacity,
     );
   final Paint highlightPaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1.2
     ..strokeCap = StrokeCap.round
     ..color = _kPartialFaceMaskPatternLightColor.withValues(
-      alpha: 0.16 * opacity,
+      alpha: 0.2 * opacity,
     );
   final double lineGap = math.max(22, bounds.height / 5.8);
   final double amplitude = math.min(10, bounds.height * 0.08);
@@ -2732,13 +2764,13 @@ void _paintRippleContoursPattern(
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1.9
     ..color = _kPartialFaceMaskPatternDarkColor.withValues(
-      alpha: 0.1 * opacity,
+      alpha: 0.085 * opacity,
     );
   final Paint accentPaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 0.95
     ..color = _kPartialFaceMaskPatternLightColor.withValues(
-      alpha: 0.18 * opacity,
+      alpha: 0.22 * opacity,
     );
   final Offset center = bounds.center;
   final double maxRadius = math.max(bounds.width, bounds.height) * 0.75;
@@ -2767,13 +2799,13 @@ void _paintHarborLatticePattern(
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1.1
     ..color = _kPartialFaceMaskPatternLightColor.withValues(
-      alpha: 0.11 * opacity,
+      alpha: 0.16 * opacity,
     );
   final Paint accentPaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1.5
     ..color = _kPartialFaceMaskPatternDarkColor.withValues(
-      alpha: 0.06 * opacity,
+      alpha: 0.055 * opacity,
     );
   final double spacing = math.max(
     28,
