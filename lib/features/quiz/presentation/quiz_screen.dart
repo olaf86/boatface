@@ -623,9 +623,7 @@ class _QuizPromptCard extends StatelessWidget {
                 localImagePath: question.promptImageLocalPath,
                 semanticLabel: question.prompt,
                 promptVisualSpec: question.promptVisualSpec,
-                fit: question.promptVisualSpec == null
-                    ? BoxFit.contain
-                    : BoxFit.cover,
+                fit: BoxFit.contain,
                 totalSeconds: totalSeconds,
               ),
             ),
