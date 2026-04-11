@@ -2431,6 +2431,9 @@ double _acceleratedRevealProgress(double linearProgress) {
       1;
 }
 
+const Color _kPartialFaceMaskColor = Color(0xFF0C5E88);
+const Color _kPartialFaceMaskStrokeColor = Color(0xFFDDF6FF);
+
 class _SlidingWindowMaskPainter extends CustomPainter {
   const _SlidingWindowMaskPainter({
     required this.alignment,
@@ -2459,10 +2462,7 @@ class _SlidingWindowMaskPainter extends CustomPainter {
     );
 
     canvas.saveLayer(bounds, Paint());
-    canvas.drawRect(
-      bounds,
-      Paint()..color = Colors.black.withValues(alpha: 0.76),
-    );
+    canvas.drawRect(bounds, Paint()..color = _kPartialFaceMaskColor);
     canvas.drawRRect(window, Paint()..blendMode = BlendMode.clear);
     canvas.restore();
     canvas.drawRRect(
@@ -2470,7 +2470,7 @@ class _SlidingWindowMaskPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.5
-        ..color = Colors.white.withValues(alpha: 0.9),
+        ..color = _kPartialFaceMaskStrokeColor,
     );
   }
 
@@ -2500,10 +2500,7 @@ class _TileRevealMaskPainter extends CustomPainter {
     final double tileHeight = size.height / tileRows;
 
     canvas.saveLayer(bounds, Paint());
-    canvas.drawRect(
-      bounds,
-      Paint()..color = Colors.black.withValues(alpha: 0.82),
-    );
+    canvas.drawRect(bounds, Paint()..color = _kPartialFaceMaskColor);
 
     for (int row = 0; row < tileRows; row += 1) {
       for (int column = 0; column < tileColumns; column += 1) {
