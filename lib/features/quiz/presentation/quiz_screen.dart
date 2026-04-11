@@ -2488,9 +2488,7 @@ class _SpotlightsMaskPainter extends CustomPainter {
     final double spotlightRadius =
         math.min(size.width, size.height) * radiusFactor;
 
-    final Path maskPath = Path()
-      ..fillType = PathFillType.evenOdd
-      ..addRect(bounds);
+    final Path spotlightUnionPath = Path();
     final List<Rect> spotlightRects = <Rect>[];
     for (int index = 0; index < spotlightCount; index += 1) {
       final double phaseTurns = phaseOffsetTurns + (index / spotlightCount);
@@ -2514,8 +2512,13 @@ class _SpotlightsMaskPainter extends CustomPainter {
         height: height,
       );
       spotlightRects.add(spotlightRect);
-      maskPath.addOval(spotlightRect);
+      spotlightUnionPath.addOval(spotlightRect);
     }
+    final Path maskPath = Path.combine(
+      PathOperation.difference,
+      Path()..addRect(bounds),
+      spotlightUnionPath,
+    );
 
     _paintPatternedMask(
       canvas: canvas,
@@ -2523,13 +2526,11 @@ class _SpotlightsMaskPainter extends CustomPainter {
       maskedRegion: maskPath,
       pattern: maskPattern,
     );
-    final Paint strokePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..color = _kPartialFaceMaskStrokeColor;
-    for (final Rect spotlightRect in spotlightRects) {
-      canvas.drawOval(spotlightRect, strokePaint);
-    }
+    _paintSpotlightEdgeGlow(
+      canvas: canvas,
+      maskedRegion: maskPath,
+      spotlightRects: spotlightRects,
+    );
   }
 
   @override
@@ -2545,6 +2546,40 @@ class _SpotlightsMaskPainter extends CustomPainter {
         oldDelegate.verticalTurns != verticalTurns ||
         oldDelegate.phaseOffsetTurns != phaseOffsetTurns;
   }
+}
+
+void _paintSpotlightEdgeGlow({
+  required Canvas canvas,
+  required Path maskedRegion,
+  required List<Rect> spotlightRects,
+}) {
+  canvas.save();
+  canvas.clipPath(maskedRegion);
+  for (final Rect spotlightRect in spotlightRects) {
+    final Rect glowRect = Rect.fromCenter(
+      center: spotlightRect.center,
+      width: spotlightRect.width * 1.34,
+      height: spotlightRect.height * 1.34,
+    );
+    const double glowBoundaryStop = 0.75;
+    final Paint glowPaint = Paint()
+      ..shader = RadialGradient(
+        colors: <Color>[
+          Colors.transparent,
+          _kPartialFaceMaskStrokeColor.withValues(alpha: 0.34),
+          _kPartialFaceMaskStrokeColor.withValues(alpha: 0.12),
+          Colors.transparent,
+        ],
+        stops: const <double>[
+          glowBoundaryStop,
+          glowBoundaryStop + 0.05,
+          glowBoundaryStop + 0.16,
+          1,
+        ],
+      ).createShader(glowRect);
+    canvas.drawOval(glowRect, glowPaint);
+  }
+  canvas.restore();
 }
 
 class _TileRevealMaskPainter extends CustomPainter {
