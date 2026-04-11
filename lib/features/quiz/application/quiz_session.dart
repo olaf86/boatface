@@ -653,8 +653,8 @@ class QuizSessionFactory {
           startAlignmentX: (random.nextDouble() * 0.24) - 0.12,
           startAlignmentY: (random.nextDouble() * 0.18) - 0.09,
         );
-      case PartialFaceVariant.slidingWindow:
-        return QuizSlidingWindowVisualSpec(
+      case PartialFaceVariant.spotlights:
+        return QuizSpotlightsVisualSpec(
           spotlightCount: random.nextBool() ? 2 : 3,
           startRadiusFactor: 0.18 + (random.nextDouble() * 0.04),
           endRadiusFactor: 0.28 + (random.nextDouble() * 0.06),
@@ -695,7 +695,7 @@ class QuizSessionFactory {
               weight: 60,
             ),
             _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.slidingWindow,
+              variant: PartialFaceVariant.spotlights,
               weight: 30,
             ),
             _PartialFaceVariantWeight(
@@ -710,7 +710,7 @@ class QuizSessionFactory {
               weight: 35,
             ),
             _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.slidingWindow,
+              variant: PartialFaceVariant.spotlights,
               weight: 40,
             ),
             _PartialFaceVariantWeight(
@@ -724,7 +724,7 @@ class QuizSessionFactory {
               weight: 15,
             ),
             _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.slidingWindow,
+              variant: PartialFaceVariant.spotlights,
               weight: 35,
             ),
             _PartialFaceVariantWeight(

@@ -154,8 +154,8 @@ void main() {
               expect(zoomSpec.startAlignmentX, inInclusiveRange(-0.12, 0.12));
               expect(zoomSpec.startAlignmentY, inInclusiveRange(-0.09, 0.09));
             case (
-              PartialFaceVariant.slidingWindow,
-              QuizSlidingWindowVisualSpec windowSpec,
+              PartialFaceVariant.spotlights,
+              QuizSpotlightsVisualSpec windowSpec,
             ):
               expect(windowSpec.spotlightCount, anyOf(equals(2), equals(3)));
               expect(

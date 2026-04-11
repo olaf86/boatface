@@ -191,8 +191,8 @@ void main() {
       controller.setSessionState(
         controller.state.copyWith(
           currentQuestion: _buildPartialFaceQuestion(
-            variant: PartialFaceVariant.slidingWindow,
-            spec: const QuizSlidingWindowVisualSpec(
+            variant: PartialFaceVariant.spotlights,
+            spec: const QuizSpotlightsVisualSpec(
               spotlightCount: 2,
               startRadiusFactor: 0.2,
               endRadiusFactor: 0.32,

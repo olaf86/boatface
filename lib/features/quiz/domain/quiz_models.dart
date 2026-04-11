@@ -338,7 +338,7 @@ class RacerProfile {
   }
 }
 
-enum PartialFaceVariant { zoomOutCenter, slidingWindow, tileReveal }
+enum PartialFaceVariant { zoomOutCenter, spotlights, tileReveal }
 
 sealed class QuizPromptVisualSpec {
   const QuizPromptVisualSpec();
@@ -356,8 +356,8 @@ class QuizZoomOutCenterVisualSpec extends QuizPromptVisualSpec {
   final double startAlignmentY;
 }
 
-class QuizSlidingWindowVisualSpec extends QuizPromptVisualSpec {
-  const QuizSlidingWindowVisualSpec({
+class QuizSpotlightsVisualSpec extends QuizPromptVisualSpec {
+  const QuizSpotlightsVisualSpec({
     required this.spotlightCount,
     required this.startRadiusFactor,
     required this.endRadiusFactor,

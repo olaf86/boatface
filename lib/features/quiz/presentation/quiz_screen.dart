@@ -2345,7 +2345,7 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
       );
     }
 
-    if (promptVisualSpec is QuizSlidingWindowVisualSpec) {
+    if (promptVisualSpec is QuizSpotlightsVisualSpec) {
       return Stack(
         key: const ValueKey<String>('quiz-partial-face-sliding-window'),
         fit: StackFit.expand,
@@ -2353,7 +2353,7 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
           image,
           Positioned.fill(
             child: CustomPaint(
-              painter: _SlidingWindowMaskPainter(
+              painter: _SpotlightsMaskPainter(
                 progress: progress,
                 spotlightCount: promptVisualSpec.spotlightCount,
                 startRadiusFactor: promptVisualSpec.startRadiusFactor,
@@ -2454,8 +2454,8 @@ double _acceleratedRevealProgress(double linearProgress) {
 const Color _kPartialFaceMaskColor = Color(0xFF0C5E88);
 const Color _kPartialFaceMaskStrokeColor = Color(0xFFDDF6FF);
 
-class _SlidingWindowMaskPainter extends CustomPainter {
-  const _SlidingWindowMaskPainter({
+class _SpotlightsMaskPainter extends CustomPainter {
+  const _SpotlightsMaskPainter({
     required this.progress,
     required this.spotlightCount,
     required this.startRadiusFactor,
@@ -2526,7 +2526,7 @@ class _SlidingWindowMaskPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _SlidingWindowMaskPainter oldDelegate) {
+  bool shouldRepaint(covariant _SpotlightsMaskPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.spotlightCount != spotlightCount ||
         oldDelegate.startRadiusFactor != startRadiusFactor ||
