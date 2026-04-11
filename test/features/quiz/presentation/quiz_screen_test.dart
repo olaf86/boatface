@@ -193,6 +193,7 @@ void main() {
           currentQuestion: _buildPartialFaceQuestion(
             variant: PartialFaceVariant.spotlights,
             spec: const QuizSpotlightsVisualSpec(
+              maskPattern: PartialFaceMaskPattern.waterRipples,
               spotlightCount: 2,
               startRadiusFactor: 0.2,
               endRadiusFactor: 0.32,
@@ -208,7 +209,7 @@ void main() {
       await tester.pump();
 
       expect(
-        find.byKey(const ValueKey<String>('quiz-partial-face-sliding-window')),
+        find.byKey(const ValueKey<String>('quiz-partial-face-spotlights')),
         findsOneWidget,
       );
 
@@ -217,6 +218,7 @@ void main() {
           currentQuestion: _buildPartialFaceQuestion(
             variant: PartialFaceVariant.tileReveal,
             spec: const QuizTileRevealVisualSpec(
+              maskPattern: PartialFaceMaskPattern.rippleContours,
               tileRows: 4,
               tileColumns: 4,
               revealOrder: <int>[
@@ -321,6 +323,80 @@ void main() {
       final double lateScale = lateTransform.transform.storage[0];
 
       expect(earlyScale, greaterThan(lateScale));
+    } finally {
+      container.dispose();
+    }
+  });
+
+  testWidgets('partial face zoom reveal accelerates later in the animation', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(
+      promptType: QuizPromptType.partialFaceToName,
+      timeLimitSeconds: 10,
+    );
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        quizSessionControllerProvider.overrideWith(
+          () => _FakeQuizSessionController(
+            _buildSessionState(
+              mode: mode,
+              currentQuestion: _buildPartialFaceQuestion(
+                variant: PartialFaceVariant.zoomOutCenter,
+                spec: const QuizZoomOutCenterVisualSpec(
+                  startScale: 2.8,
+                  startAlignmentX: 0.1,
+                  startAlignmentY: -0.05,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final Finder transformFinder = find.descendant(
+        of: find.byKey(const ValueKey<String>('quiz-partial-face-zoom-out')),
+        matching: find.byType(Transform),
+      );
+
+      final double startScale = tester
+          .widget<Transform>(transformFinder.first)
+          .transform
+          .storage[0];
+      await tester.pump(const Duration(seconds: 2));
+      final double earlyScale = tester
+          .widget<Transform>(transformFinder.first)
+          .transform
+          .storage[0];
+      await tester.pump(const Duration(seconds: 2));
+      final double midScale = tester
+          .widget<Transform>(transformFinder.first)
+          .transform
+          .storage[0];
+      await tester.pump(const Duration(seconds: 2));
+      final double lateScale = tester
+          .widget<Transform>(transformFinder.first)
+          .transform
+          .storage[0];
+
+      final double earlyMovement = startScale - earlyScale;
+      final double lateMovement = midScale - lateScale;
+      expect(earlyMovement, lessThan(lateMovement));
     } finally {
       container.dispose();
     }

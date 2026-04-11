@@ -4,6 +4,7 @@ import 'dart:ui' show lerpDouble;
 import 'dart:io';
 
 import 'package:animations/animations.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -623,9 +624,7 @@ class _QuizPromptCard extends StatelessWidget {
                 localImagePath: question.promptImageLocalPath,
                 semanticLabel: question.prompt,
                 promptVisualSpec: question.promptVisualSpec,
-                fit: question.promptVisualSpec == null
-                    ? BoxFit.contain
-                    : BoxFit.cover,
+                fit: BoxFit.contain,
                 totalSeconds: totalSeconds,
               ),
             ),
@@ -2275,8 +2274,9 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
                   animation: _controller!,
                   child: image,
                   builder: (BuildContext context, Widget? child) {
-                    final double revealProgress = _acceleratedRevealProgress(
-                      _currentLinearProgress(),
+                    final double revealProgress = _revealProgressForSpec(
+                      promptVisualSpec: widget.promptVisualSpec,
+                      linearProgress: _currentLinearProgress(),
                     );
                     return _buildPresentedImage(
                       image: child!,
@@ -2347,7 +2347,7 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
 
     if (promptVisualSpec is QuizSpotlightsVisualSpec) {
       return Stack(
-        key: const ValueKey<String>('quiz-partial-face-sliding-window'),
+        key: const ValueKey<String>('quiz-partial-face-spotlights'),
         fit: StackFit.expand,
         children: <Widget>[
           image,
@@ -2355,11 +2355,11 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
             child: CustomPaint(
               painter: _SpotlightsMaskPainter(
                 progress: progress,
+                maskPattern: promptVisualSpec.maskPattern,
                 spotlightCount: promptVisualSpec.spotlightCount,
                 startRadiusFactor: promptVisualSpec.startRadiusFactor,
                 endRadiusFactor: promptVisualSpec.endRadiusFactor,
-                horizontalTravelFactor:
-                    promptVisualSpec.horizontalTravelFactor,
+                horizontalTravelFactor: promptVisualSpec.horizontalTravelFactor,
                 verticalTravelFactor: promptVisualSpec.verticalTravelFactor,
                 horizontalTurns: promptVisualSpec.horizontalTurns,
                 verticalTurns: promptVisualSpec.verticalTurns,
@@ -2372,15 +2372,7 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
     }
 
     if (promptVisualSpec is QuizTileRevealVisualSpec) {
-      final int totalTileCount =
-          promptVisualSpec.tileRows * promptVisualSpec.tileColumns;
-      final int visibleTileCount =
-          (promptVisualSpec.initialVisibleTileCount +
-                  ((totalTileCount - promptVisualSpec.initialVisibleTileCount) *
-                          progress)
-                      .round())
-              .clamp(promptVisualSpec.initialVisibleTileCount, totalTileCount);
-      if (visibleTileCount >= totalTileCount) {
+      if (progress >= 1) {
         return KeyedSubtree(
           key: const ValueKey<String>('quiz-partial-face-tile-reveal'),
           child: image,
@@ -2395,11 +2387,11 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
           Positioned.fill(
             child: CustomPaint(
               painter: _TileRevealMaskPainter(
+                maskPattern: promptVisualSpec.maskPattern,
+                progress: progress,
                 tileRows: promptVisualSpec.tileRows,
                 tileColumns: promptVisualSpec.tileColumns,
-                visibleTiles: promptVisualSpec.revealOrder
-                    .take(visibleTileCount)
-                    .toSet(),
+                revealOrder: promptVisualSpec.revealOrder,
               ),
             ),
           ),
@@ -2451,12 +2443,34 @@ double _acceleratedRevealProgress(double linearProgress) {
   return Curves.easeInOutCubic.transform(clamped);
 }
 
-const Color _kPartialFaceMaskColor = Color(0xFF0C5E88);
-const Color _kPartialFaceMaskStrokeColor = Color(0xFFDDF6FF);
+double _zoomOutRevealProgress(double linearProgress) {
+  final double clamped = linearProgress.clamp(0.0, 1.0);
+  return Curves.easeInCubic.transform(clamped);
+}
+
+double _revealProgressForSpec({
+  required QuizPromptVisualSpec? promptVisualSpec,
+  required double linearProgress,
+}) {
+  if (promptVisualSpec is QuizZoomOutCenterVisualSpec) {
+    return _zoomOutRevealProgress(linearProgress);
+  }
+
+  return _acceleratedRevealProgress(linearProgress);
+}
+
+const Color _kPartialFaceMaskStartColor = Color(0xFFA8E1EE);
+const Color _kPartialFaceMaskMidColor = Color(0xFF72C4D8);
+const Color _kPartialFaceMaskEndColor = Color(0xFF4A9FC0);
+const Color _kPartialFaceMaskAccentColor = Color(0xFFE8FBFF);
+const Color _kPartialFaceMaskStrokeColor = Color(0xFFF4FDFF);
+const Color _kPartialFaceMaskPatternDarkColor = Color(0xFF2A6F86);
+const Color _kPartialFaceMaskPatternLightColor = Color(0xFFF5FDFF);
 
 class _SpotlightsMaskPainter extends CustomPainter {
   const _SpotlightsMaskPainter({
     required this.progress,
+    required this.maskPattern,
     required this.spotlightCount,
     required this.startRadiusFactor,
     required this.endRadiusFactor,
@@ -2468,6 +2482,7 @@ class _SpotlightsMaskPainter extends CustomPainter {
   });
 
   final double progress;
+  final PartialFaceMaskPattern maskPattern;
   final int spotlightCount;
   final double startRadiusFactor;
   final double endRadiusFactor;
@@ -2486,9 +2501,7 @@ class _SpotlightsMaskPainter extends CustomPainter {
     final double spotlightRadius =
         math.min(size.width, size.height) * radiusFactor;
 
-    final Path maskPath = Path()
-      ..fillType = PathFillType.evenOdd
-      ..addRect(bounds);
+    final Path spotlightUnionPath = Path();
     final List<Rect> spotlightRects = <Rect>[];
     for (int index = 0; index < spotlightCount; index += 1) {
       final double phaseTurns = phaseOffsetTurns + (index / spotlightCount);
@@ -2512,22 +2525,31 @@ class _SpotlightsMaskPainter extends CustomPainter {
         height: height,
       );
       spotlightRects.add(spotlightRect);
-      maskPath.addOval(spotlightRect);
+      spotlightUnionPath.addOval(spotlightRect);
     }
+    final Path maskPath = Path.combine(
+      PathOperation.difference,
+      Path()..addRect(bounds),
+      spotlightUnionPath,
+    );
 
-    canvas.drawPath(maskPath, Paint()..color = _kPartialFaceMaskColor);
-    final Paint strokePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..color = _kPartialFaceMaskStrokeColor;
-    for (final Rect spotlightRect in spotlightRects) {
-      canvas.drawOval(spotlightRect, strokePaint);
-    }
+    _paintPatternedMask(
+      canvas: canvas,
+      bounds: bounds,
+      maskedRegion: maskPath,
+      pattern: maskPattern,
+    );
+    _paintSpotlightEdgeGlow(
+      canvas: canvas,
+      maskedRegion: maskPath,
+      spotlightRects: spotlightRects,
+    );
   }
 
   @override
   bool shouldRepaint(covariant _SpotlightsMaskPainter oldDelegate) {
     return oldDelegate.progress != progress ||
+        oldDelegate.maskPattern != maskPattern ||
         oldDelegate.spotlightCount != spotlightCount ||
         oldDelegate.startRadiusFactor != startRadiusFactor ||
         oldDelegate.endRadiusFactor != endRadiusFactor ||
@@ -2539,27 +2561,70 @@ class _SpotlightsMaskPainter extends CustomPainter {
   }
 }
 
+void _paintSpotlightEdgeGlow({
+  required Canvas canvas,
+  required Path maskedRegion,
+  required List<Rect> spotlightRects,
+}) {
+  canvas.save();
+  canvas.clipPath(maskedRegion);
+  for (final Rect spotlightRect in spotlightRects) {
+    final Rect glowRect = Rect.fromCenter(
+      center: spotlightRect.center,
+      width: spotlightRect.width * 1.34,
+      height: spotlightRect.height * 1.34,
+    );
+    const double glowBoundaryStop = 0.75;
+    final Paint glowPaint = Paint()
+      ..shader = RadialGradient(
+        colors: <Color>[
+          Colors.transparent,
+          _kPartialFaceMaskStrokeColor.withValues(alpha: 0.28),
+          _kPartialFaceMaskStrokeColor.withValues(alpha: 0.1),
+          Colors.transparent,
+        ],
+        stops: const <double>[
+          glowBoundaryStop,
+          glowBoundaryStop + 0.05,
+          glowBoundaryStop + 0.16,
+          1,
+        ],
+      ).createShader(glowRect);
+    canvas.drawOval(glowRect, glowPaint);
+  }
+  canvas.restore();
+}
+
 class _TileRevealMaskPainter extends CustomPainter {
   const _TileRevealMaskPainter({
+    required this.maskPattern,
+    required this.progress,
     required this.tileRows,
     required this.tileColumns,
-    required this.visibleTiles,
+    required this.revealOrder,
   });
 
+  final PartialFaceMaskPattern maskPattern;
+  final double progress;
   final int tileRows;
   final int tileColumns;
-  final Set<int> visibleTiles;
+  final List<int> revealOrder;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final Rect fullBounds = Offset.zero & size;
     final double tileWidth = size.width / tileColumns;
     final double tileHeight = size.height / tileRows;
-    final Paint maskPaint = Paint()..color = _kPartialFaceMaskColor;
+    final Map<int, int> revealIndexByTile = <int, int>{
+      for (int index = 0; index < revealOrder.length; index += 1)
+        revealOrder[index]: index,
+    };
 
     for (int row = 0; row < tileRows; row += 1) {
       for (int column = 0; column < tileColumns; column += 1) {
         final int index = row * tileColumns + column;
-        if (visibleTiles.contains(index)) {
+        final int? revealIndex = revealIndexByTile[index];
+        if (revealIndex == null) {
           continue;
         }
 
@@ -2569,18 +2634,306 @@ class _TileRevealMaskPainter extends CustomPainter {
           tileWidth,
           tileHeight,
         );
-        canvas.drawRect(tileRect, maskPaint);
+        final double maskOpacity = _tileMaskOpacity(
+          progress: progress,
+          revealIndex: revealIndex,
+          totalTileCount: revealOrder.length,
+        );
+        if (maskOpacity <= 0.001) {
+          continue;
+        }
+
+        _paintPatternedMask(
+          canvas: canvas,
+          bounds: fullBounds,
+          maskedRegion: Path()..addRect(tileRect),
+          pattern: maskPattern,
+          opacity: maskOpacity,
+        );
       }
     }
   }
 
   @override
   bool shouldRepaint(covariant _TileRevealMaskPainter oldDelegate) {
-    return oldDelegate.tileRows != tileRows ||
+    return oldDelegate.maskPattern != maskPattern ||
+        oldDelegate.progress != progress ||
+        oldDelegate.tileRows != tileRows ||
         oldDelegate.tileColumns != tileColumns ||
-        oldDelegate.visibleTiles.length != visibleTiles.length ||
-        !oldDelegate.visibleTiles.containsAll(visibleTiles);
+        !listEquals(oldDelegate.revealOrder, revealOrder);
   }
+}
+
+void _paintPatternedMask({
+  required Canvas canvas,
+  required Rect bounds,
+  required Path maskedRegion,
+  required PartialFaceMaskPattern pattern,
+  double opacity = 1,
+}) {
+  final Paint basePaint = Paint()
+    ..shader = LinearGradient(
+      colors: <Color>[
+        _kPartialFaceMaskStartColor.withValues(alpha: opacity),
+        _kPartialFaceMaskMidColor.withValues(alpha: opacity),
+        _kPartialFaceMaskEndColor.withValues(alpha: opacity),
+      ],
+      stops: const <double>[0, 0.52, 1],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ).createShader(bounds);
+  canvas.drawPath(maskedRegion, basePaint);
+
+  canvas.save();
+  canvas.clipPath(maskedRegion);
+  final Rect accentRect = Rect.fromCircle(
+    center: Offset(
+      bounds.left + (bounds.width * 0.22),
+      bounds.top + (bounds.height * 0.18),
+    ),
+    radius: math.max(bounds.width, bounds.height) * 0.82,
+  );
+  canvas.drawRect(
+    bounds,
+    Paint()
+      ..shader = RadialGradient(
+        colors: <Color>[
+          _kPartialFaceMaskAccentColor.withValues(alpha: 0.28 * opacity),
+          _kPartialFaceMaskAccentColor.withValues(alpha: 0.1 * opacity),
+          Colors.transparent,
+        ],
+        stops: const <double>[0, 0.36, 1],
+      ).createShader(accentRect),
+  );
+
+  switch (pattern) {
+    case PartialFaceMaskPattern.waterRipples:
+      _paintWaterRipplesPattern(canvas, bounds, opacity: opacity);
+    case PartialFaceMaskPattern.rippleContours:
+      _paintRippleContoursPattern(canvas, bounds, opacity: opacity);
+    case PartialFaceMaskPattern.harborLattice:
+      _paintHarborLatticePattern(canvas, bounds, opacity: opacity);
+  }
+  canvas.restore();
+}
+
+void _paintWaterRipplesPattern(
+  Canvas canvas,
+  Rect bounds, {
+  required double opacity,
+}) {
+  final Paint basePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.8
+    ..strokeCap = StrokeCap.round
+    ..color = _kPartialFaceMaskPatternDarkColor.withValues(
+      alpha: 0.09 * opacity,
+    );
+  final Paint highlightPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.2
+    ..strokeCap = StrokeCap.round
+    ..color = _kPartialFaceMaskPatternLightColor.withValues(
+      alpha: 0.2 * opacity,
+    );
+  final double lineGap = math.max(22, bounds.height / 5.8);
+  final double amplitude = math.min(10, bounds.height * 0.08);
+
+  for (
+    double y = bounds.top - (lineGap * 1.5);
+    y <= bounds.bottom + lineGap;
+    y += lineGap
+  ) {
+    final Path path = Path()..moveTo(bounds.left - 32, y);
+    for (double x = bounds.left - 32; x <= bounds.right + 32; x += 32) {
+      final double waveY =
+          y + math.sin((x / bounds.width) * math.pi * 2.3) * amplitude;
+      path.lineTo(x, waveY);
+    }
+    canvas.drawPath(path, basePaint);
+    canvas.drawPath(path.shift(const Offset(0, -1.5)), highlightPaint);
+  }
+}
+
+void _paintRippleContoursPattern(
+  Canvas canvas,
+  Rect bounds, {
+  required double opacity,
+}) {
+  final Paint basePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.9
+    ..color = _kPartialFaceMaskPatternDarkColor.withValues(
+      alpha: 0.085 * opacity,
+    );
+  final Paint accentPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 0.95
+    ..color = _kPartialFaceMaskPatternLightColor.withValues(
+      alpha: 0.22 * opacity,
+    );
+  final Offset center = bounds.center;
+  final double maxRadius = math.max(bounds.width, bounds.height) * 0.75;
+
+  for (
+    double radius = maxRadius * 0.22;
+    radius <= maxRadius;
+    radius += maxRadius * 0.12
+  ) {
+    final Rect ovalRect = Rect.fromCenter(
+      center: center.translate(radius * 0.08, -radius * 0.04),
+      width: radius * 1.8,
+      height: radius * 1.15,
+    );
+    canvas.drawOval(ovalRect, basePaint);
+    canvas.drawOval(ovalRect.deflate(2.5), accentPaint);
+  }
+}
+
+void _paintHarborLatticePattern(
+  Canvas canvas,
+  Rect bounds, {
+  required double opacity,
+}) {
+  final Paint gridPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.1
+    ..color = _kPartialFaceMaskPatternLightColor.withValues(
+      alpha: 0.16 * opacity,
+    );
+  final Paint accentPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.5
+    ..color = _kPartialFaceMaskPatternDarkColor.withValues(
+      alpha: 0.055 * opacity,
+    );
+  final double spacing = math.max(
+    28,
+    math.min(bounds.width, bounds.height) / 5.5,
+  );
+
+  for (
+    double x = bounds.left - bounds.height;
+    x <= bounds.right + bounds.height;
+    x += spacing
+  ) {
+    canvas.drawLine(
+      Offset(x, bounds.top),
+      Offset(x + bounds.height, bounds.bottom),
+      gridPaint,
+    );
+  }
+  for (
+    double x = bounds.left - bounds.height;
+    x <= bounds.right + bounds.height;
+    x += spacing
+  ) {
+    canvas.drawLine(
+      Offset(x, bounds.bottom),
+      Offset(x + bounds.height, bounds.top),
+      accentPaint,
+    );
+  }
+
+  _paintBoatMotifPattern(canvas, bounds, opacity: opacity);
+}
+
+void _paintBoatMotifPattern(
+  Canvas canvas,
+  Rect bounds, {
+  required double opacity,
+}) {
+  final Paint hullPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.2
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..color = _kPartialFaceMaskPatternLightColor.withValues(
+      alpha: 0.18 * opacity,
+    );
+  final Paint sailPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.0
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..color = _kPartialFaceMaskPatternDarkColor.withValues(
+      alpha: 0.16 * opacity,
+    );
+  final double spacingX = math.max(48, bounds.width / 4.2);
+  final double spacingY = math.max(36, bounds.height / 4.2);
+  final double boatWidth = math.min(20, spacingX * 0.34);
+  final double boatHeight = boatWidth * 0.88;
+
+  int rowIndex = 0;
+  for (
+    double y = bounds.top + (spacingY * 0.58);
+    y <= bounds.bottom + spacingY;
+    y += spacingY
+  ) {
+    final double rowOffset = rowIndex.isEven
+        ? spacingX * 0.18
+        : spacingX * 0.58;
+    for (
+      double x = bounds.left + rowOffset;
+      x <= bounds.right + spacingX;
+      x += spacingX
+    ) {
+      final Offset center = Offset(x, y);
+      final Path hull = Path()
+        ..moveTo(
+          center.dx - (boatWidth * 0.56),
+          center.dy + (boatHeight * 0.18),
+        )
+        ..quadraticBezierTo(
+          center.dx,
+          center.dy + (boatHeight * 0.52),
+          center.dx + (boatWidth * 0.58),
+          center.dy + (boatHeight * 0.18),
+        );
+      final Path sail = Path()
+        ..moveTo(
+          center.dx - (boatWidth * 0.04),
+          center.dy + (boatHeight * 0.16),
+        )
+        ..lineTo(
+          center.dx - (boatWidth * 0.04),
+          center.dy - (boatHeight * 0.56),
+        )
+        ..lineTo(
+          center.dx + (boatWidth * 0.44),
+          center.dy - (boatHeight * 0.08),
+        );
+
+      canvas.drawPath(hull, hullPaint);
+      canvas.drawPath(sail, sailPaint);
+      canvas.drawLine(
+        Offset(center.dx - (boatWidth * 0.5), center.dy + (boatHeight * 0.34)),
+        Offset(center.dx + (boatWidth * 0.64), center.dy + (boatHeight * 0.34)),
+        sailPaint,
+      );
+    }
+    rowIndex += 1;
+  }
+}
+
+double _tileMaskOpacity({
+  required double progress,
+  required int revealIndex,
+  required int totalTileCount,
+}) {
+  if (totalTileCount <= 0) {
+    return 0;
+  }
+
+  final double fadeFraction = math.min(0.18, 2.2 / totalTileCount);
+  final double revealStart = totalTileCount == 1
+      ? 0
+      : (revealIndex / (totalTileCount - 1)) * (1 - fadeFraction);
+  final double localProgress = ((progress - revealStart) / fadeFraction).clamp(
+    0.0,
+    1.0,
+  );
+  return 1 - Curves.easeOutCubic.transform(localProgress);
 }
 
 class _QuizImageFallback extends StatelessWidget {

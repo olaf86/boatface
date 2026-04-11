@@ -649,12 +649,13 @@ class QuizSessionFactory {
     switch (partialFaceVariant) {
       case PartialFaceVariant.zoomOutCenter:
         return QuizZoomOutCenterVisualSpec(
-          startScale: 1.9 + (random.nextDouble() * 0.5),
-          startAlignmentX: (random.nextDouble() * 0.24) - 0.12,
-          startAlignmentY: (random.nextDouble() * 0.18) - 0.09,
+          startScale: 5.0 + (random.nextDouble() * 0.6),
+          startAlignmentX: (random.nextDouble() * 0.56) - 0.28,
+          startAlignmentY: (random.nextDouble() * 0.34) - 0.42,
         );
       case PartialFaceVariant.spotlights:
         return QuizSpotlightsVisualSpec(
+          maskPattern: _pickPartialFaceMaskPattern(random),
           spotlightCount: random.nextBool() ? 2 : 3,
           startRadiusFactor: 0.18 + (random.nextDouble() * 0.04),
           endRadiusFactor: 0.28 + (random.nextDouble() * 0.06),
@@ -672,6 +673,7 @@ class QuizSessionFactory {
           (int index) => index,
         )..shuffle(random);
         return QuizTileRevealVisualSpec(
+          maskPattern: _pickPartialFaceMaskPattern(random),
           tileRows: tileRows,
           tileColumns: tileColumns,
           revealOrder: List<int>.unmodifiable(revealOrder),
@@ -685,53 +687,21 @@ class QuizSessionFactory {
     required int totalQuestionCount,
     required Random random,
   }) {
-    final double progress = totalQuestionCount <= 1
-        ? 1
-        : questionIndex / (totalQuestionCount - 1);
-    final List<_PartialFaceVariantWeight> weights = progress < 1 / 3
-        ? const <_PartialFaceVariantWeight>[
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.zoomOutCenter,
-              weight: 60,
-            ),
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.spotlights,
-              weight: 30,
-            ),
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.tileReveal,
-              weight: 10,
-            ),
-          ]
-        : progress < 2 / 3
-        ? const <_PartialFaceVariantWeight>[
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.zoomOutCenter,
-              weight: 35,
-            ),
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.spotlights,
-              weight: 40,
-            ),
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.tileReveal,
-              weight: 25,
-            ),
-          ]
-        : const <_PartialFaceVariantWeight>[
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.zoomOutCenter,
-              weight: 15,
-            ),
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.spotlights,
-              weight: 35,
-            ),
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.tileReveal,
-              weight: 50,
-            ),
-          ];
+    final List<_PartialFaceVariantWeight> weights =
+        const <_PartialFaceVariantWeight>[
+          _PartialFaceVariantWeight(
+            variant: PartialFaceVariant.zoomOutCenter,
+            weight: 35,
+          ),
+          _PartialFaceVariantWeight(
+            variant: PartialFaceVariant.spotlights,
+            weight: 35,
+          ),
+          _PartialFaceVariantWeight(
+            variant: PartialFaceVariant.tileReveal,
+            weight: 30,
+          ),
+        ];
     final int totalWeight = weights.fold<int>(
       0,
       (int sum, _PartialFaceVariantWeight entry) => sum + entry.weight,
@@ -744,6 +714,12 @@ class QuizSessionFactory {
       }
     }
     return weights.last.variant;
+  }
+
+  static PartialFaceMaskPattern _pickPartialFaceMaskPattern(Random random) {
+    return PartialFaceMaskPattern.values[random.nextInt(
+      PartialFaceMaskPattern.values.length,
+    )];
   }
 
   static QuizOption _buildOption(QuizPromptType type, RacerProfile racer) {

@@ -150,22 +150,23 @@ void main() {
               PartialFaceVariant.zoomOutCenter,
               QuizZoomOutCenterVisualSpec zoomSpec,
             ):
-              expect(zoomSpec.startScale, inInclusiveRange(1.9, 2.4));
-              expect(zoomSpec.startAlignmentX, inInclusiveRange(-0.12, 0.12));
-              expect(zoomSpec.startAlignmentY, inInclusiveRange(-0.09, 0.09));
+              expect(zoomSpec.startScale, inInclusiveRange(5.0, 5.6));
+              expect(zoomSpec.startAlignmentX, inInclusiveRange(-0.28, 0.28));
+              expect(zoomSpec.startAlignmentY, inInclusiveRange(-0.42, -0.08));
             case (
               PartialFaceVariant.spotlights,
               QuizSpotlightsVisualSpec windowSpec,
             ):
+              expect(
+                PartialFaceMaskPattern.values,
+                contains(windowSpec.maskPattern),
+              );
               expect(windowSpec.spotlightCount, anyOf(equals(2), equals(3)));
               expect(
                 windowSpec.startRadiusFactor,
                 inInclusiveRange(0.18, 0.22),
               );
-              expect(
-                windowSpec.endRadiusFactor,
-                inInclusiveRange(0.28, 0.34),
-              );
+              expect(windowSpec.endRadiusFactor, inInclusiveRange(0.28, 0.34));
               expect(
                 windowSpec.endRadiusFactor,
                 greaterThan(windowSpec.startRadiusFactor),
@@ -178,22 +179,17 @@ void main() {
                 windowSpec.verticalTravelFactor,
                 inInclusiveRange(0.34, 0.52),
               );
-              expect(
-                windowSpec.horizontalTurns,
-                inInclusiveRange(1.15, 1.55),
-              );
-              expect(
-                windowSpec.verticalTurns,
-                inInclusiveRange(1.7, 2.25),
-              );
-              expect(
-                windowSpec.phaseOffsetTurns,
-                inInclusiveRange(0, 1),
-              );
+              expect(windowSpec.horizontalTurns, inInclusiveRange(1.15, 1.55));
+              expect(windowSpec.verticalTurns, inInclusiveRange(1.7, 2.25));
+              expect(windowSpec.phaseOffsetTurns, inInclusiveRange(0, 1));
             case (
               PartialFaceVariant.tileReveal,
               QuizTileRevealVisualSpec tileSpec,
             ):
+              expect(
+                PartialFaceMaskPattern.values,
+                contains(tileSpec.maskPattern),
+              );
               expect(tileSpec.tileRows, anyOf(equals(3), equals(4)));
               expect(tileSpec.tileColumns, 4);
               expect(
@@ -216,14 +212,18 @@ void main() {
       expect(seenVariants, containsAll(PartialFaceVariant.values));
     });
 
-    test('increases partial face difficulty as the session progresses', () {
+    test('keeps partial face variant weights roughly flat across a session', () {
       int earlyZoomOutCount = 0;
+      int midZoomOutCount = 0;
       int lateZoomOutCount = 0;
+      int earlySpotlightCount = 0;
+      int midSpotlightCount = 0;
+      int lateSpotlightCount = 0;
       int earlyTileRevealCount = 0;
       int midTileRevealCount = 0;
       int lateTileRevealCount = 0;
 
-      for (int seed = 0; seed < 48; seed += 1) {
+      for (int seed = 0; seed < 120; seed += 1) {
         final QuizSession session = QuizSessionFactory.create(
           mode: const QuizModeConfig(
             id: 'partial',
@@ -248,17 +248,26 @@ void main() {
           if (index < 6) {
             if (variant == PartialFaceVariant.zoomOutCenter) {
               earlyZoomOutCount += 1;
+            } else if (variant == PartialFaceVariant.spotlights) {
+              earlySpotlightCount += 1;
             }
             if (variant == PartialFaceVariant.tileReveal) {
               earlyTileRevealCount += 1;
             }
           } else if (index < 12) {
+            if (variant == PartialFaceVariant.zoomOutCenter) {
+              midZoomOutCount += 1;
+            } else if (variant == PartialFaceVariant.spotlights) {
+              midSpotlightCount += 1;
+            }
             if (variant == PartialFaceVariant.tileReveal) {
               midTileRevealCount += 1;
             }
           } else {
             if (variant == PartialFaceVariant.zoomOutCenter) {
               lateZoomOutCount += 1;
+            } else if (variant == PartialFaceVariant.spotlights) {
+              lateSpotlightCount += 1;
             }
             if (variant == PartialFaceVariant.tileReveal) {
               lateTileRevealCount += 1;
@@ -267,9 +276,19 @@ void main() {
         }
       }
 
-      expect(earlyZoomOutCount, greaterThan(lateZoomOutCount));
-      expect(midTileRevealCount, greaterThan(earlyTileRevealCount));
-      expect(lateTileRevealCount, greaterThan(midTileRevealCount));
+      expect(earlyZoomOutCount, closeTo(midZoomOutCount, 60));
+      expect(midZoomOutCount, closeTo(lateZoomOutCount, 60));
+      expect(earlySpotlightCount, closeTo(midSpotlightCount, 60));
+      expect(midSpotlightCount, closeTo(lateSpotlightCount, 60));
+      expect(earlyTileRevealCount, closeTo(midTileRevealCount, 60));
+      expect(midTileRevealCount, closeTo(lateTileRevealCount, 60));
+
+      expect(earlyZoomOutCount, greaterThan(earlyTileRevealCount));
+      expect(earlySpotlightCount, greaterThan(earlyTileRevealCount));
+      expect(midZoomOutCount, greaterThan(midTileRevealCount));
+      expect(midSpotlightCount, greaterThan(midTileRevealCount));
+      expect(lateZoomOutCount, greaterThan(lateTileRevealCount));
+      expect(lateSpotlightCount, greaterThan(lateTileRevealCount));
     });
 
     test('keeps kana on target for name-to-face questions', () {
