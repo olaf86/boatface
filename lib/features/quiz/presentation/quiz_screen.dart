@@ -4,6 +4,7 @@ import 'dart:ui' show lerpDouble;
 import 'dart:io';
 
 import 'package:animations/animations.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -2371,15 +2372,7 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
     }
 
     if (promptVisualSpec is QuizTileRevealVisualSpec) {
-      final int totalTileCount =
-          promptVisualSpec.tileRows * promptVisualSpec.tileColumns;
-      final int visibleTileCount =
-          (promptVisualSpec.initialVisibleTileCount +
-                  ((totalTileCount - promptVisualSpec.initialVisibleTileCount) *
-                          progress)
-                      .round())
-              .clamp(promptVisualSpec.initialVisibleTileCount, totalTileCount);
-      if (visibleTileCount >= totalTileCount) {
+      if (progress >= 1) {
         return KeyedSubtree(
           key: const ValueKey<String>('quiz-partial-face-tile-reveal'),
           child: image,
@@ -2395,11 +2388,10 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
             child: CustomPaint(
               painter: _TileRevealMaskPainter(
                 maskPattern: promptVisualSpec.maskPattern,
+                progress: progress,
                 tileRows: promptVisualSpec.tileRows,
                 tileColumns: promptVisualSpec.tileColumns,
-                visibleTiles: promptVisualSpec.revealOrder
-                    .take(visibleTileCount)
-                    .toSet(),
+                revealOrder: promptVisualSpec.revealOrder,
               ),
             ),
           ),
@@ -2602,26 +2594,32 @@ void _paintSpotlightEdgeGlow({
 class _TileRevealMaskPainter extends CustomPainter {
   const _TileRevealMaskPainter({
     required this.maskPattern,
+    required this.progress,
     required this.tileRows,
     required this.tileColumns,
-    required this.visibleTiles,
+    required this.revealOrder,
   });
 
   final PartialFaceMaskPattern maskPattern;
+  final double progress;
   final int tileRows;
   final int tileColumns;
-  final Set<int> visibleTiles;
+  final List<int> revealOrder;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Path maskPath = Path();
     final double tileWidth = size.width / tileColumns;
     final double tileHeight = size.height / tileRows;
+    final Map<int, int> revealIndexByTile = <int, int>{
+      for (int index = 0; index < revealOrder.length; index += 1)
+        revealOrder[index]: index,
+    };
 
     for (int row = 0; row < tileRows; row += 1) {
       for (int column = 0; column < tileColumns; column += 1) {
         final int index = row * tileColumns + column;
-        if (visibleTiles.contains(index)) {
+        final int? revealIndex = revealIndexByTile[index];
+        if (revealIndex == null) {
           continue;
         }
 
@@ -2631,25 +2629,33 @@ class _TileRevealMaskPainter extends CustomPainter {
           tileWidth,
           tileHeight,
         );
-        maskPath.addRect(tileRect);
+        final double maskOpacity = _tileMaskOpacity(
+          progress: progress,
+          revealIndex: revealIndex,
+          totalTileCount: revealOrder.length,
+        );
+        if (maskOpacity <= 0.001) {
+          continue;
+        }
+
+        _paintPatternedMask(
+          canvas: canvas,
+          bounds: tileRect,
+          maskedRegion: Path()..addRect(tileRect),
+          pattern: maskPattern,
+          opacity: maskOpacity,
+        );
       }
     }
-
-    _paintPatternedMask(
-      canvas: canvas,
-      bounds: Offset.zero & size,
-      maskedRegion: maskPath,
-      pattern: maskPattern,
-    );
   }
 
   @override
   bool shouldRepaint(covariant _TileRevealMaskPainter oldDelegate) {
     return oldDelegate.maskPattern != maskPattern ||
+        oldDelegate.progress != progress ||
         oldDelegate.tileRows != tileRows ||
         oldDelegate.tileColumns != tileColumns ||
-        oldDelegate.visibleTiles.length != visibleTiles.length ||
-        !oldDelegate.visibleTiles.containsAll(visibleTiles);
+        !listEquals(oldDelegate.revealOrder, revealOrder);
   }
 }
 
@@ -2658,27 +2664,35 @@ void _paintPatternedMask({
   required Rect bounds,
   required Path maskedRegion,
   required PartialFaceMaskPattern pattern,
+  double opacity = 1,
 }) {
-  canvas.drawPath(maskedRegion, Paint()..color = _kPartialFaceMaskColor);
+  canvas.drawPath(
+    maskedRegion,
+    Paint()..color = _kPartialFaceMaskColor.withValues(alpha: opacity),
+  );
 
   canvas.save();
   canvas.clipPath(maskedRegion);
   switch (pattern) {
     case PartialFaceMaskPattern.waveBands:
-      _paintWaveBandsPattern(canvas, bounds);
+      _paintWaveBandsPattern(canvas, bounds, opacity: opacity);
     case PartialFaceMaskPattern.contourLines:
-      _paintContourLinesPattern(canvas, bounds);
+      _paintContourLinesPattern(canvas, bounds, opacity: opacity);
     case PartialFaceMaskPattern.geometricGrid:
-      _paintGeometricGridPattern(canvas, bounds);
+      _paintGeometricGridPattern(canvas, bounds, opacity: opacity);
   }
   canvas.restore();
 }
 
-void _paintWaveBandsPattern(Canvas canvas, Rect bounds) {
+void _paintWaveBandsPattern(
+  Canvas canvas,
+  Rect bounds, {
+  required double opacity,
+}) {
   final Paint strokePaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 2.2
-    ..color = _kPartialFaceMaskPatternColor.withValues(alpha: 0.13);
+    ..color = _kPartialFaceMaskPatternColor.withValues(alpha: 0.13 * opacity);
   final double lineGap = bounds.height / 6.5;
 
   for (
@@ -2695,11 +2709,15 @@ void _paintWaveBandsPattern(Canvas canvas, Rect bounds) {
   }
 }
 
-void _paintContourLinesPattern(Canvas canvas, Rect bounds) {
+void _paintContourLinesPattern(
+  Canvas canvas,
+  Rect bounds, {
+  required double opacity,
+}) {
   final Paint strokePaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1.8
-    ..color = _kPartialFaceMaskPatternColor.withValues(alpha: 0.14);
+    ..color = _kPartialFaceMaskPatternColor.withValues(alpha: 0.14 * opacity);
   final Offset center = bounds.center;
   final double maxRadius = math.max(bounds.width, bounds.height) * 0.75;
 
@@ -2717,11 +2735,15 @@ void _paintContourLinesPattern(Canvas canvas, Rect bounds) {
   }
 }
 
-void _paintGeometricGridPattern(Canvas canvas, Rect bounds) {
+void _paintGeometricGridPattern(
+  Canvas canvas,
+  Rect bounds, {
+  required double opacity,
+}) {
   final Paint strokePaint = Paint()
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1.4
-    ..color = _kPartialFaceMaskPatternColor.withValues(alpha: 0.12);
+    ..color = _kPartialFaceMaskPatternColor.withValues(alpha: 0.12 * opacity);
   final double spacing = math.max(
     22,
     math.min(bounds.width, bounds.height) / 6,
@@ -2749,6 +2771,26 @@ void _paintGeometricGridPattern(Canvas canvas, Rect bounds) {
       strokePaint,
     );
   }
+}
+
+double _tileMaskOpacity({
+  required double progress,
+  required int revealIndex,
+  required int totalTileCount,
+}) {
+  if (totalTileCount <= 0) {
+    return 0;
+  }
+
+  final double fadeFraction = math.min(0.18, 2.2 / totalTileCount);
+  final double revealStart = totalTileCount == 1
+      ? 0
+      : (revealIndex / (totalTileCount - 1)) * (1 - fadeFraction);
+  final double localProgress = ((progress - revealStart) / fadeFraction).clamp(
+    0.0,
+    1.0,
+  );
+  return 1 - Curves.easeOutCubic.transform(localProgress);
 }
 
 class _QuizImageFallback extends StatelessWidget {
