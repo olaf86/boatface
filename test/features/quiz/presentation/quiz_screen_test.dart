@@ -328,6 +328,80 @@ void main() {
     }
   });
 
+  testWidgets('partial face zoom reveal accelerates later in the animation', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(
+      promptType: QuizPromptType.partialFaceToName,
+      timeLimitSeconds: 10,
+    );
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        quizSessionControllerProvider.overrideWith(
+          () => _FakeQuizSessionController(
+            _buildSessionState(
+              mode: mode,
+              currentQuestion: _buildPartialFaceQuestion(
+                variant: PartialFaceVariant.zoomOutCenter,
+                spec: const QuizZoomOutCenterVisualSpec(
+                  startScale: 2.8,
+                  startAlignmentX: 0.1,
+                  startAlignmentY: -0.05,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final Finder transformFinder = find.descendant(
+        of: find.byKey(const ValueKey<String>('quiz-partial-face-zoom-out')),
+        matching: find.byType(Transform),
+      );
+
+      final double startScale = tester
+          .widget<Transform>(transformFinder.first)
+          .transform
+          .storage[0];
+      await tester.pump(const Duration(seconds: 2));
+      final double earlyScale = tester
+          .widget<Transform>(transformFinder.first)
+          .transform
+          .storage[0];
+      await tester.pump(const Duration(seconds: 2));
+      final double midScale = tester
+          .widget<Transform>(transformFinder.first)
+          .transform
+          .storage[0];
+      await tester.pump(const Duration(seconds: 2));
+      final double lateScale = tester
+          .widget<Transform>(transformFinder.first)
+          .transform
+          .storage[0];
+
+      final double earlyMovement = startScale - earlyScale;
+      final double lateMovement = midScale - lateScale;
+      expect(earlyMovement, lessThan(lateMovement));
+    } finally {
+      container.dispose();
+    }
+  });
+
   testWidgets('partial face animation keeps running during time freeze', (
     WidgetTester tester,
   ) async {

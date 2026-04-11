@@ -2273,8 +2273,9 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
                   animation: _controller!,
                   child: image,
                   builder: (BuildContext context, Widget? child) {
-                    final double revealProgress = _acceleratedRevealProgress(
-                      _currentLinearProgress(),
+                    final double revealProgress = _revealProgressForSpec(
+                      promptVisualSpec: widget.promptVisualSpec,
+                      linearProgress: _currentLinearProgress(),
                     );
                     return _buildPresentedImage(
                       image: child!,
@@ -2448,6 +2449,22 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
 double _acceleratedRevealProgress(double linearProgress) {
   final double clamped = linearProgress.clamp(0.0, 1.0);
   return Curves.easeInOutCubic.transform(clamped);
+}
+
+double _zoomOutRevealProgress(double linearProgress) {
+  final double clamped = linearProgress.clamp(0.0, 1.0);
+  return Curves.easeInQuart.transform(clamped);
+}
+
+double _revealProgressForSpec({
+  required QuizPromptVisualSpec? promptVisualSpec,
+  required double linearProgress,
+}) {
+  if (promptVisualSpec is QuizZoomOutCenterVisualSpec) {
+    return _zoomOutRevealProgress(linearProgress);
+  }
+
+  return _acceleratedRevealProgress(linearProgress);
 }
 
 const Color _kPartialFaceMaskColor = Color(0xFF0C5E88);

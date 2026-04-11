@@ -649,7 +649,7 @@ class QuizSessionFactory {
     switch (partialFaceVariant) {
       case PartialFaceVariant.zoomOutCenter:
         return QuizZoomOutCenterVisualSpec(
-          startScale: 1.9 + (random.nextDouble() * 0.5),
+          startScale: 5.0 + (random.nextDouble() * 0.6),
           startAlignmentX: (random.nextDouble() * 0.24) - 0.12,
           startAlignmentY: (random.nextDouble() * 0.18) - 0.09,
         );

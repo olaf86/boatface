@@ -150,7 +150,7 @@ void main() {
               PartialFaceVariant.zoomOutCenter,
               QuizZoomOutCenterVisualSpec zoomSpec,
             ):
-              expect(zoomSpec.startScale, inInclusiveRange(1.9, 2.4));
+              expect(zoomSpec.startScale, inInclusiveRange(5.0, 5.6));
               expect(zoomSpec.startAlignmentX, inInclusiveRange(-0.12, 0.12));
               expect(zoomSpec.startAlignmentY, inInclusiveRange(-0.09, 0.09));
             case (
