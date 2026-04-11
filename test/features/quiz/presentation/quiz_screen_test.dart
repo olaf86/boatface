@@ -193,7 +193,7 @@ void main() {
           currentQuestion: _buildPartialFaceQuestion(
             variant: PartialFaceVariant.spotlights,
             spec: const QuizSpotlightsVisualSpec(
-              maskPattern: PartialFaceMaskPattern.waveBands,
+              maskPattern: PartialFaceMaskPattern.waterRipples,
               spotlightCount: 2,
               startRadiusFactor: 0.2,
               endRadiusFactor: 0.32,
@@ -218,7 +218,7 @@ void main() {
           currentQuestion: _buildPartialFaceQuestion(
             variant: PartialFaceVariant.tileReveal,
             spec: const QuizTileRevealVisualSpec(
-              maskPattern: PartialFaceMaskPattern.contourLines,
+              maskPattern: PartialFaceMaskPattern.rippleContours,
               tileRows: 4,
               tileColumns: 4,
               revealOrder: <int>[

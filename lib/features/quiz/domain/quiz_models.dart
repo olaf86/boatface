@@ -340,7 +340,7 @@ class RacerProfile {
 
 enum PartialFaceVariant { zoomOutCenter, spotlights, tileReveal }
 
-enum PartialFaceMaskPattern { waveBands, contourLines, geometricGrid }
+enum PartialFaceMaskPattern { waterRipples, rippleContours, harborLattice }
 
 sealed class QuizPromptVisualSpec {
   const QuizPromptVisualSpec();

@@ -2459,9 +2459,10 @@ double _revealProgressForSpec({
   return _acceleratedRevealProgress(linearProgress);
 }
 
-const Color _kPartialFaceMaskColor = Color(0xFF0C5E88);
-const Color _kPartialFaceMaskStrokeColor = Color(0xFFDDF6FF);
-const Color _kPartialFaceMaskPatternColor = Color(0xFFB6E6FA);
+const Color _kPartialFaceMaskColor = Color(0xFF4EA8C7);
+const Color _kPartialFaceMaskStrokeColor = Color(0xFFF0FCFF);
+const Color _kPartialFaceMaskPatternDarkColor = Color(0xFF2D708A);
+const Color _kPartialFaceMaskPatternLightColor = Color(0xFFE5FAFF);
 
 class _SpotlightsMaskPainter extends CustomPainter {
   const _SpotlightsMaskPainter({
@@ -2575,8 +2576,8 @@ void _paintSpotlightEdgeGlow({
       ..shader = RadialGradient(
         colors: <Color>[
           Colors.transparent,
-          _kPartialFaceMaskStrokeColor.withValues(alpha: 0.34),
-          _kPartialFaceMaskStrokeColor.withValues(alpha: 0.12),
+          _kPartialFaceMaskStrokeColor.withValues(alpha: 0.28),
+          _kPartialFaceMaskStrokeColor.withValues(alpha: 0.1),
           Colors.transparent,
         ],
         stops: const <double>[
@@ -2674,26 +2675,37 @@ void _paintPatternedMask({
   canvas.save();
   canvas.clipPath(maskedRegion);
   switch (pattern) {
-    case PartialFaceMaskPattern.waveBands:
-      _paintWaveBandsPattern(canvas, bounds, opacity: opacity);
-    case PartialFaceMaskPattern.contourLines:
-      _paintContourLinesPattern(canvas, bounds, opacity: opacity);
-    case PartialFaceMaskPattern.geometricGrid:
-      _paintGeometricGridPattern(canvas, bounds, opacity: opacity);
+    case PartialFaceMaskPattern.waterRipples:
+      _paintWaterRipplesPattern(canvas, bounds, opacity: opacity);
+    case PartialFaceMaskPattern.rippleContours:
+      _paintRippleContoursPattern(canvas, bounds, opacity: opacity);
+    case PartialFaceMaskPattern.harborLattice:
+      _paintHarborLatticePattern(canvas, bounds, opacity: opacity);
   }
   canvas.restore();
 }
 
-void _paintWaveBandsPattern(
+void _paintWaterRipplesPattern(
   Canvas canvas,
   Rect bounds, {
   required double opacity,
 }) {
-  final Paint strokePaint = Paint()
+  final Paint basePaint = Paint()
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 2.2
-    ..color = _kPartialFaceMaskPatternColor.withValues(alpha: 0.13 * opacity);
-  final double lineGap = bounds.height / 6.5;
+    ..strokeWidth = 2.8
+    ..strokeCap = StrokeCap.round
+    ..color = _kPartialFaceMaskPatternDarkColor.withValues(
+      alpha: 0.1 * opacity,
+    );
+  final Paint highlightPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.2
+    ..strokeCap = StrokeCap.round
+    ..color = _kPartialFaceMaskPatternLightColor.withValues(
+      alpha: 0.16 * opacity,
+    );
+  final double lineGap = math.max(22, bounds.height / 5.8);
+  final double amplitude = math.min(10, bounds.height * 0.08);
 
   for (
     double y = bounds.top - (lineGap * 1.5);
@@ -2702,22 +2714,32 @@ void _paintWaveBandsPattern(
   ) {
     final Path path = Path()..moveTo(bounds.left - 32, y);
     for (double x = bounds.left - 32; x <= bounds.right + 32; x += 32) {
-      final double waveY = y + math.sin((x / bounds.width) * math.pi * 2.6) * 8;
+      final double waveY =
+          y + math.sin((x / bounds.width) * math.pi * 2.3) * amplitude;
       path.lineTo(x, waveY);
     }
-    canvas.drawPath(path, strokePaint);
+    canvas.drawPath(path, basePaint);
+    canvas.drawPath(path.shift(const Offset(0, -1.5)), highlightPaint);
   }
 }
 
-void _paintContourLinesPattern(
+void _paintRippleContoursPattern(
   Canvas canvas,
   Rect bounds, {
   required double opacity,
 }) {
-  final Paint strokePaint = Paint()
+  final Paint basePaint = Paint()
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.8
-    ..color = _kPartialFaceMaskPatternColor.withValues(alpha: 0.14 * opacity);
+    ..strokeWidth = 1.9
+    ..color = _kPartialFaceMaskPatternDarkColor.withValues(
+      alpha: 0.1 * opacity,
+    );
+  final Paint accentPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 0.95
+    ..color = _kPartialFaceMaskPatternLightColor.withValues(
+      alpha: 0.18 * opacity,
+    );
   final Offset center = bounds.center;
   final double maxRadius = math.max(bounds.width, bounds.height) * 0.75;
 
@@ -2731,22 +2753,31 @@ void _paintContourLinesPattern(
       width: radius * 1.8,
       height: radius * 1.15,
     );
-    canvas.drawOval(ovalRect, strokePaint);
+    canvas.drawOval(ovalRect, basePaint);
+    canvas.drawOval(ovalRect.deflate(2.5), accentPaint);
   }
 }
 
-void _paintGeometricGridPattern(
+void _paintHarborLatticePattern(
   Canvas canvas,
   Rect bounds, {
   required double opacity,
 }) {
-  final Paint strokePaint = Paint()
+  final Paint gridPaint = Paint()
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.4
-    ..color = _kPartialFaceMaskPatternColor.withValues(alpha: 0.12 * opacity);
+    ..strokeWidth = 1.1
+    ..color = _kPartialFaceMaskPatternLightColor.withValues(
+      alpha: 0.11 * opacity,
+    );
+  final Paint accentPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.5
+    ..color = _kPartialFaceMaskPatternDarkColor.withValues(
+      alpha: 0.06 * opacity,
+    );
   final double spacing = math.max(
-    22,
-    math.min(bounds.width, bounds.height) / 6,
+    28,
+    math.min(bounds.width, bounds.height) / 5.5,
   );
 
   for (
@@ -2757,7 +2788,7 @@ void _paintGeometricGridPattern(
     canvas.drawLine(
       Offset(x, bounds.top),
       Offset(x + bounds.height, bounds.bottom),
-      strokePaint,
+      gridPaint,
     );
   }
   for (
@@ -2768,8 +2799,88 @@ void _paintGeometricGridPattern(
     canvas.drawLine(
       Offset(x, bounds.bottom),
       Offset(x + bounds.height, bounds.top),
-      strokePaint,
+      accentPaint,
     );
+  }
+
+  _paintBoatMotifPattern(canvas, bounds, opacity: opacity);
+}
+
+void _paintBoatMotifPattern(
+  Canvas canvas,
+  Rect bounds, {
+  required double opacity,
+}) {
+  final Paint hullPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.2
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..color = _kPartialFaceMaskPatternLightColor.withValues(
+      alpha: 0.18 * opacity,
+    );
+  final Paint sailPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.0
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..color = _kPartialFaceMaskPatternDarkColor.withValues(
+      alpha: 0.16 * opacity,
+    );
+  final double spacingX = math.max(48, bounds.width / 4.2);
+  final double spacingY = math.max(36, bounds.height / 4.2);
+  final double boatWidth = math.min(20, spacingX * 0.34);
+  final double boatHeight = boatWidth * 0.88;
+
+  int rowIndex = 0;
+  for (
+    double y = bounds.top + (spacingY * 0.58);
+    y <= bounds.bottom + spacingY;
+    y += spacingY
+  ) {
+    final double rowOffset = rowIndex.isEven
+        ? spacingX * 0.18
+        : spacingX * 0.58;
+    for (
+      double x = bounds.left + rowOffset;
+      x <= bounds.right + spacingX;
+      x += spacingX
+    ) {
+      final Offset center = Offset(x, y);
+      final Path hull = Path()
+        ..moveTo(
+          center.dx - (boatWidth * 0.56),
+          center.dy + (boatHeight * 0.18),
+        )
+        ..quadraticBezierTo(
+          center.dx,
+          center.dy + (boatHeight * 0.52),
+          center.dx + (boatWidth * 0.58),
+          center.dy + (boatHeight * 0.18),
+        );
+      final Path sail = Path()
+        ..moveTo(
+          center.dx - (boatWidth * 0.04),
+          center.dy + (boatHeight * 0.16),
+        )
+        ..lineTo(
+          center.dx - (boatWidth * 0.04),
+          center.dy - (boatHeight * 0.56),
+        )
+        ..lineTo(
+          center.dx + (boatWidth * 0.44),
+          center.dy - (boatHeight * 0.08),
+        );
+
+      canvas.drawPath(hull, hullPaint);
+      canvas.drawPath(sail, sailPaint);
+      canvas.drawLine(
+        Offset(center.dx - (boatWidth * 0.5), center.dy + (boatHeight * 0.34)),
+        Offset(center.dx + (boatWidth * 0.64), center.dy + (boatHeight * 0.34)),
+        sailPaint,
+      );
+    }
+    rowIndex += 1;
   }
 }
 
