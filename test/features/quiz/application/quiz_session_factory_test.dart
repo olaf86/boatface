@@ -187,10 +187,7 @@ void main() {
                 tileSpec.revealOrder.toSet(),
                 hasLength(tileSpec.tileRows * tileSpec.tileColumns),
               );
-              expect(
-                tileSpec.initialVisibleTileCount,
-                anyOf(equals(1), equals(2)),
-              );
+              expect(tileSpec.initialVisibleTileCount, equals(0));
             case _:
               fail(
                 'Unexpected partial face visual combination: $variant / $spec',

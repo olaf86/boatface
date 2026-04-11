@@ -680,7 +680,7 @@ class QuizSessionFactory {
           tileRows: tileRows,
           tileColumns: tileColumns,
           revealOrder: List<int>.unmodifiable(revealOrder),
-          initialVisibleTileCount: random.nextBool() ? 1 : 2,
+          initialVisibleTileCount: 0,
         );
     }
   }

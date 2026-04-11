@@ -235,7 +235,7 @@ void main() {
                 9,
                 12,
               ],
-              initialVisibleTileCount: 1,
+              initialVisibleTileCount: 0,
             ),
           ),
         ),
