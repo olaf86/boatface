@@ -625,7 +625,6 @@ class _QuizPromptCard extends StatelessWidget {
                 fit: question.promptVisualSpec == null
                     ? BoxFit.contain
                     : BoxFit.cover,
-                remaining: remaining,
                 totalSeconds: totalSeconds,
               ),
             ),
@@ -2212,7 +2211,6 @@ class _QuizImagePanel extends StatefulWidget {
     this.localImagePath,
     this.promptVisualSpec,
     this.fit = BoxFit.contain,
-    this.remaining,
     this.totalSeconds,
   });
 
@@ -2221,7 +2219,6 @@ class _QuizImagePanel extends StatefulWidget {
   final String? localImagePath;
   final QuizPromptVisualSpec? promptVisualSpec;
   final BoxFit fit;
-  final Duration? remaining;
   final int? totalSeconds;
 
   @override
@@ -2232,8 +2229,6 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
     with TickerProviderStateMixin {
   AnimationController? _controller;
   static const Duration _kUntimedPartialRevealDuration = Duration(seconds: 10);
-  static const int _kTimedRevealSyncMinMs = 16;
-  static const int _kTimedRevealSyncMaxMs = 120;
   Widget? _imageChild;
   String? _imageChildUrl;
   String? _imageChildLocalPath;
@@ -2255,12 +2250,6 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
         oldWidget.fit != widget.fit ||
         oldWidget.totalSeconds != widget.totalSeconds) {
       _configureAnimation();
-      return;
-    }
-
-    if (widget.totalSeconds != null &&
-        oldWidget.remaining != widget.remaining) {
-      _syncTimedProgress(animated: true);
     }
   }
 
@@ -2308,14 +2297,11 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
 
     _controller = AnimationController(
       vsync: this,
-      duration: _kUntimedPartialRevealDuration,
+      duration: widget.totalSeconds == null
+          ? _kUntimedPartialRevealDuration
+          : Duration(seconds: widget.totalSeconds!),
       value: 0,
-    );
-    if (widget.totalSeconds != null) {
-      _syncTimedProgress(animated: false);
-      return;
-    }
-    _controller!.forward();
+    )..forward();
   }
 
   double _currentLinearProgress() {
@@ -2464,40 +2450,6 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
     }
 
     return _QuizImageFallback(label: widget.semanticLabel);
-  }
-
-  void _syncTimedProgress({required bool animated}) {
-    final AnimationController? controller = _controller;
-    final int? totalSeconds = widget.totalSeconds;
-    if (controller == null || totalSeconds == null) {
-      return;
-    }
-
-    final int totalMs = (totalSeconds * 1000).clamp(1, 60000);
-    final int remainingMs =
-        widget.remaining?.inMilliseconds.clamp(0, totalMs) ?? 0;
-    final double targetProgress = (1 - (remainingMs / totalMs)).clamp(0.0, 1.0);
-
-    if (!animated) {
-      controller.value = targetProgress;
-      return;
-    }
-
-    final double delta = (targetProgress - controller.value).abs();
-    if (delta < 0.0001) {
-      controller.value = targetProgress;
-      return;
-    }
-
-    final int durationMs = (delta * totalMs).round().clamp(
-      _kTimedRevealSyncMinMs,
-      _kTimedRevealSyncMaxMs,
-    );
-    controller.animateTo(
-      targetProgress,
-      duration: Duration(milliseconds: durationMs),
-      curve: Curves.linear,
-    );
   }
 }
 

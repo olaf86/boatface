@@ -251,7 +251,7 @@ void main() {
     }
   });
 
-  testWidgets('partial face zoom reveal accelerates as time runs down', (
+  testWidgets('partial face zoom reveal progresses smoothly over time', (
     WidgetTester tester,
   ) async {
     final QuizModeConfig mode = _buildMode(
@@ -311,8 +311,7 @@ void main() {
           elapsedForCurrentQuestion: const Duration(seconds: 9),
         ),
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 120));
+      await tester.pump(const Duration(seconds: 2));
 
       final Transform lateTransform = tester.widget<Transform>(
         earlyTransformFinder.first,
@@ -320,7 +319,78 @@ void main() {
       final double lateScale = lateTransform.transform.storage[0];
 
       expect(earlyScale, greaterThan(lateScale));
-      expect(lateScale, closeTo(1.0, 0.2));
+    } finally {
+      container.dispose();
+    }
+  });
+
+  testWidgets('partial face animation keeps running during time freeze', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(
+      promptType: QuizPromptType.partialFaceToName,
+      timeLimitSeconds: 10,
+    );
+    final _FakeQuizSessionController controller = _FakeQuizSessionController(
+      _buildSessionState(
+        mode: mode,
+        currentQuestion: _buildPartialFaceQuestion(
+          variant: PartialFaceVariant.zoomOutCenter,
+          spec: const QuizZoomOutCenterVisualSpec(
+            startScale: 2.3,
+            startAlignmentX: 0.1,
+            startAlignmentY: -0.05,
+          ),
+        ),
+      ).copyWith(
+        remainingForCurrentQuestion: const Duration(seconds: 8),
+        replaceRemaining: true,
+        elapsedForCurrentQuestion: const Duration(seconds: 2),
+        timeFreezeActive: true,
+      ),
+    );
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        quizSessionControllerProvider.overrideWith(() => controller),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final Finder transformFinder = find.descendant(
+        of: find.byKey(const ValueKey<String>('quiz-partial-face-zoom-out')),
+        matching: find.byType(Transform),
+      );
+      final double earlyScale = tester
+          .widget<Transform>(transformFinder.first)
+          .transform
+          .storage[0];
+
+      await tester.pump(const Duration(seconds: 2));
+
+      final double laterScale = tester
+          .widget<Transform>(transformFinder.first)
+          .transform
+          .storage[0];
+
+      expect(earlyScale, greaterThan(laterScale));
+      expect(controller.state.timeFreezeActive, true);
+      expect(
+        controller.state.remainingForCurrentQuestion,
+        const Duration(seconds: 8),
+      );
     } finally {
       container.dispose();
     }
