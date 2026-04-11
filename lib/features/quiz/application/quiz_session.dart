@@ -687,53 +687,21 @@ class QuizSessionFactory {
     required int totalQuestionCount,
     required Random random,
   }) {
-    final double progress = totalQuestionCount <= 1
-        ? 1
-        : questionIndex / (totalQuestionCount - 1);
-    final List<_PartialFaceVariantWeight> weights = progress < 1 / 3
-        ? const <_PartialFaceVariantWeight>[
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.zoomOutCenter,
-              weight: 60,
-            ),
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.spotlights,
-              weight: 30,
-            ),
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.tileReveal,
-              weight: 10,
-            ),
-          ]
-        : progress < 2 / 3
-        ? const <_PartialFaceVariantWeight>[
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.zoomOutCenter,
-              weight: 35,
-            ),
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.spotlights,
-              weight: 40,
-            ),
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.tileReveal,
-              weight: 25,
-            ),
-          ]
-        : const <_PartialFaceVariantWeight>[
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.zoomOutCenter,
-              weight: 15,
-            ),
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.spotlights,
-              weight: 35,
-            ),
-            _PartialFaceVariantWeight(
-              variant: PartialFaceVariant.tileReveal,
-              weight: 50,
-            ),
-          ];
+    final List<_PartialFaceVariantWeight> weights =
+        const <_PartialFaceVariantWeight>[
+          _PartialFaceVariantWeight(
+            variant: PartialFaceVariant.zoomOutCenter,
+            weight: 35,
+          ),
+          _PartialFaceVariantWeight(
+            variant: PartialFaceVariant.spotlights,
+            weight: 35,
+          ),
+          _PartialFaceVariantWeight(
+            variant: PartialFaceVariant.tileReveal,
+            weight: 30,
+          ),
+        ];
     final int totalWeight = weights.fold<int>(
       0,
       (int sum, _PartialFaceVariantWeight entry) => sum + entry.weight,

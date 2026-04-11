@@ -212,14 +212,18 @@ void main() {
       expect(seenVariants, containsAll(PartialFaceVariant.values));
     });
 
-    test('increases partial face difficulty as the session progresses', () {
+    test('keeps partial face variant weights roughly flat across a session', () {
       int earlyZoomOutCount = 0;
+      int midZoomOutCount = 0;
       int lateZoomOutCount = 0;
+      int earlySpotlightCount = 0;
+      int midSpotlightCount = 0;
+      int lateSpotlightCount = 0;
       int earlyTileRevealCount = 0;
       int midTileRevealCount = 0;
       int lateTileRevealCount = 0;
 
-      for (int seed = 0; seed < 48; seed += 1) {
+      for (int seed = 0; seed < 120; seed += 1) {
         final QuizSession session = QuizSessionFactory.create(
           mode: const QuizModeConfig(
             id: 'partial',
@@ -244,17 +248,26 @@ void main() {
           if (index < 6) {
             if (variant == PartialFaceVariant.zoomOutCenter) {
               earlyZoomOutCount += 1;
+            } else if (variant == PartialFaceVariant.spotlights) {
+              earlySpotlightCount += 1;
             }
             if (variant == PartialFaceVariant.tileReveal) {
               earlyTileRevealCount += 1;
             }
           } else if (index < 12) {
+            if (variant == PartialFaceVariant.zoomOutCenter) {
+              midZoomOutCount += 1;
+            } else if (variant == PartialFaceVariant.spotlights) {
+              midSpotlightCount += 1;
+            }
             if (variant == PartialFaceVariant.tileReveal) {
               midTileRevealCount += 1;
             }
           } else {
             if (variant == PartialFaceVariant.zoomOutCenter) {
               lateZoomOutCount += 1;
+            } else if (variant == PartialFaceVariant.spotlights) {
+              lateSpotlightCount += 1;
             }
             if (variant == PartialFaceVariant.tileReveal) {
               lateTileRevealCount += 1;
@@ -263,9 +276,19 @@ void main() {
         }
       }
 
-      expect(earlyZoomOutCount, greaterThan(lateZoomOutCount));
-      expect(midTileRevealCount, greaterThan(earlyTileRevealCount));
-      expect(lateTileRevealCount, greaterThan(midTileRevealCount));
+      expect(earlyZoomOutCount, closeTo(midZoomOutCount, 60));
+      expect(midZoomOutCount, closeTo(lateZoomOutCount, 60));
+      expect(earlySpotlightCount, closeTo(midSpotlightCount, 60));
+      expect(midSpotlightCount, closeTo(lateSpotlightCount, 60));
+      expect(earlyTileRevealCount, closeTo(midTileRevealCount, 60));
+      expect(midTileRevealCount, closeTo(lateTileRevealCount, 60));
+
+      expect(earlyZoomOutCount, greaterThan(earlyTileRevealCount));
+      expect(earlySpotlightCount, greaterThan(earlyTileRevealCount));
+      expect(midZoomOutCount, greaterThan(midTileRevealCount));
+      expect(midSpotlightCount, greaterThan(midTileRevealCount));
+      expect(lateZoomOutCount, greaterThan(lateTileRevealCount));
+      expect(lateSpotlightCount, greaterThan(lateTileRevealCount));
     });
 
     test('keeps kana on target for name-to-face questions', () {
