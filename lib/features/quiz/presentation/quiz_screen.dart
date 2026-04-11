@@ -597,6 +597,7 @@ class _QuizPromptCard extends StatelessWidget {
     final double screenHeight = MediaQuery.sizeOf(context).height;
     final bool isFacePrompt =
         question.promptType == QuizPromptType.faceToName ||
+        question.promptType == QuizPromptType.partialFaceToName ||
         question.promptType == QuizPromptType.faceToRegistration;
     final double promptImageHeight = isFacePrompt
         ? (availableHeight * 0.29).clamp(234.0, 324.0)
