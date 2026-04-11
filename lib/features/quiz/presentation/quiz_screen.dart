@@ -2374,6 +2374,12 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
                           progress)
                       .round())
               .clamp(promptVisualSpec.initialVisibleTileCount, totalTileCount);
+      if (visibleTileCount >= totalTileCount) {
+        return KeyedSubtree(
+          key: const ValueKey<String>('quiz-partial-face-tile-reveal'),
+          child: image,
+        );
+      }
 
       return Stack(
         key: const ValueKey<String>('quiz-partial-face-tile-reveal'),
@@ -2419,16 +2425,7 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
 
 double _acceleratedRevealProgress(double linearProgress) {
   final double clamped = linearProgress.clamp(0.0, 1.0);
-  if (clamped <= 0.5) {
-    return 0.22 * Curves.easeInOut.transform(clamped / 0.5);
-  }
-
-  return lerpDouble(
-        0.22,
-        1,
-        Curves.easeOutCubic.transform((clamped - 0.5) / 0.5),
-      ) ??
-      1;
+  return Curves.easeInOutCubic.transform(clamped);
 }
 
 const Color _kPartialFaceMaskColor = Color(0xFF0C5E88);
@@ -2514,11 +2511,8 @@ class _TileRevealMaskPainter extends CustomPainter {
           row * tileHeight,
           tileWidth,
           tileHeight,
-        ).deflate(1.2);
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(tileRect, const Radius.circular(8)),
-          Paint()..blendMode = BlendMode.clear,
         );
+        canvas.drawRect(tileRect, Paint()..blendMode = BlendMode.clear);
       }
     }
 
