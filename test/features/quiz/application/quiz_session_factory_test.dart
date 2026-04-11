@@ -151,8 +151,8 @@ void main() {
               QuizZoomOutCenterVisualSpec zoomSpec,
             ):
               expect(zoomSpec.startScale, inInclusiveRange(5.0, 5.6));
-              expect(zoomSpec.startAlignmentX, inInclusiveRange(-0.12, 0.12));
-              expect(zoomSpec.startAlignmentY, inInclusiveRange(-0.09, 0.09));
+              expect(zoomSpec.startAlignmentX, inInclusiveRange(-0.28, 0.28));
+              expect(zoomSpec.startAlignmentY, inInclusiveRange(-0.42, -0.08));
             case (
               PartialFaceVariant.spotlights,
               QuizSpotlightsVisualSpec windowSpec,

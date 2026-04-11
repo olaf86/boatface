@@ -2445,7 +2445,7 @@ double _acceleratedRevealProgress(double linearProgress) {
 
 double _zoomOutRevealProgress(double linearProgress) {
   final double clamped = linearProgress.clamp(0.0, 1.0);
-  return Curves.easeInQuart.transform(clamped);
+  return Curves.easeInCubic.transform(clamped);
 }
 
 double _revealProgressForSpec({

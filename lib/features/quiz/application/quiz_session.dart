@@ -650,8 +650,8 @@ class QuizSessionFactory {
       case PartialFaceVariant.zoomOutCenter:
         return QuizZoomOutCenterVisualSpec(
           startScale: 5.0 + (random.nextDouble() * 0.6),
-          startAlignmentX: (random.nextDouble() * 0.24) - 0.12,
-          startAlignmentY: (random.nextDouble() * 0.18) - 0.09,
+          startAlignmentX: (random.nextDouble() * 0.56) - 0.28,
+          startAlignmentY: (random.nextDouble() * 0.34) - 0.42,
         );
       case PartialFaceVariant.spotlights:
         return QuizSpotlightsVisualSpec(
