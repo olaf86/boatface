@@ -143,6 +143,188 @@ void main() {
     }
   });
 
+  testWidgets('renders partial face variants with dedicated presenters', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(
+      promptType: QuizPromptType.partialFaceToName,
+      timeLimitSeconds: 10,
+    );
+    final _FakeQuizSessionController controller = _FakeQuizSessionController(
+      _buildSessionState(
+        mode: mode,
+        currentQuestion: _buildPartialFaceQuestion(
+          variant: PartialFaceVariant.zoomOutCenter,
+          spec: const QuizZoomOutCenterVisualSpec(
+            startScale: 2.2,
+            startAlignmentX: 0.08,
+            startAlignmentY: -0.04,
+          ),
+        ),
+      ),
+    );
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        quizSessionControllerProvider.overrideWith(() => controller),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey<String>('quiz-partial-face-zoom-out')),
+        findsOneWidget,
+      );
+
+      controller.setSessionState(
+        controller.state.copyWith(
+          currentQuestion: _buildPartialFaceQuestion(
+            variant: PartialFaceVariant.slidingWindow,
+            spec: const QuizSlidingWindowVisualSpec(
+              windowWidthFactor: 0.4,
+              windowHeightFactor: 0.36,
+              startAlignmentX: -0.72,
+              startAlignmentY: -0.68,
+              endAlignmentX: 0.72,
+              endAlignmentY: 0.68,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey<String>('quiz-partial-face-sliding-window')),
+        findsOneWidget,
+      );
+
+      controller.setSessionState(
+        controller.state.copyWith(
+          currentQuestion: _buildPartialFaceQuestion(
+            variant: PartialFaceVariant.tileReveal,
+            spec: const QuizTileRevealVisualSpec(
+              tileRows: 4,
+              tileColumns: 4,
+              revealOrder: <int>[
+                0,
+                5,
+                10,
+                15,
+                1,
+                4,
+                11,
+                14,
+                2,
+                7,
+                8,
+                13,
+                3,
+                6,
+                9,
+                12,
+              ],
+              initialVisibleTileCount: 1,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey<String>('quiz-partial-face-tile-reveal')),
+        findsOneWidget,
+      );
+    } finally {
+      container.dispose();
+    }
+  });
+
+  testWidgets('partial face zoom reveal accelerates as time runs down', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(
+      promptType: QuizPromptType.partialFaceToName,
+      timeLimitSeconds: 10,
+    );
+    final _FakeQuizSessionController controller = _FakeQuizSessionController(
+      _buildSessionState(
+        mode: mode,
+        currentQuestion: _buildPartialFaceQuestion(
+          variant: PartialFaceVariant.zoomOutCenter,
+          spec: const QuizZoomOutCenterVisualSpec(
+            startScale: 2.3,
+            startAlignmentX: 0.1,
+            startAlignmentY: -0.05,
+          ),
+        ),
+      ).copyWith(
+        remainingForCurrentQuestion: const Duration(seconds: 8),
+        replaceRemaining: true,
+        elapsedForCurrentQuestion: const Duration(seconds: 2),
+      ),
+    );
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        quizSessionControllerProvider.overrideWith(() => controller),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final Finder earlyTransformFinder = find.descendant(
+        of: find.byKey(const ValueKey<String>('quiz-partial-face-zoom-out')),
+        matching: find.byType(Transform),
+      );
+      final Transform earlyTransform = tester.widget<Transform>(
+        earlyTransformFinder.first,
+      );
+      final double earlyScale = earlyTransform.transform.storage[0];
+
+      controller.setSessionState(
+        controller.state.copyWith(
+          remainingForCurrentQuestion: const Duration(seconds: 1),
+          replaceRemaining: true,
+          elapsedForCurrentQuestion: const Duration(seconds: 9),
+        ),
+      );
+      await tester.pump();
+
+      final Transform lateTransform = tester.widget<Transform>(
+        earlyTransformFinder.first,
+      );
+      final double lateScale = lateTransform.transform.storage[0];
+
+      expect(earlyScale, greaterThan(lateScale));
+      expect(lateScale, closeTo(1.0, 0.2));
+    } finally {
+      container.dispose();
+    }
+  });
+
   testWidgets('hides emergency border while more than 3 seconds remain', (
     WidgetTester tester,
   ) async {
@@ -715,22 +897,13 @@ Widget _buildApp({
   );
 }
 
-QuizSessionState _buildSessionState({required QuizModeConfig mode}) {
+QuizSessionState _buildSessionState({
+  required QuizModeConfig mode,
+  QuizQuestion? currentQuestion,
+}) {
   return QuizSessionState(
     mode: mode,
-    currentQuestion: QuizQuestion(
-      promptType: QuizPromptType.faceToName,
-      prompt: 'この選手は誰？',
-      promptImageUrl: 'https://example.com/prompt.jpg',
-      options: const <QuizOption>[
-        QuizOption(racerId: 'racer-0', label: '選手0', labelReading: 'センシュ0'),
-        QuizOption(racerId: 'racer-1', label: '選手1', labelReading: 'センシュ1'),
-        QuizOption(racerId: 'racer-2', label: '選手2', labelReading: 'センシュ2'),
-        QuizOption(racerId: 'racer-3', label: '選手3', labelReading: 'センシュ3'),
-      ],
-      correctIndex: 0,
-      correctRacerId: 'racer-0',
-    ),
+    currentQuestion: currentQuestion ?? _buildDefaultQuestion(),
     currentQuestionIndex: 0,
     totalQuestions: 1,
     score: 0,
@@ -759,6 +932,43 @@ QuizSessionState _buildSessionState({required QuizModeConfig mode}) {
     removedOptionIndexes: const <int>{},
     timeFreezeActive: false,
     isProcessing: false,
+  );
+}
+
+QuizQuestion _buildDefaultQuestion() {
+  return const QuizQuestion(
+    promptType: QuizPromptType.faceToName,
+    prompt: 'この選手は誰？',
+    promptImageUrl: 'https://example.com/prompt.jpg',
+    options: <QuizOption>[
+      QuizOption(racerId: 'racer-0', label: '選手0', labelReading: 'センシュ0'),
+      QuizOption(racerId: 'racer-1', label: '選手1', labelReading: 'センシュ1'),
+      QuizOption(racerId: 'racer-2', label: '選手2', labelReading: 'センシュ2'),
+      QuizOption(racerId: 'racer-3', label: '選手3', labelReading: 'センシュ3'),
+    ],
+    correctIndex: 0,
+    correctRacerId: 'racer-0',
+  );
+}
+
+QuizQuestion _buildPartialFaceQuestion({
+  required PartialFaceVariant variant,
+  required QuizPromptVisualSpec spec,
+}) {
+  return QuizQuestion(
+    promptType: QuizPromptType.partialFaceToName,
+    prompt: 'この顔の選手名は？',
+    promptImageUrl: 'https://example.com/prompt.jpg',
+    partialFaceVariant: variant,
+    promptVisualSpec: spec,
+    options: const <QuizOption>[
+      QuizOption(racerId: 'racer-0', label: '選手0', labelReading: 'センシュ0'),
+      QuizOption(racerId: 'racer-1', label: '選手1', labelReading: 'センシュ1'),
+      QuizOption(racerId: 'racer-2', label: '選手2', labelReading: 'センシュ2'),
+      QuizOption(racerId: 'racer-3', label: '選手3', labelReading: 'センシュ3'),
+    ],
+    correctIndex: 0,
+    correctRacerId: 'racer-0',
   );
 }
 

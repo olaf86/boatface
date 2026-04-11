@@ -102,28 +102,8 @@ const List<QuizSegment> kCarefulSegments = <QuizSegment>[
 
 const List<QuizSegment> kChallengeSegments = <QuizSegment>[
   QuizSegment(
-    promptType: QuizPromptType.faceToName,
-    count: 20,
-    flowSteps: kChallengeFlowSteps,
-  ),
-  QuizSegment(
-    promptType: QuizPromptType.nameToFace,
-    count: 10,
-    flowSteps: kChallengeFlowSteps,
-  ),
-  QuizSegment(
     promptType: QuizPromptType.partialFaceToName,
-    count: 10,
-    flowSteps: kChallengeFlowSteps,
-  ),
-  QuizSegment(
-    promptType: QuizPromptType.registrationToFace,
-    count: 5,
-    flowSteps: kChallengeFlowSteps,
-  ),
-  QuizSegment(
-    promptType: QuizPromptType.faceToRegistration,
-    count: 5,
+    count: 50,
     flowSteps: kChallengeFlowSteps,
   ),
 ];
@@ -162,7 +142,7 @@ const List<QuizModeConfig> kQuizModes = <QuizModeConfig>[
   QuizModeConfig(
     id: 'challenge',
     label: 'チャレンジ',
-    description: '50問・複合形式（内訳は設定値で変更可能）',
+    description: '50問・全問 顔の一部 → 選手名',
     timeLimitSeconds: 10,
     segments: kChallengeSegments,
   ),

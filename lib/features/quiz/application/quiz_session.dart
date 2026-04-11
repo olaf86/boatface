@@ -334,12 +334,13 @@ class QuizSession {
     final _QuizPlanSlot slot = _planSlots[currentIndex];
     final QuizQuestion question = QuizSessionFactory._generateQuestion(
       promptType: slot.promptType,
+      questionIndex: currentIndex,
+      totalQuestionCount: _planSlots.length,
       racers: _racers,
       targetCondition: slot.targetCondition,
       optionCondition: slot.optionCondition,
       excludedTargetIds: _usedTargetIds,
       random: _random,
-      timeLimitSeconds: mode.timeLimitSeconds,
     );
     _currentQuestion = question;
     _usedTargetIds.add(question.correctRacerId);
@@ -474,8 +475,9 @@ class QuizSessionFactory {
   static QuizSession create({
     required QuizModeConfig mode,
     required List<RacerProfile> racers,
+    Random? random,
   }) {
-    final Random random = Random();
+    final Random resolvedRandom = random ?? Random();
     final List<_QuizPlanSlot> planSlots = <_QuizPlanSlot>[];
     for (final QuizSegment segment in mode.segments) {
       for (final _SegmentFlowPlan plan in _buildSegmentFlowPlans(segment)) {
@@ -495,18 +497,19 @@ class QuizSessionFactory {
       mode: mode,
       planSlots: planSlots,
       racers: racers,
-      random: random,
+      random: resolvedRandom,
     );
   }
 
   static QuizQuestion _generateQuestion({
     required QuizPromptType promptType,
+    required int questionIndex,
+    required int totalQuestionCount,
     required List<RacerProfile> racers,
     required QuizRacerCondition targetCondition,
     required QuizRacerCondition optionCondition,
     required Set<String> excludedTargetIds,
     required Random random,
-    required int? timeLimitSeconds,
   }) {
     final RacerProfile target = _pickTargetForQuestion(
       racers: racers,
@@ -528,15 +531,25 @@ class QuizSessionFactory {
       (RacerProfile r) => r.id == target.id,
     );
 
+    final PartialFaceVariant? partialFaceVariant =
+        promptType == QuizPromptType.partialFaceToName
+        ? _pickPartialFaceVariant(
+            questionIndex: questionIndex,
+            totalQuestionCount: totalQuestionCount,
+            random: random,
+          )
+        : null;
+
     return QuizQuestion(
       promptType: promptType,
       prompt: _buildPrompt(promptType, target),
       promptImageUrl: _buildPromptImageUrl(promptType, target),
       promptImageLocalPath: _buildPromptImageLocalPath(promptType, target),
-      promptImageReveal: _buildPromptImageReveal(
+      partialFaceVariant: partialFaceVariant,
+      promptVisualSpec: _buildPromptVisualSpec(
         promptType: promptType,
+        partialFaceVariant: partialFaceVariant,
         random: random,
-        timeLimitSeconds: timeLimitSeconds,
       ),
       options: candidates
           .map<QuizOption>(
@@ -623,25 +636,119 @@ class QuizSessionFactory {
     }
   }
 
-  static QuizImageReveal? _buildPromptImageReveal({
+  static QuizPromptVisualSpec? _buildPromptVisualSpec({
     required QuizPromptType promptType,
+    required PartialFaceVariant? partialFaceVariant,
     required Random random,
-    required int? timeLimitSeconds,
   }) {
-    if (promptType != QuizPromptType.partialFaceToName) {
+    if (promptType != QuizPromptType.partialFaceToName ||
+        partialFaceVariant == null) {
       return null;
     }
 
-    final int durationMs = timeLimitSeconds == null
-        ? 5000
-        : (timeLimitSeconds * 650).round().clamp(3500, 7000);
+    switch (partialFaceVariant) {
+      case PartialFaceVariant.zoomOutCenter:
+        return QuizZoomOutCenterVisualSpec(
+          startScale: 1.9 + (random.nextDouble() * 0.5),
+          startAlignmentX: (random.nextDouble() * 0.24) - 0.12,
+          startAlignmentY: (random.nextDouble() * 0.18) - 0.09,
+        );
+      case PartialFaceVariant.slidingWindow:
+        final bool diagonal = random.nextBool();
+        final double startX = random.nextBool() ? -0.72 : 0.72;
+        final double startY = diagonal
+            ? (random.nextBool() ? -0.68 : 0.68)
+            : ((random.nextDouble() * 0.44) - 0.22);
+        final double endX = -startX;
+        final double endY = diagonal ? -startY : startY;
+        return QuizSlidingWindowVisualSpec(
+          windowWidthFactor: 0.34 + (random.nextDouble() * 0.08),
+          windowHeightFactor: 0.34 + (random.nextDouble() * 0.08),
+          startAlignmentX: startX,
+          startAlignmentY: startY,
+          endAlignmentX: endX,
+          endAlignmentY: endY,
+        );
+      case PartialFaceVariant.tileReveal:
+        final int tileRows = random.nextBool() ? 3 : 4;
+        final int tileColumns = 4;
+        final List<int> revealOrder = List<int>.generate(
+          tileRows * tileColumns,
+          (int index) => index,
+        )..shuffle(random);
+        return QuizTileRevealVisualSpec(
+          tileRows: tileRows,
+          tileColumns: tileColumns,
+          revealOrder: List<int>.unmodifiable(revealOrder),
+          initialVisibleTileCount: random.nextBool() ? 1 : 2,
+        );
+    }
+  }
 
-    return QuizImageReveal(
-      startScale: 2.2 + (random.nextDouble() * 0.8),
-      startAlignmentX: (random.nextDouble() * 0.7) - 0.35,
-      startAlignmentY: (random.nextDouble() * 0.45) - 0.25,
-      duration: Duration(milliseconds: durationMs),
+  static PartialFaceVariant _pickPartialFaceVariant({
+    required int questionIndex,
+    required int totalQuestionCount,
+    required Random random,
+  }) {
+    final double progress = totalQuestionCount <= 1
+        ? 1
+        : questionIndex / (totalQuestionCount - 1);
+    final List<_PartialFaceVariantWeight> weights = progress < 1 / 3
+        ? const <_PartialFaceVariantWeight>[
+            _PartialFaceVariantWeight(
+              variant: PartialFaceVariant.zoomOutCenter,
+              weight: 60,
+            ),
+            _PartialFaceVariantWeight(
+              variant: PartialFaceVariant.slidingWindow,
+              weight: 30,
+            ),
+            _PartialFaceVariantWeight(
+              variant: PartialFaceVariant.tileReveal,
+              weight: 10,
+            ),
+          ]
+        : progress < 2 / 3
+        ? const <_PartialFaceVariantWeight>[
+            _PartialFaceVariantWeight(
+              variant: PartialFaceVariant.zoomOutCenter,
+              weight: 35,
+            ),
+            _PartialFaceVariantWeight(
+              variant: PartialFaceVariant.slidingWindow,
+              weight: 40,
+            ),
+            _PartialFaceVariantWeight(
+              variant: PartialFaceVariant.tileReveal,
+              weight: 25,
+            ),
+          ]
+        : const <_PartialFaceVariantWeight>[
+            _PartialFaceVariantWeight(
+              variant: PartialFaceVariant.zoomOutCenter,
+              weight: 15,
+            ),
+            _PartialFaceVariantWeight(
+              variant: PartialFaceVariant.slidingWindow,
+              weight: 35,
+            ),
+            _PartialFaceVariantWeight(
+              variant: PartialFaceVariant.tileReveal,
+              weight: 50,
+            ),
+          ];
+    final int totalWeight = weights.fold<int>(
+      0,
+      (int sum, _PartialFaceVariantWeight entry) => sum + entry.weight,
     );
+    int threshold = random.nextInt(totalWeight);
+    for (final _PartialFaceVariantWeight entry in weights) {
+      threshold -= entry.weight;
+      if (threshold < 0) {
+        return entry.variant;
+      }
+    }
+    return weights.last.variant;
   }
 
   static QuizOption _buildOption(QuizPromptType type, RacerProfile racer) {
@@ -894,6 +1001,16 @@ class _SegmentFlowPlan {
       questionCount: questionCount ?? this.questionCount,
     );
   }
+}
+
+class _PartialFaceVariantWeight {
+  const _PartialFaceVariantWeight({
+    required this.variant,
+    required this.weight,
+  });
+
+  final PartialFaceVariant variant;
+  final int weight;
 }
 
 class _SegmentFlowRemainder {

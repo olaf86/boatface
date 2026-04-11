@@ -338,18 +338,54 @@ class RacerProfile {
   }
 }
 
-class QuizImageReveal {
-  const QuizImageReveal({
+enum PartialFaceVariant { zoomOutCenter, slidingWindow, tileReveal }
+
+sealed class QuizPromptVisualSpec {
+  const QuizPromptVisualSpec();
+}
+
+class QuizZoomOutCenterVisualSpec extends QuizPromptVisualSpec {
+  const QuizZoomOutCenterVisualSpec({
     required this.startScale,
     required this.startAlignmentX,
     required this.startAlignmentY,
-    required this.duration,
   });
 
   final double startScale;
   final double startAlignmentX;
   final double startAlignmentY;
-  final Duration duration;
+}
+
+class QuizSlidingWindowVisualSpec extends QuizPromptVisualSpec {
+  const QuizSlidingWindowVisualSpec({
+    required this.windowWidthFactor,
+    required this.windowHeightFactor,
+    required this.startAlignmentX,
+    required this.startAlignmentY,
+    required this.endAlignmentX,
+    required this.endAlignmentY,
+  });
+
+  final double windowWidthFactor;
+  final double windowHeightFactor;
+  final double startAlignmentX;
+  final double startAlignmentY;
+  final double endAlignmentX;
+  final double endAlignmentY;
+}
+
+class QuizTileRevealVisualSpec extends QuizPromptVisualSpec {
+  const QuizTileRevealVisualSpec({
+    required this.tileRows,
+    required this.tileColumns,
+    required this.revealOrder,
+    required this.initialVisibleTileCount,
+  });
+
+  final int tileRows;
+  final int tileColumns;
+  final List<int> revealOrder;
+  final int initialVisibleTileCount;
 }
 
 class QuizOption {
@@ -378,7 +414,8 @@ class QuizQuestion {
     required this.prompt,
     this.promptImageUrl,
     this.promptImageLocalPath,
-    this.promptImageReveal,
+    this.partialFaceVariant,
+    this.promptVisualSpec,
     required this.options,
     required this.correctIndex,
     required this.correctRacerId,
@@ -388,7 +425,8 @@ class QuizQuestion {
   final String prompt;
   final String? promptImageUrl;
   final String? promptImageLocalPath;
-  final QuizImageReveal? promptImageReveal;
+  final PartialFaceVariant? partialFaceVariant;
+  final QuizPromptVisualSpec? promptVisualSpec;
   final List<QuizOption> options;
   final int correctIndex;
   final String correctRacerId;

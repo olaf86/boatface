@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:ui' show lerpDouble;
+import 'dart:ui' show BlendMode, lerpDouble;
 import 'dart:io';
 
 import 'package:animations/animations.dart';
@@ -309,6 +309,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                               child: _QuizPromptCard(
                                 question: question,
                                 availableHeight: constraints.maxHeight,
+                                remaining: remainingForDisplay,
+                                totalSeconds: widget.mode.timeLimitSeconds,
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -580,10 +582,14 @@ class _QuizPromptCard extends StatelessWidget {
   const _QuizPromptCard({
     required this.question,
     required this.availableHeight,
+    required this.remaining,
+    required this.totalSeconds,
   });
 
   final QuizQuestion question;
   final double availableHeight;
+  final Duration? remaining;
+  final int? totalSeconds;
 
   @override
   Widget build(BuildContext context) {
@@ -614,10 +620,12 @@ class _QuizPromptCard extends StatelessWidget {
                 imageUrl: question.promptImageUrl ?? '',
                 localImagePath: question.promptImageLocalPath,
                 semanticLabel: question.prompt,
-                reveal: question.promptImageReveal,
-                fit: question.promptImageReveal == null
+                promptVisualSpec: question.promptVisualSpec,
+                fit: question.promptVisualSpec == null
                     ? BoxFit.contain
                     : BoxFit.cover,
+                remaining: remaining,
+                totalSeconds: totalSeconds,
               ),
             ),
           ],
@@ -2201,15 +2209,19 @@ class _QuizImagePanel extends StatefulWidget {
     required this.imageUrl,
     required this.semanticLabel,
     this.localImagePath,
-    this.reveal,
+    this.promptVisualSpec,
     this.fit = BoxFit.contain,
+    this.remaining,
+    this.totalSeconds,
   });
 
   final String imageUrl;
   final String semanticLabel;
   final String? localImagePath;
-  final QuizImageReveal? reveal;
+  final QuizPromptVisualSpec? promptVisualSpec;
   final BoxFit fit;
+  final Duration? remaining;
+  final int? totalSeconds;
 
   @override
   State<_QuizImagePanel> createState() => _QuizImagePanelState();
@@ -2218,6 +2230,7 @@ class _QuizImagePanel extends StatefulWidget {
 class _QuizImagePanelState extends State<_QuizImagePanel>
     with SingleTickerProviderStateMixin {
   AnimationController? _controller;
+  static const Duration _kUntimedPartialRevealDuration = Duration(seconds: 10);
 
   @override
   void initState() {
@@ -2230,8 +2243,9 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.imageUrl != widget.imageUrl ||
         oldWidget.localImagePath != widget.localImagePath ||
-        oldWidget.reveal != widget.reveal ||
-        oldWidget.fit != widget.fit) {
+        oldWidget.promptVisualSpec != widget.promptVisualSpec ||
+        oldWidget.fit != widget.fit ||
+        oldWidget.totalSeconds != widget.totalSeconds) {
       _configureAnimation();
     }
   }
@@ -2245,50 +2259,143 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
   @override
   Widget build(BuildContext context) {
     final Widget image = _buildImage();
+    final double linearProgress = _currentLinearProgress();
+    final double revealProgress = _acceleratedRevealProgress(linearProgress);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: ColoredBox(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: widget.reveal == null || _controller == null
-            ? image
-            : AnimatedBuilder(
-                animation: _controller!,
-                child: image,
-                builder: (BuildContext context, Widget? child) {
-                  final QuizImageReveal reveal = widget.reveal!;
-                  final double progress = Curves.easeOutCubic.transform(
-                    _controller!.value,
-                  );
-                  final Alignment alignment = Alignment.lerp(
-                    Alignment(reveal.startAlignmentX, reveal.startAlignmentY),
-                    Alignment.center,
-                    progress,
-                  )!;
-                  final double scale =
-                      lerpDouble(reveal.startScale, 1, progress) ?? 1;
-
-                  return Transform.scale(
-                    scale: scale,
-                    alignment: alignment,
-                    child: child,
-                  );
-                },
-              ),
+        child: _buildPresentedImage(image: image, progress: revealProgress),
       ),
     );
   }
 
   void _configureAnimation() {
     _controller?.dispose();
-    final QuizImageReveal? reveal = widget.reveal;
-    if (reveal == null) {
+    if (widget.promptVisualSpec == null || widget.totalSeconds != null) {
       _controller = null;
       return;
     }
 
-    _controller = AnimationController(vsync: this, duration: reveal.duration)
-      ..forward();
+    _controller = AnimationController(
+      vsync: this,
+      duration: _kUntimedPartialRevealDuration,
+    )..forward();
+  }
+
+  double _currentLinearProgress() {
+    if (widget.promptVisualSpec == null) {
+      return 0;
+    }
+
+    final int? totalSeconds = widget.totalSeconds;
+    if (totalSeconds != null) {
+      final int totalMs = (totalSeconds * 1000).clamp(1, 60000);
+      final int remainingMs =
+          widget.remaining?.inMilliseconds.clamp(0, totalMs) ?? 0;
+      return (1 - (remainingMs / totalMs)).clamp(0.0, 1.0);
+    }
+
+    return (_controller?.value ?? 0).clamp(0.0, 1.0);
+  }
+
+  Widget _buildPresentedImage({
+    required Widget image,
+    required double progress,
+  }) {
+    final QuizPromptVisualSpec? promptVisualSpec = widget.promptVisualSpec;
+    if (promptVisualSpec == null) {
+      return image;
+    }
+
+    if (promptVisualSpec is QuizZoomOutCenterVisualSpec) {
+      final Alignment alignment = Alignment.lerp(
+        Alignment(
+          promptVisualSpec.startAlignmentX,
+          promptVisualSpec.startAlignmentY,
+        ),
+        Alignment.center,
+        progress,
+      )!;
+      final double scale =
+          lerpDouble(promptVisualSpec.startScale, 1, progress) ?? 1;
+
+      return KeyedSubtree(
+        key: const ValueKey<String>('quiz-partial-face-zoom-out'),
+        child: Transform.scale(
+          scale: scale,
+          alignment: alignment,
+          child: image,
+        ),
+      );
+    }
+
+    if (promptVisualSpec is QuizSlidingWindowVisualSpec) {
+      final Alignment alignment = Alignment(
+        lerpDouble(
+              promptVisualSpec.startAlignmentX,
+              promptVisualSpec.endAlignmentX,
+              progress,
+            ) ??
+            promptVisualSpec.endAlignmentX,
+        lerpDouble(
+              promptVisualSpec.startAlignmentY,
+              promptVisualSpec.endAlignmentY,
+              progress,
+            ) ??
+            promptVisualSpec.endAlignmentY,
+      );
+
+      return Stack(
+        key: const ValueKey<String>('quiz-partial-face-sliding-window'),
+        fit: StackFit.expand,
+        children: <Widget>[
+          image,
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _SlidingWindowMaskPainter(
+                alignment: alignment,
+                windowWidthFactor: promptVisualSpec.windowWidthFactor,
+                windowHeightFactor: promptVisualSpec.windowHeightFactor,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (promptVisualSpec is QuizTileRevealVisualSpec) {
+      final int totalTileCount =
+          promptVisualSpec.tileRows * promptVisualSpec.tileColumns;
+      final int visibleTileCount =
+          (promptVisualSpec.initialVisibleTileCount +
+                  ((totalTileCount - promptVisualSpec.initialVisibleTileCount) *
+                          progress)
+                      .round())
+              .clamp(promptVisualSpec.initialVisibleTileCount, totalTileCount);
+
+      return Stack(
+        key: const ValueKey<String>('quiz-partial-face-tile-reveal'),
+        fit: StackFit.expand,
+        children: <Widget>[
+          image,
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _TileRevealMaskPainter(
+                tileRows: promptVisualSpec.tileRows,
+                tileColumns: promptVisualSpec.tileColumns,
+                visibleTiles: promptVisualSpec.revealOrder
+                    .take(visibleTileCount)
+                    .toSet(),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return image;
   }
 
   Widget _buildImage() {
@@ -2307,6 +2414,126 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
     }
 
     return _QuizImageFallback(label: widget.semanticLabel);
+  }
+}
+
+double _acceleratedRevealProgress(double linearProgress) {
+  final double clamped = linearProgress.clamp(0.0, 1.0);
+  if (clamped <= 0.5) {
+    return 0.22 * Curves.easeInOut.transform(clamped / 0.5);
+  }
+
+  return lerpDouble(
+        0.22,
+        1,
+        Curves.easeOutCubic.transform((clamped - 0.5) / 0.5),
+      ) ??
+      1;
+}
+
+class _SlidingWindowMaskPainter extends CustomPainter {
+  const _SlidingWindowMaskPainter({
+    required this.alignment,
+    required this.windowWidthFactor,
+    required this.windowHeightFactor,
+  });
+
+  final Alignment alignment;
+  final double windowWidthFactor;
+  final double windowHeightFactor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect bounds = Offset.zero & size;
+    final Size windowSize = Size(
+      size.width * windowWidthFactor,
+      size.height * windowHeightFactor,
+    );
+    final double left =
+        ((alignment.x + 1) / 2) * (size.width - windowSize.width);
+    final double top =
+        ((alignment.y + 1) / 2) * (size.height - windowSize.height);
+    final RRect window = RRect.fromRectAndRadius(
+      Rect.fromLTWH(left, top, windowSize.width, windowSize.height),
+      const Radius.circular(22),
+    );
+
+    canvas.saveLayer(bounds, Paint());
+    canvas.drawRect(
+      bounds,
+      Paint()..color = Colors.black.withValues(alpha: 0.76),
+    );
+    canvas.drawRRect(window, Paint()..blendMode = BlendMode.clear);
+    canvas.restore();
+    canvas.drawRRect(
+      window,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..color = Colors.white.withValues(alpha: 0.9),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SlidingWindowMaskPainter oldDelegate) {
+    return oldDelegate.alignment != alignment ||
+        oldDelegate.windowWidthFactor != windowWidthFactor ||
+        oldDelegate.windowHeightFactor != windowHeightFactor;
+  }
+}
+
+class _TileRevealMaskPainter extends CustomPainter {
+  const _TileRevealMaskPainter({
+    required this.tileRows,
+    required this.tileColumns,
+    required this.visibleTiles,
+  });
+
+  final int tileRows;
+  final int tileColumns;
+  final Set<int> visibleTiles;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect bounds = Offset.zero & size;
+    final double tileWidth = size.width / tileColumns;
+    final double tileHeight = size.height / tileRows;
+
+    canvas.saveLayer(bounds, Paint());
+    canvas.drawRect(
+      bounds,
+      Paint()..color = Colors.black.withValues(alpha: 0.82),
+    );
+
+    for (int row = 0; row < tileRows; row += 1) {
+      for (int column = 0; column < tileColumns; column += 1) {
+        final int index = row * tileColumns + column;
+        if (!visibleTiles.contains(index)) {
+          continue;
+        }
+
+        final Rect tileRect = Rect.fromLTWH(
+          column * tileWidth,
+          row * tileHeight,
+          tileWidth,
+          tileHeight,
+        ).deflate(1.2);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(tileRect, const Radius.circular(8)),
+          Paint()..blendMode = BlendMode.clear,
+        );
+      }
+    }
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _TileRevealMaskPainter oldDelegate) {
+    return oldDelegate.tileRows != tileRows ||
+        oldDelegate.tileColumns != tileColumns ||
+        oldDelegate.visibleTiles.length != visibleTiles.length ||
+        !oldDelegate.visibleTiles.containsAll(visibleTiles);
   }
 }
 
