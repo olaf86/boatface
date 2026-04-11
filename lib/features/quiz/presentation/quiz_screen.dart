@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:ui' show BlendMode, lerpDouble;
+import 'dart:ui' show lerpDouble;
 import 'dart:io';
 
 import 'package:animations/animations.dart';
@@ -2228,9 +2228,16 @@ class _QuizImagePanel extends StatefulWidget {
 }
 
 class _QuizImagePanelState extends State<_QuizImagePanel>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   AnimationController? _controller;
   static const Duration _kUntimedPartialRevealDuration = Duration(seconds: 10);
+  static const int _kTimedRevealSyncMinMs = 16;
+  static const int _kTimedRevealSyncMaxMs = 120;
+  Widget? _imageChild;
+  String? _imageChildUrl;
+  String? _imageChildLocalPath;
+  BoxFit? _imageChildFit;
+  String? _imageChildSemanticLabel;
 
   @override
   void initState() {
@@ -2247,6 +2254,12 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
         oldWidget.fit != widget.fit ||
         oldWidget.totalSeconds != widget.totalSeconds) {
       _configureAnimation();
+      return;
+    }
+
+    if (widget.totalSeconds != null &&
+        oldWidget.remaining != widget.remaining) {
+      _syncTimedProgress(animated: true);
     }
   }
 
@@ -2258,22 +2271,36 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
 
   @override
   Widget build(BuildContext context) {
-    final Widget image = _buildImage();
-    final double linearProgress = _currentLinearProgress();
-    final double revealProgress = _acceleratedRevealProgress(linearProgress);
+    final Widget image = _buildStableImage();
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: ColoredBox(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: _buildPresentedImage(image: image, progress: revealProgress),
+    return RepaintBoundary(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: ColoredBox(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: widget.promptVisualSpec == null || _controller == null
+              ? _buildPresentedImage(image: image, progress: 0)
+              : AnimatedBuilder(
+                  animation: _controller!,
+                  child: image,
+                  builder: (BuildContext context, Widget? child) {
+                    final double revealProgress = _acceleratedRevealProgress(
+                      _currentLinearProgress(),
+                    );
+                    return _buildPresentedImage(
+                      image: child!,
+                      progress: revealProgress,
+                    );
+                  },
+                ),
+        ),
       ),
     );
   }
 
   void _configureAnimation() {
     _controller?.dispose();
-    if (widget.promptVisualSpec == null || widget.totalSeconds != null) {
+    if (widget.promptVisualSpec == null) {
       _controller = null;
       return;
     }
@@ -2281,23 +2308,22 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
     _controller = AnimationController(
       vsync: this,
       duration: _kUntimedPartialRevealDuration,
-    )..forward();
+      value: 0,
+    );
+    if (widget.totalSeconds != null) {
+      _syncTimedProgress(animated: false);
+      return;
+    }
+    _controller!.forward();
   }
 
   double _currentLinearProgress() {
-    if (widget.promptVisualSpec == null) {
+    final AnimationController? controller = _controller;
+    if (widget.promptVisualSpec == null || controller == null) {
       return 0;
     }
 
-    final int? totalSeconds = widget.totalSeconds;
-    if (totalSeconds != null) {
-      final int totalMs = (totalSeconds * 1000).clamp(1, 60000);
-      final int remainingMs =
-          widget.remaining?.inMilliseconds.clamp(0, totalMs) ?? 0;
-      return (1 - (remainingMs / totalMs)).clamp(0.0, 1.0);
-    }
-
-    return (_controller?.value ?? 0).clamp(0.0, 1.0);
+    return controller.value.clamp(0.0, 1.0);
   }
 
   Widget _buildPresentedImage({
@@ -2404,6 +2430,23 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
     return image;
   }
 
+  Widget _buildStableImage() {
+    if (_imageChild != null &&
+        _imageChildUrl == widget.imageUrl &&
+        _imageChildLocalPath == widget.localImagePath &&
+        _imageChildFit == widget.fit &&
+        _imageChildSemanticLabel == widget.semanticLabel) {
+      return _imageChild!;
+    }
+
+    _imageChild = RepaintBoundary(child: _buildImage());
+    _imageChildUrl = widget.imageUrl;
+    _imageChildLocalPath = widget.localImagePath;
+    _imageChildFit = widget.fit;
+    _imageChildSemanticLabel = widget.semanticLabel;
+    return _imageChild!;
+  }
+
   Widget _buildImage() {
     final String? localImagePath = widget.localImagePath;
     if (localImagePath != null && localImagePath.isNotEmpty) {
@@ -2420,6 +2463,40 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
     }
 
     return _QuizImageFallback(label: widget.semanticLabel);
+  }
+
+  void _syncTimedProgress({required bool animated}) {
+    final AnimationController? controller = _controller;
+    final int? totalSeconds = widget.totalSeconds;
+    if (controller == null || totalSeconds == null) {
+      return;
+    }
+
+    final int totalMs = (totalSeconds * 1000).clamp(1, 60000);
+    final int remainingMs =
+        widget.remaining?.inMilliseconds.clamp(0, totalMs) ?? 0;
+    final double targetProgress = (1 - (remainingMs / totalMs)).clamp(0.0, 1.0);
+
+    if (!animated) {
+      controller.value = targetProgress;
+      return;
+    }
+
+    final double delta = (targetProgress - controller.value).abs();
+    if (delta < 0.0001) {
+      controller.value = targetProgress;
+      return;
+    }
+
+    final int durationMs = (delta * totalMs).round().clamp(
+      _kTimedRevealSyncMinMs,
+      _kTimedRevealSyncMaxMs,
+    );
+    controller.animateTo(
+      targetProgress,
+      duration: Duration(milliseconds: durationMs),
+      curve: Curves.linear,
+    );
   }
 }
 
@@ -2458,10 +2535,11 @@ class _SlidingWindowMaskPainter extends CustomPainter {
       const Radius.circular(22),
     );
 
-    canvas.saveLayer(bounds, Paint());
-    canvas.drawRect(bounds, Paint()..color = _kPartialFaceMaskColor);
-    canvas.drawRRect(window, Paint()..blendMode = BlendMode.clear);
-    canvas.restore();
+    final Path maskPath = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addRect(bounds)
+      ..addRRect(window);
+    canvas.drawPath(maskPath, Paint()..color = _kPartialFaceMaskColor);
     canvas.drawRRect(
       window,
       Paint()
@@ -2492,17 +2570,14 @@ class _TileRevealMaskPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Rect bounds = Offset.zero & size;
     final double tileWidth = size.width / tileColumns;
     final double tileHeight = size.height / tileRows;
-
-    canvas.saveLayer(bounds, Paint());
-    canvas.drawRect(bounds, Paint()..color = _kPartialFaceMaskColor);
+    final Paint maskPaint = Paint()..color = _kPartialFaceMaskColor;
 
     for (int row = 0; row < tileRows; row += 1) {
       for (int column = 0; column < tileColumns; column += 1) {
         final int index = row * tileColumns + column;
-        if (!visibleTiles.contains(index)) {
+        if (visibleTiles.contains(index)) {
           continue;
         }
 
@@ -2512,11 +2587,9 @@ class _TileRevealMaskPainter extends CustomPainter {
           tileWidth,
           tileHeight,
         );
-        canvas.drawRect(tileRect, Paint()..blendMode = BlendMode.clear);
+        canvas.drawRect(tileRect, maskPaint);
       }
     }
-
-    canvas.restore();
   }
 
   @override

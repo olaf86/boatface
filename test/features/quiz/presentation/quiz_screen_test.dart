@@ -312,6 +312,7 @@ void main() {
         ),
       );
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 120));
 
       final Transform lateTransform = tester.widget<Transform>(
         earlyTransformFinder.first,
