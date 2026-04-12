@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:animations/animations.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -647,6 +648,7 @@ class _QuizEmergencyBorderOverlayState
     extends State<_QuizEmergencyBorderOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  Timer? _hapticTimer;
 
   @override
   void initState() {
@@ -654,11 +656,17 @@ class _QuizEmergencyBorderOverlayState
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 520),
-    )..repeat(reverse: true);
+    );
+    unawaited(HapticFeedback.lightImpact());
+    _hapticTimer = Timer.periodic(const Duration(milliseconds: 520), (_) {
+      unawaited(HapticFeedback.lightImpact());
+    });
+    _controller.repeat(reverse: true);
   }
 
   @override
   void dispose() {
+    _hapticTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

@@ -11,6 +11,7 @@ import 'package:boatface/features/quiz/presentation/racer_name_text.dart';
 import 'package:boatface/features/quiz/presentation/quiz_screen.dart';
 import 'package:boatface/shared/ads/rewarded_continue_ad_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -139,6 +140,62 @@ void main() {
         findsOneWidget,
       );
     } finally {
+      container.dispose();
+    }
+  });
+
+  testWidgets('triggers repeated short haptics during emergency pulse', (
+    WidgetTester tester,
+  ) async {
+    final QuizModeConfig mode = _buildMode(timeLimitSeconds: 10);
+    final QuizSessionState initialState = _buildSessionState(mode: mode)
+        .copyWith(
+          remainingForCurrentQuestion: const Duration(milliseconds: 2900),
+          replaceRemaining: true,
+          elapsedForCurrentQuestion: const Duration(milliseconds: 7100),
+        );
+    final List<MethodCall> platformCalls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (
+          MethodCall methodCall,
+        ) async {
+          platformCalls.add(methodCall);
+          return null;
+        });
+    final ProviderContainer container = ProviderContainer(
+      overrides: <Override>[
+        quizSessionControllerProvider.overrideWith(
+          () => _FakeQuizSessionController(initialState),
+        ),
+      ],
+    );
+    try {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: QuizScreen(
+              mode: mode,
+              sessionId: 'session-1',
+              sessionExpiresAt: DateTime.utc(2026, 3, 25),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1200));
+
+      final List<MethodCall> hapticCalls = platformCalls
+          .where((MethodCall call) => call.method == 'HapticFeedback.vibrate')
+          .toList(growable: false);
+      expect(
+        hapticCalls.length,
+        greaterThanOrEqualTo(3),
+      );
+      expect(hapticCalls.first.arguments, 'HapticFeedbackType.lightImpact');
+    } finally {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
       container.dispose();
     }
   });
