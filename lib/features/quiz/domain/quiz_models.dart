@@ -338,18 +338,64 @@ class RacerProfile {
   }
 }
 
-class QuizImageReveal {
-  const QuizImageReveal({
+enum PartialFaceVariant { zoomOutCenter, spotlights, tileReveal }
+
+enum PartialFaceMaskPattern { waterRipples, rippleContours, harborLattice }
+
+sealed class QuizPromptVisualSpec {
+  const QuizPromptVisualSpec();
+}
+
+class QuizZoomOutCenterVisualSpec extends QuizPromptVisualSpec {
+  const QuizZoomOutCenterVisualSpec({
     required this.startScale,
     required this.startAlignmentX,
     required this.startAlignmentY,
-    required this.duration,
   });
 
   final double startScale;
   final double startAlignmentX;
   final double startAlignmentY;
-  final Duration duration;
+}
+
+class QuizSpotlightsVisualSpec extends QuizPromptVisualSpec {
+  const QuizSpotlightsVisualSpec({
+    required this.maskPattern,
+    required this.spotlightCount,
+    required this.startRadiusFactor,
+    required this.endRadiusFactor,
+    required this.horizontalTravelFactor,
+    required this.verticalTravelFactor,
+    required this.horizontalTurns,
+    required this.verticalTurns,
+    required this.phaseOffsetTurns,
+  });
+
+  final PartialFaceMaskPattern maskPattern;
+  final int spotlightCount;
+  final double startRadiusFactor;
+  final double endRadiusFactor;
+  final double horizontalTravelFactor;
+  final double verticalTravelFactor;
+  final double horizontalTurns;
+  final double verticalTurns;
+  final double phaseOffsetTurns;
+}
+
+class QuizTileRevealVisualSpec extends QuizPromptVisualSpec {
+  const QuizTileRevealVisualSpec({
+    required this.maskPattern,
+    required this.tileRows,
+    required this.tileColumns,
+    required this.revealOrder,
+    required this.initialVisibleTileCount,
+  });
+
+  final PartialFaceMaskPattern maskPattern;
+  final int tileRows;
+  final int tileColumns;
+  final List<int> revealOrder;
+  final int initialVisibleTileCount;
 }
 
 class QuizOption {
@@ -378,7 +424,8 @@ class QuizQuestion {
     required this.prompt,
     this.promptImageUrl,
     this.promptImageLocalPath,
-    this.promptImageReveal,
+    this.partialFaceVariant,
+    this.promptVisualSpec,
     required this.options,
     required this.correctIndex,
     required this.correctRacerId,
@@ -388,7 +435,8 @@ class QuizQuestion {
   final String prompt;
   final String? promptImageUrl;
   final String? promptImageLocalPath;
-  final QuizImageReveal? promptImageReveal;
+  final PartialFaceVariant? partialFaceVariant;
+  final QuizPromptVisualSpec? promptVisualSpec;
   final List<QuizOption> options;
   final int correctIndex;
   final String correctRacerId;
@@ -506,14 +554,14 @@ class QuizResultSummary {
 String promptTypeLabel(QuizPromptType type) {
   switch (type) {
     case QuizPromptType.faceToName:
-      return '顔 -> 選手名';
+      return '顔 → 選手名';
     case QuizPromptType.nameToFace:
-      return '選手名 -> 顔';
+      return '選手名 → 顔';
     case QuizPromptType.partialFaceToName:
-      return '顔の一部 -> 選手名';
+      return '顔の一部 → 選手名';
     case QuizPromptType.registrationToFace:
-      return '登録番号 -> 顔';
+      return '登録番号 → 顔';
     case QuizPromptType.faceToRegistration:
-      return '顔 -> 登録番号';
+      return '顔 → 登録番号';
   }
 }

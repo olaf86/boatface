@@ -34,7 +34,8 @@ class _QuizRuleScreenState extends ConsumerState<QuizRuleScreen> {
       for (final QuizPromptType type in QuizPromptType.values) type: 0,
     };
     for (final QuizSegment segment in widget.baseMode.segments) {
-      _editableCounts[segment.promptType] = segment.count;
+      _editableCounts[segment.promptType] =
+          (_editableCounts[segment.promptType] ?? 0) + segment.count;
     }
     _unlimitedTime = widget.baseMode.timeLimitSeconds == null;
     _timeLimitSeconds = widget.baseMode.timeLimitSeconds ?? 10;

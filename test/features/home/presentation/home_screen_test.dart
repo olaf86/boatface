@@ -57,7 +57,7 @@ void main() {
     expect(find.text('未開放'), findsNothing);
     expect(find.byIcon(Icons.lock_rounded), findsNWidgets(3));
     expect(find.text('クイズモードを選択'), findsOneWidget);
-    expect(find.text('10問・A1級限定の顔 -> 選手名'), findsNothing);
+    expect(find.text('10問・A1級限定の顔 → 選手名'), findsNothing);
   });
 
   testWidgets('unlocks careful after quick clear and keeps challenge locked', (
@@ -94,7 +94,7 @@ void main() {
     expect(find.text('未開放'), findsNothing);
     expect(find.byIcon(Icons.lock_rounded), findsNWidgets(2));
     expect(find.text('じっくり'), findsOneWidget);
-    expect(find.text('30問・前半20問は顔 -> 選手名、後半10問は選手名 -> 顔'), findsNothing);
+    expect(find.text('30問・前半20問は顔 → 選手名、後半10問は選手名 → 顔'), findsNothing);
   });
 
   testWidgets(

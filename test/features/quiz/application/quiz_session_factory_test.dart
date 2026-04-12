@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:boatface/features/quiz/application/quiz_session.dart';
@@ -12,7 +14,7 @@ void main() {
       final QuizSession faceToName = QuizSessionFactory.create(
         mode: const QuizModeConfig(
           id: 'face-name',
-          label: '顔->名前',
+          label: '顔→名前',
           description: '',
           timeLimitSeconds: 10,
           segments: <QuizSegment>[
@@ -24,7 +26,7 @@ void main() {
       final QuizSession faceToRegistration = QuizSessionFactory.create(
         mode: const QuizModeConfig(
           id: 'face-registration',
-          label: '顔->登録番号',
+          label: '顔→登録番号',
           description: '',
           timeLimitSeconds: 10,
           segments: <QuizSegment>[
@@ -39,7 +41,7 @@ void main() {
 
       expect(faceToName.currentQuestion, isNotNull);
       expect(faceToName.currentQuestion!.hasPromptImage, true);
-      expect(faceToName.currentQuestion!.promptImageReveal, isNull);
+      expect(faceToName.currentQuestion!.promptVisualSpec, isNull);
       expect(
         faceToName.currentQuestion!.options.every(
           (QuizOption option) => option.imageUrl == null,
@@ -49,7 +51,7 @@ void main() {
 
       expect(faceToRegistration.currentQuestion, isNotNull);
       expect(faceToRegistration.currentQuestion!.hasPromptImage, true);
-      expect(faceToRegistration.currentQuestion!.promptImageReveal, isNull);
+      expect(faceToRegistration.currentQuestion!.promptVisualSpec, isNull);
       expect(
         faceToRegistration.currentQuestion!.options.every(
           (QuizOption option) => option.imageUrl == null,
@@ -64,7 +66,7 @@ void main() {
       final QuizSession nameToFace = QuizSessionFactory.create(
         mode: const QuizModeConfig(
           id: 'name-face',
-          label: '名前->顔',
+          label: '名前→顔',
           description: '',
           timeLimitSeconds: 10,
           segments: <QuizSegment>[
@@ -76,7 +78,7 @@ void main() {
       final QuizSession registrationToFace = QuizSessionFactory.create(
         mode: const QuizModeConfig(
           id: 'registration-face',
-          label: '登録番号->顔',
+          label: '登録番号→顔',
           description: '',
           timeLimitSeconds: 10,
           segments: <QuizSegment>[
@@ -108,40 +110,192 @@ void main() {
       );
     });
 
-    test('builds animated partial face questions within safe ranges', () {
-      final QuizSession session = QuizSessionFactory.create(
-        mode: const QuizModeConfig(
-          id: 'partial',
-          label: '部分',
-          description: '',
-          timeLimitSeconds: 10,
-          segments: <QuizSegment>[
-            QuizSegment(promptType: QuizPromptType.partialFaceToName, count: 1),
-          ],
-        ),
-        racers: _buildRacers(),
-      );
+    test('builds partial face questions with all visual variants', () {
+      final Set<PartialFaceVariant> seenVariants = <PartialFaceVariant>{};
 
-      final QuizQuestion question = session.currentQuestion!;
-      final QuizImageReveal reveal = question.promptImageReveal!;
+      for (int seed = 0; seed < 8; seed += 1) {
+        final QuizSession session = QuizSessionFactory.create(
+          mode: const QuizModeConfig(
+            id: 'partial',
+            label: '部分',
+            description: '',
+            timeLimitSeconds: 10,
+            segments: <QuizSegment>[
+              QuizSegment(
+                promptType: QuizPromptType.partialFaceToName,
+                count: 12,
+              ),
+            ],
+          ),
+          racers: _buildRacers(),
+          random: Random(seed),
+        );
 
-      expect(question.hasPromptImage, true);
-      expect(question.prompt, 'この顔の選手名は？');
-      expect(reveal.startScale, inInclusiveRange(2.2, 3.0));
-      expect(reveal.startAlignmentX, inInclusiveRange(-0.35, 0.35));
-      expect(reveal.startAlignmentY, inInclusiveRange(-0.25, 0.2));
-      expect(reveal.duration, const Duration(milliseconds: 6500));
-      expect(
-        question.options.every((QuizOption option) => option.imageUrl == null),
-        true,
-      );
+        for (final QuizQuestion question in _collectQuestions(session)) {
+          expect(question.hasPromptImage, true);
+          expect(question.prompt, 'この顔の選手名は？');
+          expect(
+            question.options.every(
+              (QuizOption option) => option.imageUrl == null,
+            ),
+            true,
+          );
+
+          final PartialFaceVariant variant = question.partialFaceVariant!;
+          final QuizPromptVisualSpec spec = question.promptVisualSpec!;
+          seenVariants.add(variant);
+
+          switch ((variant, spec)) {
+            case (
+              PartialFaceVariant.zoomOutCenter,
+              QuizZoomOutCenterVisualSpec zoomSpec,
+            ):
+              expect(zoomSpec.startScale, inInclusiveRange(5.0, 5.6));
+              expect(zoomSpec.startAlignmentX, inInclusiveRange(-0.28, 0.28));
+              expect(zoomSpec.startAlignmentY, inInclusiveRange(-0.42, -0.08));
+            case (
+              PartialFaceVariant.spotlights,
+              QuizSpotlightsVisualSpec windowSpec,
+            ):
+              expect(
+                PartialFaceMaskPattern.values,
+                contains(windowSpec.maskPattern),
+              );
+              expect(windowSpec.spotlightCount, anyOf(equals(2), equals(3)));
+              expect(
+                windowSpec.startRadiusFactor,
+                inInclusiveRange(0.18, 0.22),
+              );
+              expect(windowSpec.endRadiusFactor, inInclusiveRange(0.28, 0.34));
+              expect(
+                windowSpec.endRadiusFactor,
+                greaterThan(windowSpec.startRadiusFactor),
+              );
+              expect(
+                windowSpec.horizontalTravelFactor,
+                inInclusiveRange(0.46, 0.64),
+              );
+              expect(
+                windowSpec.verticalTravelFactor,
+                inInclusiveRange(0.34, 0.52),
+              );
+              expect(windowSpec.horizontalTurns, inInclusiveRange(1.15, 1.55));
+              expect(windowSpec.verticalTurns, inInclusiveRange(1.7, 2.25));
+              expect(windowSpec.phaseOffsetTurns, inInclusiveRange(0, 1));
+            case (
+              PartialFaceVariant.tileReveal,
+              QuizTileRevealVisualSpec tileSpec,
+            ):
+              expect(
+                PartialFaceMaskPattern.values,
+                contains(tileSpec.maskPattern),
+              );
+              expect(tileSpec.tileRows, anyOf(equals(3), equals(4)));
+              expect(tileSpec.tileColumns, 4);
+              expect(
+                tileSpec.revealOrder,
+                hasLength(tileSpec.tileRows * tileSpec.tileColumns),
+              );
+              expect(
+                tileSpec.revealOrder.toSet(),
+                hasLength(tileSpec.tileRows * tileSpec.tileColumns),
+              );
+              expect(tileSpec.initialVisibleTileCount, equals(0));
+            case _:
+              fail(
+                'Unexpected partial face visual combination: $variant / $spec',
+              );
+          }
+        }
+      }
+
+      expect(seenVariants, containsAll(PartialFaceVariant.values));
+    });
+
+    test('keeps partial face variant weights roughly flat across a session', () {
+      int earlyZoomOutCount = 0;
+      int midZoomOutCount = 0;
+      int lateZoomOutCount = 0;
+      int earlySpotlightCount = 0;
+      int midSpotlightCount = 0;
+      int lateSpotlightCount = 0;
+      int earlyTileRevealCount = 0;
+      int midTileRevealCount = 0;
+      int lateTileRevealCount = 0;
+
+      for (int seed = 0; seed < 120; seed += 1) {
+        final QuizSession session = QuizSessionFactory.create(
+          mode: const QuizModeConfig(
+            id: 'partial',
+            label: '部分',
+            description: '',
+            timeLimitSeconds: 10,
+            segments: <QuizSegment>[
+              QuizSegment(
+                promptType: QuizPromptType.partialFaceToName,
+                count: 18,
+              ),
+            ],
+          ),
+          racers: _buildRacers(),
+          random: Random(seed),
+        );
+        final List<QuizQuestion> questions = _collectQuestions(session);
+
+        for (int index = 0; index < questions.length; index += 1) {
+          final PartialFaceVariant variant =
+              questions[index].partialFaceVariant!;
+          if (index < 6) {
+            if (variant == PartialFaceVariant.zoomOutCenter) {
+              earlyZoomOutCount += 1;
+            } else if (variant == PartialFaceVariant.spotlights) {
+              earlySpotlightCount += 1;
+            }
+            if (variant == PartialFaceVariant.tileReveal) {
+              earlyTileRevealCount += 1;
+            }
+          } else if (index < 12) {
+            if (variant == PartialFaceVariant.zoomOutCenter) {
+              midZoomOutCount += 1;
+            } else if (variant == PartialFaceVariant.spotlights) {
+              midSpotlightCount += 1;
+            }
+            if (variant == PartialFaceVariant.tileReveal) {
+              midTileRevealCount += 1;
+            }
+          } else {
+            if (variant == PartialFaceVariant.zoomOutCenter) {
+              lateZoomOutCount += 1;
+            } else if (variant == PartialFaceVariant.spotlights) {
+              lateSpotlightCount += 1;
+            }
+            if (variant == PartialFaceVariant.tileReveal) {
+              lateTileRevealCount += 1;
+            }
+          }
+        }
+      }
+
+      expect(earlyZoomOutCount, closeTo(midZoomOutCount, 60));
+      expect(midZoomOutCount, closeTo(lateZoomOutCount, 60));
+      expect(earlySpotlightCount, closeTo(midSpotlightCount, 60));
+      expect(midSpotlightCount, closeTo(lateSpotlightCount, 60));
+      expect(earlyTileRevealCount, closeTo(midTileRevealCount, 60));
+      expect(midTileRevealCount, closeTo(lateTileRevealCount, 60));
+
+      expect(earlyZoomOutCount, greaterThan(earlyTileRevealCount));
+      expect(earlySpotlightCount, greaterThan(earlyTileRevealCount));
+      expect(midZoomOutCount, greaterThan(midTileRevealCount));
+      expect(midSpotlightCount, greaterThan(midTileRevealCount));
+      expect(lateZoomOutCount, greaterThan(lateTileRevealCount));
+      expect(lateSpotlightCount, greaterThan(lateTileRevealCount));
     });
 
     test('keeps kana on target for name-to-face questions', () {
       final QuizSession session = QuizSessionFactory.create(
         mode: const QuizModeConfig(
           id: 'name-face',
-          label: '名前->顔',
+          label: '名前→顔',
           description: '',
           timeLimitSeconds: 10,
           segments: <QuizSegment>[
@@ -154,7 +308,7 @@ void main() {
       final QuizQuestion question = session.currentQuestion!;
       final QuizOption target = question.options[question.correctIndex];
 
-      expect(question.prompt, contains(target.label));
+      expect(question.prompt, 'の顔はどれ？');
       expect(target.labelReading, isNotNull);
     });
 
@@ -196,7 +350,7 @@ void main() {
       },
     );
 
-    test('applies careful mode flow steps per segment', () {
+    test('alternates careful mode with segment-based difficulty ramps', () {
       final QuizModeConfig carefulMode = kQuizModes.firstWhere(
         (QuizModeConfig mode) => mode.id == 'careful',
       );
@@ -212,45 +366,75 @@ void main() {
       final List<QuizQuestion> questions = _collectQuestions(session);
 
       expect(questions, hasLength(30));
+      _expectPromptTypeWindow(
+        questions.sublist(0, 5),
+        QuizPromptType.faceToName,
+      );
       _expectQuestionWindow(
-        questions.sublist(0, 10),
+        questions.sublist(0, 5),
         racerById,
         allowedTargetClasses: <String>['A1'],
         allowedOptionClasses: <String>['A1'],
       );
+      _expectPromptTypeWindow(
+        questions.sublist(5, 10),
+        QuizPromptType.nameToFace,
+      );
       _expectQuestionWindow(
-        questions.sublist(10, 16),
+        questions.sublist(5, 10),
+        racerById,
+        allowedTargetClasses: <String>['A1'],
+        allowedOptionClasses: <String>['A1'],
+      );
+      _expectPromptTypeWindow(
+        questions.sublist(10, 15),
+        QuizPromptType.faceToName,
+      );
+      _expectQuestionWindow(
+        questions.sublist(10, 15),
         racerById,
         allowedTargetClasses: <String>['A2'],
         allowedOptionClasses: <String>['A2'],
       );
-      _expectQuestionWindow(
-        questions.sublist(16, 20),
-        racerById,
-        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
-        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
+      _expectPromptTypeWindow(
+        questions.sublist(15, 20),
+        QuizPromptType.nameToFace,
       );
       _expectQuestionWindow(
+        questions.sublist(15, 20),
+        racerById,
+        allowedTargetClasses: <String>['A2'],
+        allowedOptionClasses: <String>['A2'],
+      );
+      _expectPromptTypeWindow(
         questions.sublist(20, 25),
-        racerById,
-        allowedTargetClasses: <String>['A1'],
-        allowedOptionClasses: <String>['A1'],
+        QuizPromptType.faceToName,
       );
       _expectQuestionWindow(
-        questions.sublist(25, 28),
+        questions.sublist(24, 25),
         racerById,
-        allowedTargetClasses: <String>['A2'],
-        allowedOptionClasses: <String>['A2'],
+        allowedTargetClasses: <String>['B1', 'B2'],
+        allowedOptionClasses: <String>['B1', 'B2'],
       );
       _expectQuestionWindow(
-        questions.sublist(28, 30),
+        questions.sublist(20, 24),
         racerById,
-        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
-        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
+        allowedTargetClasses: <String>['B1', 'B2'],
+        allowedOptionClasses: <String>['B1', 'B2'],
+      );
+      _expectPromptTypeWindow(
+        questions.sublist(25, 30),
+        QuizPromptType.nameToFace,
+      );
+      _expectQuestionWindow(
+        questions.sublist(25, 30),
+        racerById,
+        allowedTargetClasses: <String>['B1', 'B2'],
+        allowedOptionClasses: <String>['B1', 'B2'],
       );
     });
 
-    test('applies challenge mode flow steps per segment', () {
+    test('applies challenge mode flow steps across partial-face questions', () {
       final QuizModeConfig challengeMode = kQuizModes.firstWhere(
         (QuizModeConfig mode) => mode.id == 'challenge',
       );
@@ -266,92 +450,21 @@ void main() {
       final List<QuizQuestion> questions = _collectQuestions(session);
 
       expect(questions, hasLength(50));
+      _expectPromptTypeWindow(questions, QuizPromptType.partialFaceToName);
       _expectQuestionWindow(
-        questions.sublist(0, 4),
+        questions.sublist(0, 30),
         racerById,
         allowedTargetClasses: <String>['A1'],
         allowedOptionClasses: <String>['A1'],
       );
       _expectQuestionWindow(
-        questions.sublist(4, 10),
+        questions.sublist(30, 40),
         racerById,
         allowedTargetClasses: <String>['A2'],
         allowedOptionClasses: <String>['A2'],
       );
       _expectQuestionWindow(
-        questions.sublist(10, 20),
-        racerById,
-        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
-        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(20, 22),
-        racerById,
-        allowedTargetClasses: <String>['A1'],
-        allowedOptionClasses: <String>['A1'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(22, 25),
-        racerById,
-        allowedTargetClasses: <String>['A2'],
-        allowedOptionClasses: <String>['A2'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(25, 30),
-        racerById,
-        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
-        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(30, 32),
-        racerById,
-        allowedTargetClasses: <String>['A1'],
-        allowedOptionClasses: <String>['A1'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(32, 35),
-        racerById,
-        allowedTargetClasses: <String>['A2'],
-        allowedOptionClasses: <String>['A2'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(35, 40),
-        racerById,
-        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
-        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(40, 41),
-        racerById,
-        allowedTargetClasses: <String>['A1'],
-        allowedOptionClasses: <String>['A1'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(41, 43),
-        racerById,
-        allowedTargetClasses: <String>['A2'],
-        allowedOptionClasses: <String>['A2'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(43, 45),
-        racerById,
-        allowedTargetClasses: <String>['A2', 'B1', 'B2'],
-        allowedOptionClasses: <String>['A2', 'B1', 'B2'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(45, 46),
-        racerById,
-        allowedTargetClasses: <String>['A1'],
-        allowedOptionClasses: <String>['A1'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(46, 48),
-        racerById,
-        allowedTargetClasses: <String>['A2'],
-        allowedOptionClasses: <String>['A2'],
-      );
-      _expectQuestionWindow(
-        questions.sublist(48, 50),
+        questions.sublist(40, 50),
         racerById,
         allowedTargetClasses: <String>['A2', 'B1', 'B2'],
         allowedOptionClasses: <String>['A2', 'B1', 'B2'],
@@ -488,6 +601,18 @@ List<QuizQuestion> _collectQuestions(QuizSession session) {
   }
 
   return questions;
+}
+
+void _expectPromptTypeWindow(
+  List<QuizQuestion> questions,
+  QuizPromptType promptType,
+) {
+  expect(
+    questions.every(
+      (QuizQuestion question) => question.promptType == promptType,
+    ),
+    true,
+  );
 }
 
 void _expectQuestionWindow(

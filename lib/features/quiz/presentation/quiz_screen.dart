@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 import 'dart:io';
 
 import 'package:animations/animations.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -309,6 +311,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen>
                               child: _QuizPromptCard(
                                 question: question,
                                 availableHeight: constraints.maxHeight,
+                                remaining: remainingForDisplay,
+                                totalSeconds: widget.mode.timeLimitSeconds,
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -580,10 +584,14 @@ class _QuizPromptCard extends StatelessWidget {
   const _QuizPromptCard({
     required this.question,
     required this.availableHeight,
+    required this.remaining,
+    required this.totalSeconds,
   });
 
   final QuizQuestion question;
   final double availableHeight;
+  final Duration? remaining;
+  final int? totalSeconds;
 
   @override
   Widget build(BuildContext context) {
@@ -591,6 +599,7 @@ class _QuizPromptCard extends StatelessWidget {
     final double screenHeight = MediaQuery.sizeOf(context).height;
     final bool isFacePrompt =
         question.promptType == QuizPromptType.faceToName ||
+        question.promptType == QuizPromptType.partialFaceToName ||
         question.promptType == QuizPromptType.faceToRegistration;
     final double promptImageHeight = isFacePrompt
         ? (availableHeight * 0.29).clamp(234.0, 324.0)
@@ -614,10 +623,9 @@ class _QuizPromptCard extends StatelessWidget {
                 imageUrl: question.promptImageUrl ?? '',
                 localImagePath: question.promptImageLocalPath,
                 semanticLabel: question.prompt,
-                reveal: question.promptImageReveal,
-                fit: question.promptImageReveal == null
-                    ? BoxFit.contain
-                    : BoxFit.cover,
+                promptVisualSpec: question.promptVisualSpec,
+                fit: BoxFit.contain,
+                totalSeconds: totalSeconds,
               ),
             ),
           ],
@@ -855,8 +863,11 @@ class _NameToFacePrompt extends StatelessWidget {
           name: target.label,
           nameKana: target.labelReading,
           style: textTheme.headlineSmall,
-          kanaStyle: textTheme.titleSmall?.copyWith(
+          kanaStyle: textTheme.labelMedium?.copyWith(
+            fontSize: (textTheme.headlineSmall?.fontSize ?? 24) * 0.28,
             color: textTheme.headlineSmall?.color?.withValues(alpha: 0.78),
+            fontWeight: FontWeight.w700,
+            height: 0.72,
           ),
         ),
         const SizedBox(height: 6),
@@ -2198,23 +2209,31 @@ class _QuizImagePanel extends StatefulWidget {
     required this.imageUrl,
     required this.semanticLabel,
     this.localImagePath,
-    this.reveal,
+    this.promptVisualSpec,
     this.fit = BoxFit.contain,
+    this.totalSeconds,
   });
 
   final String imageUrl;
   final String semanticLabel;
   final String? localImagePath;
-  final QuizImageReveal? reveal;
+  final QuizPromptVisualSpec? promptVisualSpec;
   final BoxFit fit;
+  final int? totalSeconds;
 
   @override
   State<_QuizImagePanel> createState() => _QuizImagePanelState();
 }
 
 class _QuizImagePanelState extends State<_QuizImagePanel>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   AnimationController? _controller;
+  static const Duration _kUntimedPartialRevealDuration = Duration(seconds: 10);
+  Widget? _imageChild;
+  String? _imageChildUrl;
+  String? _imageChildLocalPath;
+  BoxFit? _imageChildFit;
+  String? _imageChildSemanticLabel;
 
   @override
   void initState() {
@@ -2227,8 +2246,9 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.imageUrl != widget.imageUrl ||
         oldWidget.localImagePath != widget.localImagePath ||
-        oldWidget.reveal != widget.reveal ||
-        oldWidget.fit != widget.fit) {
+        oldWidget.promptVisualSpec != widget.promptVisualSpec ||
+        oldWidget.fit != widget.fit ||
+        oldWidget.totalSeconds != widget.totalSeconds) {
       _configureAnimation();
     }
   }
@@ -2241,51 +2261,162 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
 
   @override
   Widget build(BuildContext context) {
-    final Widget image = _buildImage();
+    final Widget image = _buildStableImage();
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: ColoredBox(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: widget.reveal == null || _controller == null
-            ? image
-            : AnimatedBuilder(
-                animation: _controller!,
-                child: image,
-                builder: (BuildContext context, Widget? child) {
-                  final QuizImageReveal reveal = widget.reveal!;
-                  final double progress = Curves.easeOutCubic.transform(
-                    _controller!.value,
-                  );
-                  final Alignment alignment = Alignment.lerp(
-                    Alignment(reveal.startAlignmentX, reveal.startAlignmentY),
-                    Alignment.center,
-                    progress,
-                  )!;
-                  final double scale =
-                      lerpDouble(reveal.startScale, 1, progress) ?? 1;
-
-                  return Transform.scale(
-                    scale: scale,
-                    alignment: alignment,
-                    child: child,
-                  );
-                },
-              ),
+    return RepaintBoundary(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: ColoredBox(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: widget.promptVisualSpec == null || _controller == null
+              ? _buildPresentedImage(image: image, progress: 0)
+              : AnimatedBuilder(
+                  animation: _controller!,
+                  child: image,
+                  builder: (BuildContext context, Widget? child) {
+                    final double revealProgress = _revealProgressForSpec(
+                      promptVisualSpec: widget.promptVisualSpec,
+                      linearProgress: _currentLinearProgress(),
+                    );
+                    return _buildPresentedImage(
+                      image: child!,
+                      progress: revealProgress,
+                    );
+                  },
+                ),
+        ),
       ),
     );
   }
 
   void _configureAnimation() {
     _controller?.dispose();
-    final QuizImageReveal? reveal = widget.reveal;
-    if (reveal == null) {
+    if (widget.promptVisualSpec == null) {
       _controller = null;
       return;
     }
 
-    _controller = AnimationController(vsync: this, duration: reveal.duration)
-      ..forward();
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.totalSeconds == null
+          ? _kUntimedPartialRevealDuration
+          : Duration(seconds: widget.totalSeconds!),
+      value: 0,
+    )..forward();
+  }
+
+  double _currentLinearProgress() {
+    final AnimationController? controller = _controller;
+    if (widget.promptVisualSpec == null || controller == null) {
+      return 0;
+    }
+
+    return controller.value.clamp(0.0, 1.0);
+  }
+
+  Widget _buildPresentedImage({
+    required Widget image,
+    required double progress,
+  }) {
+    final QuizPromptVisualSpec? promptVisualSpec = widget.promptVisualSpec;
+    if (promptVisualSpec == null) {
+      return image;
+    }
+
+    if (promptVisualSpec is QuizZoomOutCenterVisualSpec) {
+      final Alignment alignment = Alignment.lerp(
+        Alignment(
+          promptVisualSpec.startAlignmentX,
+          promptVisualSpec.startAlignmentY,
+        ),
+        Alignment.center,
+        progress,
+      )!;
+      final double scale =
+          lerpDouble(promptVisualSpec.startScale, 1, progress) ?? 1;
+
+      return KeyedSubtree(
+        key: const ValueKey<String>('quiz-partial-face-zoom-out'),
+        child: Transform.scale(
+          scale: scale,
+          alignment: alignment,
+          child: image,
+        ),
+      );
+    }
+
+    if (promptVisualSpec is QuizSpotlightsVisualSpec) {
+      return Stack(
+        key: const ValueKey<String>('quiz-partial-face-spotlights'),
+        fit: StackFit.expand,
+        children: <Widget>[
+          image,
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _SpotlightsMaskPainter(
+                progress: progress,
+                maskPattern: promptVisualSpec.maskPattern,
+                spotlightCount: promptVisualSpec.spotlightCount,
+                startRadiusFactor: promptVisualSpec.startRadiusFactor,
+                endRadiusFactor: promptVisualSpec.endRadiusFactor,
+                horizontalTravelFactor: promptVisualSpec.horizontalTravelFactor,
+                verticalTravelFactor: promptVisualSpec.verticalTravelFactor,
+                horizontalTurns: promptVisualSpec.horizontalTurns,
+                verticalTurns: promptVisualSpec.verticalTurns,
+                phaseOffsetTurns: promptVisualSpec.phaseOffsetTurns,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (promptVisualSpec is QuizTileRevealVisualSpec) {
+      if (progress >= 1) {
+        return KeyedSubtree(
+          key: const ValueKey<String>('quiz-partial-face-tile-reveal'),
+          child: image,
+        );
+      }
+
+      return Stack(
+        key: const ValueKey<String>('quiz-partial-face-tile-reveal'),
+        fit: StackFit.expand,
+        children: <Widget>[
+          image,
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _TileRevealMaskPainter(
+                maskPattern: promptVisualSpec.maskPattern,
+                progress: progress,
+                tileRows: promptVisualSpec.tileRows,
+                tileColumns: promptVisualSpec.tileColumns,
+                revealOrder: promptVisualSpec.revealOrder,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return image;
+  }
+
+  Widget _buildStableImage() {
+    if (_imageChild != null &&
+        _imageChildUrl == widget.imageUrl &&
+        _imageChildLocalPath == widget.localImagePath &&
+        _imageChildFit == widget.fit &&
+        _imageChildSemanticLabel == widget.semanticLabel) {
+      return _imageChild!;
+    }
+
+    _imageChild = RepaintBoundary(child: _buildImage());
+    _imageChildUrl = widget.imageUrl;
+    _imageChildLocalPath = widget.localImagePath;
+    _imageChildFit = widget.fit;
+    _imageChildSemanticLabel = widget.semanticLabel;
+    return _imageChild!;
   }
 
   Widget _buildImage() {
@@ -2305,6 +2436,504 @@ class _QuizImagePanelState extends State<_QuizImagePanel>
 
     return _QuizImageFallback(label: widget.semanticLabel);
   }
+}
+
+double _acceleratedRevealProgress(double linearProgress) {
+  final double clamped = linearProgress.clamp(0.0, 1.0);
+  return Curves.easeInOutCubic.transform(clamped);
+}
+
+double _zoomOutRevealProgress(double linearProgress) {
+  final double clamped = linearProgress.clamp(0.0, 1.0);
+  return Curves.easeInCubic.transform(clamped);
+}
+
+double _revealProgressForSpec({
+  required QuizPromptVisualSpec? promptVisualSpec,
+  required double linearProgress,
+}) {
+  if (promptVisualSpec is QuizZoomOutCenterVisualSpec) {
+    return _zoomOutRevealProgress(linearProgress);
+  }
+
+  return _acceleratedRevealProgress(linearProgress);
+}
+
+const Color _kPartialFaceMaskStartColor = Color(0xFFA8E1EE);
+const Color _kPartialFaceMaskMidColor = Color(0xFF72C4D8);
+const Color _kPartialFaceMaskEndColor = Color(0xFF4A9FC0);
+const Color _kPartialFaceMaskAccentColor = Color(0xFFE8FBFF);
+const Color _kPartialFaceMaskStrokeColor = Color(0xFFF4FDFF);
+const Color _kPartialFaceMaskPatternDarkColor = Color(0xFF2A6F86);
+const Color _kPartialFaceMaskPatternLightColor = Color(0xFFF5FDFF);
+
+class _SpotlightsMaskPainter extends CustomPainter {
+  const _SpotlightsMaskPainter({
+    required this.progress,
+    required this.maskPattern,
+    required this.spotlightCount,
+    required this.startRadiusFactor,
+    required this.endRadiusFactor,
+    required this.horizontalTravelFactor,
+    required this.verticalTravelFactor,
+    required this.horizontalTurns,
+    required this.verticalTurns,
+    required this.phaseOffsetTurns,
+  });
+
+  final double progress;
+  final PartialFaceMaskPattern maskPattern;
+  final int spotlightCount;
+  final double startRadiusFactor;
+  final double endRadiusFactor;
+  final double horizontalTravelFactor;
+  final double verticalTravelFactor;
+  final double horizontalTurns;
+  final double verticalTurns;
+  final double phaseOffsetTurns;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect bounds = Offset.zero & size;
+    final double radiusFactor =
+        lerpDouble(startRadiusFactor, endRadiusFactor, progress) ??
+        endRadiusFactor;
+    final double spotlightRadius =
+        math.min(size.width, size.height) * radiusFactor;
+
+    final Path spotlightUnionPath = Path();
+    final List<Rect> spotlightRects = <Rect>[];
+    for (int index = 0; index < spotlightCount; index += 1) {
+      final double phaseTurns = phaseOffsetTurns + (index / spotlightCount);
+      final double horizontalAngle =
+          ((horizontalTurns * progress) + phaseTurns) * math.pi * 2;
+      final double verticalAngle =
+          ((verticalTurns * progress) + (phaseTurns * 1.35)) * math.pi * 2;
+      final double x =
+          ((math.cos(horizontalAngle) * horizontalTravelFactor) + 1) *
+          0.5 *
+          size.width;
+      final double y =
+          ((math.sin(verticalAngle) * verticalTravelFactor) + 1) *
+          0.5 *
+          size.height;
+      final double width = spotlightRadius * 2 * (index.isEven ? 1.0 : 0.92);
+      final double height = spotlightRadius * 2 * (index.isEven ? 0.94 : 1.06);
+      final Rect spotlightRect = Rect.fromCenter(
+        center: Offset(x, y),
+        width: width,
+        height: height,
+      );
+      spotlightRects.add(spotlightRect);
+      spotlightUnionPath.addOval(spotlightRect);
+    }
+    final Path maskPath = Path.combine(
+      PathOperation.difference,
+      Path()..addRect(bounds),
+      spotlightUnionPath,
+    );
+
+    _paintPatternedMask(
+      canvas: canvas,
+      bounds: bounds,
+      maskedRegion: maskPath,
+      pattern: maskPattern,
+    );
+    _paintSpotlightEdgeGlow(
+      canvas: canvas,
+      maskedRegion: maskPath,
+      spotlightRects: spotlightRects,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SpotlightsMaskPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.maskPattern != maskPattern ||
+        oldDelegate.spotlightCount != spotlightCount ||
+        oldDelegate.startRadiusFactor != startRadiusFactor ||
+        oldDelegate.endRadiusFactor != endRadiusFactor ||
+        oldDelegate.horizontalTravelFactor != horizontalTravelFactor ||
+        oldDelegate.verticalTravelFactor != verticalTravelFactor ||
+        oldDelegate.horizontalTurns != horizontalTurns ||
+        oldDelegate.verticalTurns != verticalTurns ||
+        oldDelegate.phaseOffsetTurns != phaseOffsetTurns;
+  }
+}
+
+void _paintSpotlightEdgeGlow({
+  required Canvas canvas,
+  required Path maskedRegion,
+  required List<Rect> spotlightRects,
+}) {
+  canvas.save();
+  canvas.clipPath(maskedRegion);
+  for (final Rect spotlightRect in spotlightRects) {
+    final Rect glowRect = Rect.fromCenter(
+      center: spotlightRect.center,
+      width: spotlightRect.width * 1.34,
+      height: spotlightRect.height * 1.34,
+    );
+    const double glowBoundaryStop = 0.75;
+    final Paint glowPaint = Paint()
+      ..shader = RadialGradient(
+        colors: <Color>[
+          Colors.transparent,
+          _kPartialFaceMaskStrokeColor.withValues(alpha: 0.28),
+          _kPartialFaceMaskStrokeColor.withValues(alpha: 0.1),
+          Colors.transparent,
+        ],
+        stops: const <double>[
+          glowBoundaryStop,
+          glowBoundaryStop + 0.05,
+          glowBoundaryStop + 0.16,
+          1,
+        ],
+      ).createShader(glowRect);
+    canvas.drawOval(glowRect, glowPaint);
+  }
+  canvas.restore();
+}
+
+class _TileRevealMaskPainter extends CustomPainter {
+  const _TileRevealMaskPainter({
+    required this.maskPattern,
+    required this.progress,
+    required this.tileRows,
+    required this.tileColumns,
+    required this.revealOrder,
+  });
+
+  final PartialFaceMaskPattern maskPattern;
+  final double progress;
+  final int tileRows;
+  final int tileColumns;
+  final List<int> revealOrder;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect fullBounds = Offset.zero & size;
+    final double tileWidth = size.width / tileColumns;
+    final double tileHeight = size.height / tileRows;
+    final Map<int, int> revealIndexByTile = <int, int>{
+      for (int index = 0; index < revealOrder.length; index += 1)
+        revealOrder[index]: index,
+    };
+
+    for (int row = 0; row < tileRows; row += 1) {
+      for (int column = 0; column < tileColumns; column += 1) {
+        final int index = row * tileColumns + column;
+        final int? revealIndex = revealIndexByTile[index];
+        if (revealIndex == null) {
+          continue;
+        }
+
+        final Rect tileRect = Rect.fromLTWH(
+          column * tileWidth,
+          row * tileHeight,
+          tileWidth,
+          tileHeight,
+        );
+        final double maskOpacity = _tileMaskOpacity(
+          progress: progress,
+          revealIndex: revealIndex,
+          totalTileCount: revealOrder.length,
+        );
+        if (maskOpacity <= 0.001) {
+          continue;
+        }
+
+        _paintPatternedMask(
+          canvas: canvas,
+          bounds: fullBounds,
+          maskedRegion: Path()..addRect(tileRect),
+          pattern: maskPattern,
+          opacity: maskOpacity,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TileRevealMaskPainter oldDelegate) {
+    return oldDelegate.maskPattern != maskPattern ||
+        oldDelegate.progress != progress ||
+        oldDelegate.tileRows != tileRows ||
+        oldDelegate.tileColumns != tileColumns ||
+        !listEquals(oldDelegate.revealOrder, revealOrder);
+  }
+}
+
+void _paintPatternedMask({
+  required Canvas canvas,
+  required Rect bounds,
+  required Path maskedRegion,
+  required PartialFaceMaskPattern pattern,
+  double opacity = 1,
+}) {
+  final Paint basePaint = Paint()
+    ..shader = LinearGradient(
+      colors: <Color>[
+        _kPartialFaceMaskStartColor.withValues(alpha: opacity),
+        _kPartialFaceMaskMidColor.withValues(alpha: opacity),
+        _kPartialFaceMaskEndColor.withValues(alpha: opacity),
+      ],
+      stops: const <double>[0, 0.52, 1],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ).createShader(bounds);
+  canvas.drawPath(maskedRegion, basePaint);
+
+  canvas.save();
+  canvas.clipPath(maskedRegion);
+  final Rect accentRect = Rect.fromCircle(
+    center: Offset(
+      bounds.left + (bounds.width * 0.22),
+      bounds.top + (bounds.height * 0.18),
+    ),
+    radius: math.max(bounds.width, bounds.height) * 0.82,
+  );
+  canvas.drawRect(
+    bounds,
+    Paint()
+      ..shader = RadialGradient(
+        colors: <Color>[
+          _kPartialFaceMaskAccentColor.withValues(alpha: 0.28 * opacity),
+          _kPartialFaceMaskAccentColor.withValues(alpha: 0.1 * opacity),
+          Colors.transparent,
+        ],
+        stops: const <double>[0, 0.36, 1],
+      ).createShader(accentRect),
+  );
+
+  switch (pattern) {
+    case PartialFaceMaskPattern.waterRipples:
+      _paintWaterRipplesPattern(canvas, bounds, opacity: opacity);
+    case PartialFaceMaskPattern.rippleContours:
+      _paintRippleContoursPattern(canvas, bounds, opacity: opacity);
+    case PartialFaceMaskPattern.harborLattice:
+      _paintHarborLatticePattern(canvas, bounds, opacity: opacity);
+  }
+  canvas.restore();
+}
+
+void _paintWaterRipplesPattern(
+  Canvas canvas,
+  Rect bounds, {
+  required double opacity,
+}) {
+  final Paint basePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.8
+    ..strokeCap = StrokeCap.round
+    ..color = _kPartialFaceMaskPatternDarkColor.withValues(
+      alpha: 0.09 * opacity,
+    );
+  final Paint highlightPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.2
+    ..strokeCap = StrokeCap.round
+    ..color = _kPartialFaceMaskPatternLightColor.withValues(
+      alpha: 0.2 * opacity,
+    );
+  final double lineGap = math.max(22, bounds.height / 5.8);
+  final double amplitude = math.min(10, bounds.height * 0.08);
+
+  for (
+    double y = bounds.top - (lineGap * 1.5);
+    y <= bounds.bottom + lineGap;
+    y += lineGap
+  ) {
+    final Path path = Path()..moveTo(bounds.left - 32, y);
+    for (double x = bounds.left - 32; x <= bounds.right + 32; x += 32) {
+      final double waveY =
+          y + math.sin((x / bounds.width) * math.pi * 2.3) * amplitude;
+      path.lineTo(x, waveY);
+    }
+    canvas.drawPath(path, basePaint);
+    canvas.drawPath(path.shift(const Offset(0, -1.5)), highlightPaint);
+  }
+}
+
+void _paintRippleContoursPattern(
+  Canvas canvas,
+  Rect bounds, {
+  required double opacity,
+}) {
+  final Paint basePaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.9
+    ..color = _kPartialFaceMaskPatternDarkColor.withValues(
+      alpha: 0.085 * opacity,
+    );
+  final Paint accentPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 0.95
+    ..color = _kPartialFaceMaskPatternLightColor.withValues(
+      alpha: 0.22 * opacity,
+    );
+  final Offset center = bounds.center;
+  final double maxRadius = math.max(bounds.width, bounds.height) * 0.75;
+
+  for (
+    double radius = maxRadius * 0.22;
+    radius <= maxRadius;
+    radius += maxRadius * 0.12
+  ) {
+    final Rect ovalRect = Rect.fromCenter(
+      center: center.translate(radius * 0.08, -radius * 0.04),
+      width: radius * 1.8,
+      height: radius * 1.15,
+    );
+    canvas.drawOval(ovalRect, basePaint);
+    canvas.drawOval(ovalRect.deflate(2.5), accentPaint);
+  }
+}
+
+void _paintHarborLatticePattern(
+  Canvas canvas,
+  Rect bounds, {
+  required double opacity,
+}) {
+  final Paint gridPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.1
+    ..color = _kPartialFaceMaskPatternLightColor.withValues(
+      alpha: 0.16 * opacity,
+    );
+  final Paint accentPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.5
+    ..color = _kPartialFaceMaskPatternDarkColor.withValues(
+      alpha: 0.055 * opacity,
+    );
+  final double spacing = math.max(
+    28,
+    math.min(bounds.width, bounds.height) / 5.5,
+  );
+
+  for (
+    double x = bounds.left - bounds.height;
+    x <= bounds.right + bounds.height;
+    x += spacing
+  ) {
+    canvas.drawLine(
+      Offset(x, bounds.top),
+      Offset(x + bounds.height, bounds.bottom),
+      gridPaint,
+    );
+  }
+  for (
+    double x = bounds.left - bounds.height;
+    x <= bounds.right + bounds.height;
+    x += spacing
+  ) {
+    canvas.drawLine(
+      Offset(x, bounds.bottom),
+      Offset(x + bounds.height, bounds.top),
+      accentPaint,
+    );
+  }
+
+  _paintBoatMotifPattern(canvas, bounds, opacity: opacity);
+}
+
+void _paintBoatMotifPattern(
+  Canvas canvas,
+  Rect bounds, {
+  required double opacity,
+}) {
+  final Paint hullPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.2
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..color = _kPartialFaceMaskPatternLightColor.withValues(
+      alpha: 0.18 * opacity,
+    );
+  final Paint sailPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.0
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..color = _kPartialFaceMaskPatternDarkColor.withValues(
+      alpha: 0.16 * opacity,
+    );
+  final double spacingX = math.max(48, bounds.width / 4.2);
+  final double spacingY = math.max(36, bounds.height / 4.2);
+  final double boatWidth = math.min(20, spacingX * 0.34);
+  final double boatHeight = boatWidth * 0.88;
+
+  int rowIndex = 0;
+  for (
+    double y = bounds.top + (spacingY * 0.58);
+    y <= bounds.bottom + spacingY;
+    y += spacingY
+  ) {
+    final double rowOffset = rowIndex.isEven
+        ? spacingX * 0.18
+        : spacingX * 0.58;
+    for (
+      double x = bounds.left + rowOffset;
+      x <= bounds.right + spacingX;
+      x += spacingX
+    ) {
+      final Offset center = Offset(x, y);
+      final Path hull = Path()
+        ..moveTo(
+          center.dx - (boatWidth * 0.56),
+          center.dy + (boatHeight * 0.18),
+        )
+        ..quadraticBezierTo(
+          center.dx,
+          center.dy + (boatHeight * 0.52),
+          center.dx + (boatWidth * 0.58),
+          center.dy + (boatHeight * 0.18),
+        );
+      final Path sail = Path()
+        ..moveTo(
+          center.dx - (boatWidth * 0.04),
+          center.dy + (boatHeight * 0.16),
+        )
+        ..lineTo(
+          center.dx - (boatWidth * 0.04),
+          center.dy - (boatHeight * 0.56),
+        )
+        ..lineTo(
+          center.dx + (boatWidth * 0.44),
+          center.dy - (boatHeight * 0.08),
+        );
+
+      canvas.drawPath(hull, hullPaint);
+      canvas.drawPath(sail, sailPaint);
+      canvas.drawLine(
+        Offset(center.dx - (boatWidth * 0.5), center.dy + (boatHeight * 0.34)),
+        Offset(center.dx + (boatWidth * 0.64), center.dy + (boatHeight * 0.34)),
+        sailPaint,
+      );
+    }
+    rowIndex += 1;
+  }
+}
+
+double _tileMaskOpacity({
+  required double progress,
+  required int revealIndex,
+  required int totalTileCount,
+}) {
+  if (totalTileCount <= 0) {
+    return 0;
+  }
+
+  final double fadeFraction = math.min(0.18, 2.2 / totalTileCount);
+  final double revealStart = totalTileCount == 1
+      ? 0
+      : (revealIndex / (totalTileCount - 1)) * (1 - fadeFraction);
+  final double localProgress = ((progress - revealStart) / fadeFraction).clamp(
+    0.0,
+    1.0,
+  );
+  return 1 - Curves.easeOutCubic.transform(localProgress);
 }
 
 class _QuizImageFallback extends StatelessWidget {
