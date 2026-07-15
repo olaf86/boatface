@@ -29,4 +29,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
+  # Keep iOS dependencies on CocoaPods until SwiftPM migration artifacts,
+  # including Package.resolved, are committed for Xcode Cloud.
+  config:
+    enable-swift-package-manager: false
   uses-material-design: true
