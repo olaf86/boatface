@@ -71,8 +71,6 @@ else
     --build-number="$BUILD_NUMBER"
 fi
 
-HOMEBREW_NO_AUTO_UPDATE=1 brew install cocoapods
-
 cd ios
 # GoogleService-Info.plist and prod AdMob xcconfig must remain in the workspace
 # after this script ends because subsequent Xcode Cloud steps use them.
