@@ -145,22 +145,30 @@ After these secrets are configured:
 - each automatic upload should land on the Play Console `internal` track as a draft release.
 
 ### Xcode Cloud
-Xcode Cloud is expected to handle iOS staging archives from `main` and deploy them to TestFlight.
+Xcode Cloud builds iOS archives and distributes them through TestFlight. Configure
+separate workflows for staging and production:
+
+- staging: branch changes on `develop`, scheme `stg`, archive configuration
+  `Release-stg`, and `BOATFACE_ENVIRONMENT=stg`;
+- production: branch changes on `main`, scheme `prod`, archive configuration
+  `Release-prod`, and `BOATFACE_ENVIRONMENT=prod`.
+
+Enable the Archive action and TestFlight distribution in each workflow. The
+full workflow and secret configuration is documented in
+[`internal-docs/xcode_cloud_setup.md`](internal-docs/xcode_cloud_setup.md).
 
 This repository includes [`ios/ci_scripts/ci_post_clone.sh`](ios/ci_scripts/ci_post_clone.sh) for Xcode Cloud. The script:
 - installs Flutter,
-- restores the staging `GoogleService-Info.plist` from a secret,
-- runs `flutter build ios --config-only --release --flavor stg`,
+- restores the matching `GoogleService-Info.plist` from a secret,
+- runs `flutter build ios --config-only --release` with the matching flavor,
 - installs CocoaPods dependencies.
 
-Configure the Xcode Cloud workflow with:
-- Start condition: branch changes on `main`
-- Scheme: `stg`
-- Archive action enabled
-- TestFlight distribution enabled
-- Environment variable: `IOS_FIREBASE_STG_GOOGLE_SERVICE_INFO_PLIST_BASE64` as a secret
+The staging workflow requires the secret
+`IOS_FIREBASE_STG_GOOGLE_SERVICE_INFO_PLIST_BASE64`. The production workflow
+requires `IOS_FIREBASE_PROD_GOOGLE_SERVICE_INFO_PLIST_BASE64`,
+`IOS_ADMOB_APP_ID_PROD`, and `ADMOB_IOS_REWARDED_AD_UNIT_ID_PROD`.
 
-Base64 encode the iOS Firebase plist before adding it to Xcode Cloud:
+Base64 encode a Firebase plist before adding it to Xcode Cloud:
 
 ```bash
 base64 -i ios/Firebase/stg/GoogleService-Info.plist | pbcopy
