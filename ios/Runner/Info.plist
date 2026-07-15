@@ -41,6 +41,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This app uses tracking to deliver more relevant ads and content.</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>
